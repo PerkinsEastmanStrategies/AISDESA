@@ -59,7 +59,7 @@ export default function EsaLanding() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-gradient-to-b from-slate-100 via-white to-slate-200/90">
       <header className="shrink-0 border-b border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-sm safe-top">
-        <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-4 sm:px-6">
+        <div className="flex items-center px-4 py-4 sm:px-6">
           <Image
             src="/images/aisd-logo.png"
             alt="Austin Independent School District"
