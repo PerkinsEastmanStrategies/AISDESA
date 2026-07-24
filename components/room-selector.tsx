@@ -25,6 +25,7 @@ import {
   preWalkSpaceTypeForRoom,
 } from "@/lib/prewalk"
 import {
+  formatRoomPickerLabel,
   neighborhoodFillColor,
   neighborhoodLegendColors,
   neighborhoodOptionsForSchool,
@@ -542,7 +543,7 @@ export default function RoomSelector({
               )}
             >
               {selectedRoom
-                ? `${selectedRoom.name} (${selectedRoom.id})`
+                ? formatRoomPickerLabel(selectedRoom)
                 : roomOptions.length
                   ? "Select a room"
                   : "No rooms on this floor"}

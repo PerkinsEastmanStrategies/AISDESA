@@ -114,7 +114,9 @@ export default function SurveyFloorPlan({
   const [neighborhoodMap, setNeighborhoodMap] = useState<RoomNeighborhoodMap>(new Map())
   const [sizeDeviationMap, setSizeDeviationMap] = useState<RoomSizeDeviationMap>(new Map())
   const [isPanning, setIsPanning] = useState(false)
-  const [internalExpanded, setInternalExpanded] = useState(false)
+  const [internalExpanded, setInternalExpanded] = useState(
+    () => variant === "picker" && panelVisible !== false,
+  )
   const expanded = expandedProp ?? internalExpanded
   const setExpanded = onExpandedChange ?? setInternalExpanded
   const canExpand = variant === "picker" || variant === "inline"
@@ -208,6 +210,12 @@ export default function SurveyFloorPlan({
     if (panelVisible !== false) return
     setExpanded(false)
   }, [panelVisible, setExpanded])
+
+  useEffect(() => {
+    if (variant === "picker" && panelVisible) {
+      setExpanded(true)
+    }
+  }, [variant, panelVisible, setExpanded])
 
   useEffect(() => {
     if (!expanded) return
@@ -775,7 +783,7 @@ export default function SurveyFloorPlan({
               ? "Drag to pan · Pinch or scroll to zoom · Colors show assessment scores"
               : "Drag to pan · Pinch or scroll to zoom · Green = complete · Yellow = in progress"
             : "Drag to pan · Pinch or scroll to zoom · Tap a room · Green = complete · Yellow = in progress"}
-          {canExpand ? " · Expand for a larger view" : ""}
+          {canExpand && !expanded ? " · Expand for a larger view" : canExpand && expanded ? " · Minimize to compact view" : ""}
         </p>
       )}
     </div>

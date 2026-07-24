@@ -226,7 +226,6 @@ function buildSchoolIndex(csvText: string): Map<string, SchoolNeighborhoodData> 
     if (neighborhood) {
       data.neighborhoods.add(neighborhood)
       if (cafmId) setNeighborhood(data.byRoomKey, cafmId, neighborhood)
-      if (roomName) setNeighborhood(data.byRoomKey, roomName, neighborhood)
     }
 
     const useName = roomName || cafmId
@@ -454,6 +453,29 @@ export function roomUseForRoom(
   return undefined
 }
 
+/** Prefer the live sheet room name; otherwise show the floor plan id (not "Classroom …" labels). */
+export function resolveRoomDisplayName(
+  room: { id: string; name: string },
+  useMap?: RoomUseMap,
+): string {
+  const sheetName = useMap ? roomUseForRoom(useMap, room.id, room.name)?.useName?.trim() : undefined
+  const id = room.id.trim()
+  if (sheetName) {
+    if (sheetName.toUpperCase().includes(id.toUpperCase())) return sheetName
+    return `${id} ${sheetName}`
+  }
+  if (/^(Classroom|Room)\s+/i.test(room.name.trim())) return id
+  return room.name.trim() || id
+}
+
+export function formatRoomPickerLabel(room: { id: string; name: string }): string {
+  const name = room.name.trim()
+  const id = room.id.trim()
+  if (!name || name.toUpperCase() === id.toUpperCase()) return id
+  if (name.toUpperCase().includes(id.toUpperCase())) return name
+  return `${name} (${id})`
+}
+
 export async function neighborhoodOptionsForSchool(
   school: Pick<AisdSchoolOption, "name" | "displayName" | "campusId"> | null | undefined,
 ): Promise<string[]> {
@@ -478,7 +500,10 @@ export function neighborhoodForRoom(
   roomName?: string | null,
 ): string | undefined {
   void levelId
-  for (const key of floorPlanRoomLookupIds({ id: roomId, name: roomName })) {
+  void roomName
+  // Match only on CAFM / floor-plan room id — not the CSV Name column, which reuses
+  // generic labels like "HALL" and "CLASSROOM" across many rooms.
+  for (const key of roomLookupKeys(roomId)) {
     const hit = map.get(key)
     if (hit) return hit
   }

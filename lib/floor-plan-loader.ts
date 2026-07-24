@@ -26,10 +26,13 @@ import {
   resolveSvgViewBox,
 } from "@/lib/svg-utils"
 import {
-  loadRoomNeighborhoodMap,
   loadRoomAreaMap,
+  loadRoomNeighborhoodMap,
+  loadRoomUseMap,
   neighborhoodForRoom,
   roomAreaForRoom,
+  roomUseForRoom,
+  resolveRoomDisplayName,
 } from "@/lib/room-neighborhood-lookup"
 
 const DEFAULT_BUILDING_SQFT = 150_000
@@ -221,17 +224,26 @@ async function withRoomSheetData(
   rooms: ParsedPlanRoom[],
 ): Promise<ParsedPlanRoom[]> {
   if (!rooms.length) return rooms
-  const [neighborhoodMap, areaMap] = await Promise.all([
+  const [neighborhoodMap, areaMap, useMap] = await Promise.all([
     loadRoomNeighborhoodMap(school),
     loadRoomAreaMap(school),
+    loadRoomUseMap(school),
   ])
-  if (neighborhoodMap.size === 0 && areaMap.size === 0) return rooms
+  if (neighborhoodMap.size === 0 && areaMap.size === 0 && useMap.size === 0) return rooms
   return rooms.map((room) => {
     const neighborhood = neighborhoodForRoom(neighborhoodMap, room.id, room.levelId, room.name)
     const areaSqft = roomAreaForRoom(areaMap, room.id, room.name)
-    if (!neighborhood && areaSqft == null) return room
+    const name = resolveRoomDisplayName(room, useMap)
+    if (
+      name === room.name &&
+      !neighborhood &&
+      areaSqft == null
+    ) {
+      return room
+    }
     return {
       ...room,
+      name,
       ...(neighborhood ? { neighborhood } : {}),
       ...(areaSqft != null ? { areaSqft } : {}),
     }
