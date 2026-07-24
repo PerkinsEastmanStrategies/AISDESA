@@ -64,6 +64,68 @@ function pointerDistance(pointers: Map<number, { x: number; y: number }>): numbe
   return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
 }
 
+function touchDistance(touches: TouchList): number {
+  if (touches.length < 2) return 0
+  const dx = touches[0].clientX - touches[1].clientX
+  const dy = touches[0].clientY - touches[1].clientY
+  return Math.hypot(dx, dy)
+}
+
+function photoRoomIdsHas(photoRoomIds: ReadonlySet<string> | undefined, roomId: string): boolean {
+  if (!photoRoomIds?.size) return false
+  if (photoRoomIds.has(roomId)) return true
+  const upper = roomId.toUpperCase()
+  for (const id of photoRoomIds) {
+    if (id.toUpperCase() === upper) return true
+  }
+  return false
+}
+
+function roomHasPhotoMarker(
+  room: { id: string; name?: string | null },
+  photoRoomHasMarker?: (roomId: string, roomName?: string | null) => boolean,
+  photoRoomIds?: ReadonlySet<string>,
+): boolean {
+  if (photoRoomHasMarker) return photoRoomHasMarker(room.id, room.name)
+  return photoRoomIdsHas(photoRoomIds, room.id)
+}
+
+function photoRoomSelectionMatches(
+  room: { id: string; name?: string | null },
+  selectedPhotoRoomId: string | null | undefined,
+  selectedPhotoRoomMatchesPlan?: (roomId: string, roomName?: string | null) => boolean,
+): boolean {
+  if (selectedPhotoRoomMatchesPlan) {
+    return selectedPhotoRoomMatchesPlan(room.id, room.name)
+  }
+  return selectedPhotoRoomId?.toUpperCase() === room.id.toUpperCase()
+}
+
+function photoMarkerLayout(
+  room: ParsedPlanRoom,
+  viewBoxArea: number,
+  viewBoxWidth: number,
+  photoGalleryMode: boolean,
+) {
+  const areaRatio = Math.sqrt(Math.max(room.area, 1) / Math.max(viewBoxArea, 1))
+  const photoMarkerScale = Math.max(
+    0.75,
+    Math.min(1.5, areaRatio * (photoGalleryMode ? 10 : 8)),
+  )
+  const sizeBoost = photoGalleryMode ? 1.2 : 1
+  const baseR = 22 * photoMarkerScale * sizeBoost
+  // Large CAFM plans (e.g. Casis ~10k viewBox) need a floor tied to plan width — otherwise
+  // ~20 unit circles shrink to sub-pixel icons on screen.
+  const minR = viewBoxWidth * (photoGalleryMode ? 0.022 : 0.014)
+  const r = Math.max(baseR, minR)
+  return {
+    scale: photoMarkerScale,
+    r,
+    stroke: Math.max(5 * photoMarkerScale, r * 0.12),
+    offset: r * 1.35,
+  }
+}
+
 export default function SurveyFloorPlan({
   readOnly = false,
   variant = "inline",
@@ -81,6 +143,12 @@ export default function SurveyFloorPlan({
   resultsScoreMode,
   roomScoreById,
   neighborhoodScoreById,
+  photoRoomIds,
+  photoRoomHasMarker,
+  selectedPhotoRoomId,
+  selectedPhotoRoomMatchesPlan,
+  onPhotoRoomSelect,
+  photoGalleryMode = false,
 }: {
   readOnly?: boolean
   variant?: "inline" | "picker" | "prewalk"
@@ -100,6 +168,16 @@ export default function SurveyFloorPlan({
   resultsScoreMode?: "room" | "neighborhood"
   roomScoreById?: Record<string, number | null>
   neighborhoodScoreById?: Record<string, number | null>
+  /** Results photos tab: rooms that have submitted photos (camera marker + tap to select). */
+  photoRoomIds?: ReadonlySet<string>
+  /** Preferred: resolve index/plan room id differences when marking photo rooms. */
+  photoRoomHasMarker?: (roomId: string, roomName?: string | null) => boolean
+  selectedPhotoRoomId?: string | null
+  /** Whether the selected gallery room matches this plan room (index id vs plan id). */
+  selectedPhotoRoomMatchesPlan?: (roomId: string, roomName?: string | null) => boolean
+  onPhotoRoomSelect?: (roomId: string) => void
+  /** Results photos tab: floor toggles only, clean plan, camera icons on photo rooms. */
+  photoGalleryMode?: boolean
 }) {
   const { state, setLevel, levelRooms } = useSurvey()
   const { requestSelectRoom, completedRoomDialog } = useSelectRoomWithConfirm()
@@ -126,6 +204,12 @@ export default function SurveyFloorPlan({
   const pointersRef = useRef(new Map<number, { x: number; y: number }>())
   const pinchRef = useRef<{ dist: number; zoom: number } | null>(null)
   const didPanRef = useRef(false)
+  const isPanningRef = useRef(false)
+  const touchPinchActiveRef = useRef(false)
+
+  useEffect(() => {
+    isPanningRef.current = isPanning
+  }, [isPanning])
 
   const setZoom = useCallback((value: number | ((prev: number) => number)) => {
     setZoomState((prev) => {
@@ -147,6 +231,13 @@ export default function SurveyFloorPlan({
 
   const handleRoomSelect = useCallback(
     (roomId: string) => {
+      if (
+        onPhotoRoomSelect &&
+        roomHasPhotoMarker({ id: roomId }, photoRoomHasMarker, photoRoomIds)
+      ) {
+        onPhotoRoomSelect(roomId)
+        return
+      }
       if (readOnly) return
       if (onPreWalkRoomTap) {
         onPreWalkRoomTap(roomId)
@@ -154,7 +245,7 @@ export default function SurveyFloorPlan({
       }
       requestSelectRoom(roomId, { afterSelect: onRoomSelect })
     },
-    [readOnly, onPreWalkRoomTap, requestSelectRoom, onRoomSelect],
+    [readOnly, onPhotoRoomSelect, photoRoomHasMarker, photoRoomIds, onPreWalkRoomTap, requestSelectRoom, onRoomSelect],
   )
 
   const rotateView = useCallback(() => {
@@ -170,10 +261,12 @@ export default function SurveyFloorPlan({
   }, [])
 
   useEffect(() => {
-    if (!state.school) {
-      setRoomUseMap(new Map())
-      setNeighborhoodMap(new Map())
-      setSizeDeviationMap(new Map())
+    if (photoGalleryMode || !state.school) {
+      if (!photoGalleryMode) {
+        setRoomUseMap(new Map())
+        setNeighborhoodMap(new Map())
+        setSizeDeviationMap(new Map())
+      }
       return
     }
     let cancelled = false
@@ -191,7 +284,16 @@ export default function SurveyFloorPlan({
     return () => {
       cancelled = true
     }
-  }, [state.school?.id, state.school?.name])
+  }, [photoGalleryMode, state.school?.id, state.school?.name])
+
+  useEffect(() => {
+    if (photoGalleryMode) {
+      setShowNeighborhoods(false)
+      setShowRoomUse(false)
+      setShowRoomTags(false)
+      setShowSizeDeviation(false)
+    }
+  }, [photoGalleryMode])
 
   useEffect(() => {
     if (resultsScoreMode) setShowNeighborhoods(false)
@@ -204,6 +306,7 @@ export default function SurveyFloorPlan({
     setRotation(0)
     pointersRef.current.clear()
     pinchRef.current = null
+    touchPinchActiveRef.current = false
     didPanRef.current = false
   }, [variant, panelVisible, levelId, readOnly, setZoom, setPan])
 
@@ -242,12 +345,139 @@ export default function SurveyFloorPlan({
       setZoom((z) => clampZoom(z * factor))
     }
 
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return
+
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      didPanRef.current = false
+
+      if (pointersRef.current.size === 2) {
+        pinchRef.current = { dist: pointerDistance(pointersRef.current), zoom: zoomRef.current }
+        activePointerId.current = null
+        isPanningRef.current = false
+        setIsPanning(false)
+        return
+      }
+
+      panStart.current = {
+        x: e.clientX,
+        y: e.clientY,
+        panX: panRef.current.x,
+        panY: panRef.current.y,
+      }
+      activePointerId.current = e.pointerId
+    }
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!pointersRef.current.has(e.pointerId)) return
+
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      if (
+        !touchPinchActiveRef.current &&
+        pointersRef.current.size >= 2 &&
+        pinchRef.current &&
+        pinchRef.current.dist > 0
+      ) {
+        e.preventDefault()
+        didPanRef.current = true
+        try {
+          el.setPointerCapture(e.pointerId)
+        } catch {
+          /* ignore */
+        }
+        const dist = pointerDistance(pointersRef.current)
+        setZoom(clampZoom(pinchRef.current.zoom * (dist / pinchRef.current.dist)))
+        return
+      }
+
+      if (activePointerId.current !== e.pointerId) return
+
+      const dx = e.clientX - panStart.current.x
+      const dy = e.clientY - panStart.current.y
+
+      if (!isPanningRef.current) {
+        if (Math.hypot(dx, dy) < PAN_THRESHOLD_PX) return
+        isPanningRef.current = true
+        setIsPanning(true)
+        didPanRef.current = true
+        try {
+          el.setPointerCapture(e.pointerId)
+        } catch {
+          /* ignore */
+        }
+      }
+
+      setPan({
+        x: panStart.current.panX + dx,
+        y: panStart.current.panY + dy,
+      })
+    }
+
+    const onPointerUp = (e: PointerEvent) => {
+      pointersRef.current.delete(e.pointerId)
+      if (pointersRef.current.size < 2) pinchRef.current = null
+      if (activePointerId.current === e.pointerId) activePointerId.current = null
+      isPanningRef.current = false
+      setIsPanning(false)
+      didPanRef.current = false
+      try {
+        el.releasePointerCapture(e.pointerId)
+      } catch {
+        /* already released */
+      }
+    }
+
+    let touchPinch: { dist: number; zoom: number } | null = null
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length < 2) return
+      e.preventDefault()
+      touchPinchActiveRef.current = true
+      touchPinch = { dist: touchDistance(e.touches), zoom: zoomRef.current }
+      pinchRef.current = touchPinch
+      activePointerId.current = null
+      isPanningRef.current = false
+      setIsPanning(false)
+      pointersRef.current.clear()
+    }
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length < 2 || !touchPinch || touchPinch.dist <= 0) return
+      e.preventDefault()
+      const dist = touchDistance(e.touches)
+      setZoom(clampZoom(touchPinch.zoom * (dist / touchPinch.dist)))
+    }
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length >= 2) return
+      touchPinch = null
+      touchPinchActiveRef.current = false
+      pinchRef.current = null
+    }
+
     el.addEventListener("wheel", onWheel, { passive: false, capture: true })
+    el.addEventListener("pointerdown", onPointerDown, { capture: true })
+    el.addEventListener("pointermove", onPointerMove, { capture: true, passive: false })
+    el.addEventListener("pointerup", onPointerUp, { capture: true })
+    el.addEventListener("pointercancel", onPointerUp, { capture: true })
+    el.addEventListener("touchstart", onTouchStart, { capture: true, passive: false })
+    el.addEventListener("touchmove", onTouchMove, { capture: true, passive: false })
+    el.addEventListener("touchend", onTouchEnd, { capture: true })
+    el.addEventListener("touchcancel", onTouchEnd, { capture: true })
 
     return () => {
       el.removeEventListener("wheel", onWheel, { capture: true })
+      el.removeEventListener("pointerdown", onPointerDown, { capture: true })
+      el.removeEventListener("pointermove", onPointerMove, { capture: true })
+      el.removeEventListener("pointerup", onPointerUp, { capture: true })
+      el.removeEventListener("pointercancel", onPointerUp, { capture: true })
+      el.removeEventListener("touchstart", onTouchStart, { capture: true })
+      el.removeEventListener("touchmove", onTouchMove, { capture: true })
+      el.removeEventListener("touchend", onTouchEnd, { capture: true })
+      el.removeEventListener("touchcancel", onTouchEnd, { capture: true })
     }
-  }, [setZoom, panelVisible])
+  }, [setZoom, setPan, panelVisible, levelId, state.school?.id])
 
   const resolveRoomNeighborhood = useCallback(
     (room: ParsedPlanRoom): string | undefined =>
@@ -347,93 +577,7 @@ export default function SurveyFloorPlan({
       .filter((t): t is string => Boolean(t)),
   )
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === "mouse" && e.button !== 0) return
-
-    // Do not capture yet — capture only after a real pan so room polygon
-    // pointer/click events still reach RoomOverlay on a tap.
-    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
-    didPanRef.current = false
-
-    if (pointersRef.current.size === 2) {
-      pinchRef.current = { dist: pointerDistance(pointersRef.current), zoom: zoomRef.current }
-      activePointerId.current = null
-      setIsPanning(false)
-      return
-    }
-
-    panStart.current = {
-      x: e.clientX,
-      y: e.clientY,
-      panX: panRef.current.x,
-      panY: panRef.current.y,
-    }
-    activePointerId.current = e.pointerId
-  }
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!pointersRef.current.has(e.pointerId)) return
-
-    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
-
-    if (pointersRef.current.size >= 2 && pinchRef.current && pinchRef.current.dist > 0) {
-      e.preventDefault()
-      didPanRef.current = true
-      try {
-        e.currentTarget.setPointerCapture(e.pointerId)
-      } catch {
-        /* ignore */
-      }
-      const dist = pointerDistance(pointersRef.current)
-      setZoom(clampZoom(pinchRef.current.zoom * (dist / pinchRef.current.dist)))
-      return
-    }
-
-    if (activePointerId.current !== e.pointerId) return
-
-    const dx = e.clientX - panStart.current.x
-    const dy = e.clientY - panStart.current.y
-
-    if (!isPanning) {
-      if (Math.hypot(dx, dy) < PAN_THRESHOLD_PX) return
-      setIsPanning(true)
-      didPanRef.current = true
-      try {
-        e.currentTarget.setPointerCapture(e.pointerId)
-      } catch {
-        /* ignore */
-      }
-    }
-
-    // Pan in screen pixels so drag tracks the pointer 1:1
-    setPan({
-      x: panStart.current.panX + dx,
-      y: panStart.current.panY + dy,
-    })
-  }
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    pointersRef.current.delete(e.pointerId)
-    if (pointersRef.current.size < 2) pinchRef.current = null
-    if (activePointerId.current === e.pointerId) activePointerId.current = null
-    setIsPanning(false)
-    didPanRef.current = false
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId)
-    } catch {
-      /* already released */
-    }
-  }
-
-  const handlePointerLeave = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (pointersRef.current.size === 0) return
-    resetPointerState()
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId)
-    } catch {
-      /* ignore */
-    }
-  }
+  const visibleLevelRooms = levelRooms.filter((room) => room.points.length >= 3)
 
   const isPreWalk = variant === "prewalk"
   const isPicker = variant === "picker"
@@ -463,14 +607,16 @@ export default function SurveyFloorPlan({
       <div
         className={cn(
           "flex flex-wrap items-center gap-1 px-2 py-1.5",
-          isPreWalk
+          photoGalleryMode
+            ? "border-b border-[var(--color-border)] bg-white"
+            : isPreWalk
             ? "pointer-events-auto absolute left-[min(18rem,calc(100vw-2rem))] right-2 top-2 z-20 rounded-xl border border-slate-200/80 bg-white/95 shadow-md backdrop-blur-sm sm:left-[min(19rem,calc(100vw-2rem))]"
             : "border-b border-[var(--color-border)] bg-white",
         )}
         onPointerDown={(e) => e.stopPropagation()}
       >
         {!isPreWalk && (
-          <div className="flex flex-1 gap-1 overflow-x-auto scrollbar-none">
+          <div className={cn("flex gap-1 overflow-x-auto scrollbar-none", photoGalleryMode ? "w-full" : "flex-1")}>
             {plan.levels.map((l) => (
               <button
                 key={l.id}
@@ -488,6 +634,7 @@ export default function SurveyFloorPlan({
             ))}
           </div>
         )}
+        {!photoGalleryMode && (
         <div className={cn("flex shrink-0 flex-wrap items-center gap-0.5", isPreWalk && "ml-auto")}>
           <button
             type="button"
@@ -627,13 +774,14 @@ export default function SurveyFloorPlan({
             </button>
           )}
         </div>
+        )}
       </div>
 
-      {isPicker && !resultsScoreMode && showNeighborhoods && neighborhoodLegend.length > 0 && (
+      {!photoGalleryMode && isPicker && !resultsScoreMode && showNeighborhoods && neighborhoodLegend.length > 0 && (
         <NeighborhoodLegend items={neighborhoodLegend} />
       )}
 
-      {isPreWalk && !resultsScoreMode && showNeighborhoods && neighborhoodLegend.length > 0 && (
+      {!photoGalleryMode && isPreWalk && !resultsScoreMode && showNeighborhoods && neighborhoodLegend.length > 0 && (
         <div className="pointer-events-none absolute bottom-3 left-[min(18rem,calc(100vw-2rem))] right-3 z-20 sm:left-[min(19rem,calc(100vw-2rem))]">
           <NeighborhoodLegend
             items={neighborhoodLegend}
@@ -642,7 +790,7 @@ export default function SurveyFloorPlan({
         </div>
       )}
 
-      {isPreWalk && !resultsScoreMode && showSizeDeviation && hasSizeDeviationColors && (
+      {!photoGalleryMode && isPreWalk && !resultsScoreMode && showSizeDeviation && hasSizeDeviationColors && (
         <div
           className={cn(
             "pointer-events-none absolute left-[min(18rem,calc(100vw-2rem))] right-3 z-20 sm:left-[min(19rem,calc(100vw-2rem))]",
@@ -664,11 +812,6 @@ export default function SurveyFloorPlan({
           viewportHeightClass,
         )}
         style={{ touchAction: "none" }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onPointerLeave={handlePointerLeave}
       >
         <div
           className="absolute inset-0 origin-center will-change-transform"
@@ -694,49 +837,90 @@ export default function SurveyFloorPlan({
               preserveAspectRatio="none"
               pointerEvents="none"
             />
-            {levelRooms
-              .filter((room) => room.points.length >= 3)
-              .map((room) => (
-              <RoomOverlay
-                key={room.id}
-                room={room}
-                neighborhood={resolveRoomNeighborhood(room)}
-                assessmentScore={resultsScoreMode ? resolveAssessmentScore(room) : undefined}
-                colorByAssessmentScore={!!resultsScoreMode}
-                progress={getRoomSurveyProgress(state.session?.rooms[room.id], {
-                  surveyType: state.surveyType,
-                  schoolClass: state.school?.schoolClass,
-                  scoreDetail: state.roomScoreDetails[room.id] ?? null,
+            {visibleLevelRooms.map((room) => {
+              const photoSelected = photoRoomSelectionMatches(
+                room,
+                selectedPhotoRoomId,
+                selectedPhotoRoomMatchesPlan,
+              )
+              const hasPhotoMarker = roomHasPhotoMarker(room, photoRoomHasMarker, photoRoomIds)
+              return (
+                <RoomOverlay
+                  key={room.id}
+                  room={room}
+                  neighborhood={resolveRoomNeighborhood(room)}
+                  assessmentScore={resultsScoreMode ? resolveAssessmentScore(room) : undefined}
+                  colorByAssessmentScore={!!resultsScoreMode}
+                  progress={getRoomSurveyProgress(state.session?.rooms[room.id], {
+                    surveyType: state.surveyType,
+                    schoolClass: state.school?.schoolClass,
+                    scoreDetail: state.roomScoreDetails[room.id] ?? null,
+                  })}
+                  selected={
+                    photoGalleryMode
+                      ? photoSelected
+                      : state.selectedRoomId === room.id ||
+                        preWalkSelectedRoomId === room.id ||
+                        photoSelected
+                  }
+                  hasPhotoMarker={hasPhotoMarker}
+                  photoMarkerActive={photoSelected}
+                  photoGalleryMode={photoGalleryMode}
+                  showInlinePhotoMarker={!photoGalleryMode}
+                  showNeighborhood={showNeighborhoods && !photoGalleryMode}
+                  showSizeDeviation={showSizeDeviation && !photoGalleryMode}
+                  sizeDeviation={sizeDeviationForRoom(sizeDeviationMap, room.id, room.name)}
+                  showRoomUse={showRoomUse && !photoGalleryMode}
+                  showRoomTags={showRoomTags && !photoGalleryMode}
+                  roomUse={roomUseForRoom(roomUseMap, room.id, room.name)}
+                  zoom={zoom}
+                  viewBoxWidth={vb.w}
+                  viewBoxArea={viewBoxArea}
+                  preWalkSpaceType={preWalkMappings?.[room.id]?.spaceType}
+                  preWalkColor={
+                    preWalkMappings?.[room.id]?.spaceType && preWalkSpaceTypeColor
+                      ? preWalkSpaceTypeColor(preWalkMappings[room.id].spaceType)
+                      : null
+                  }
+                  preWalkActiveSpaceType={preWalkActiveSpaceType}
+                  readOnly={readOnly}
+                  interactive={
+                    photoGalleryMode
+                      ? false
+                      : Boolean(onPreWalkRoomTap) ||
+                        !readOnly ||
+                        Boolean(onPhotoRoomSelect && hasPhotoMarker)
+                  }
+                  onSelect={handleRoomSelect}
+                />
+              )
+            })}
+            {photoGalleryMode && (
+              <g aria-label="Photo room markers">
+                {visibleLevelRooms.map((room) => {
+                  if (!roomHasPhotoMarker(room, photoRoomHasMarker, photoRoomIds)) return null
+                  return (
+                    <PhotoRoomMarker
+                      key={`photo-marker-${room.id}`}
+                      room={room}
+                      viewBoxArea={viewBoxArea}
+                      viewBoxWidth={vb.w}
+                      active={photoRoomSelectionMatches(
+                        room,
+                        selectedPhotoRoomId,
+                        selectedPhotoRoomMatchesPlan,
+                      )}
+                      onSelect={handleRoomSelect}
+                    />
+                  )
                 })}
-                selected={
-                  state.selectedRoomId === room.id || preWalkSelectedRoomId === room.id
-                }
-                showNeighborhood={showNeighborhoods}
-                showSizeDeviation={showSizeDeviation}
-                sizeDeviation={sizeDeviationForRoom(sizeDeviationMap, room.id, room.name)}
-                showRoomUse={showRoomUse}
-                showRoomTags={showRoomTags}
-                roomUse={roomUseForRoom(roomUseMap, room.id, room.name)}
-                zoom={zoom}
-                viewBoxWidth={vb.w}
-                viewBoxArea={viewBoxArea}
-                preWalkSpaceType={preWalkMappings?.[room.id]?.spaceType}
-                preWalkColor={
-                  preWalkMappings?.[room.id]?.spaceType && preWalkSpaceTypeColor
-                    ? preWalkSpaceTypeColor(preWalkMappings[room.id].spaceType)
-                    : null
-                }
-                preWalkActiveSpaceType={preWalkActiveSpaceType}
-                readOnly={readOnly}
-                interactive={Boolean(onPreWalkRoomTap) || !readOnly}
-                onSelect={handleRoomSelect}
-              />
-            ))}
+              </g>
+            )}
           </svg>
         </div>
       </div>
 
-      {showRoomUse && programTypeLegend.length > 0 && (
+      {!photoGalleryMode && showRoomUse && programTypeLegend.length > 0 && (
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t border-[var(--color-border)] bg-white px-3 py-1.5">
           <span className="text-[10px] font-medium text-[var(--color-muted-foreground)]">
             Program type
@@ -754,7 +938,7 @@ export default function SurveyFloorPlan({
         </div>
       )}
 
-      {resultsScoreMode && scoreLegend.length > 0 && (
+      {!photoGalleryMode && resultsScoreMode && scoreLegend.length > 0 && (
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t border-[var(--color-border)] bg-white px-3 py-1.5">
           <span className="text-[10px] font-medium text-[var(--color-muted-foreground)]">
             {resultsScoreMode === "room" ? "Room score" : "Neighborhood score"}
@@ -772,18 +956,20 @@ export default function SurveyFloorPlan({
         </div>
       )}
 
-      {!isPicker && !isPreWalk && !resultsScoreMode && showNeighborhoods && neighborhoodLegend.length > 0 && (
+      {!photoGalleryMode && !isPicker && !isPreWalk && !resultsScoreMode && showNeighborhoods && neighborhoodLegend.length > 0 && (
         <NeighborhoodLegend items={neighborhoodLegend} />
       )}
 
       {!isPreWalk && (
         <p className="px-3 py-1.5 text-center text-[10px] text-[var(--color-muted-foreground)]">
-          {readOnly
+          {photoGalleryMode
+            ? "Drag to pan · Pinch or scroll to zoom · Tap a camera icon to view room photos"
+            : readOnly
             ? resultsScoreMode
               ? "Drag to pan · Pinch or scroll to zoom · Colors show assessment scores"
               : "Drag to pan · Pinch or scroll to zoom · Green = complete · Yellow = in progress"
             : "Drag to pan · Pinch or scroll to zoom · Tap a room · Green = complete · Yellow = in progress"}
-          {canExpand && !expanded ? " · Expand for a larger view" : canExpand && expanded ? " · Minimize to compact view" : ""}
+          {!photoGalleryMode && canExpand && !expanded ? " · Expand for a larger view" : !photoGalleryMode && canExpand && expanded ? " · Minimize to compact view" : ""}
         </p>
       )}
     </div>
@@ -833,6 +1019,10 @@ function RoomOverlay({
   preWalkActiveSpaceType,
   readOnly,
   interactive = true,
+  hasPhotoMarker = false,
+  photoMarkerActive = false,
+  photoGalleryMode = false,
+  showInlinePhotoMarker = true,
   onSelect,
 }: {
   room: ParsedPlanRoom
@@ -855,6 +1045,11 @@ function RoomOverlay({
   preWalkActiveSpaceType?: string | null
   readOnly: boolean
   interactive?: boolean
+  hasPhotoMarker?: boolean
+  photoMarkerActive?: boolean
+  photoGalleryMode?: boolean
+  /** When false, marker is rendered in a top SVG layer (photo gallery mode). */
+  showInlinePhotoMarker?: boolean
   onSelect: (roomId: string) => void
 }) {
   const tapRef = useRef<{ pointerId: number; x: number; y: number } | null>(null)
@@ -868,7 +1063,10 @@ function RoomOverlay({
 
   let fill: string
   let fillOpacity = 1
-  if (colorByAssessmentScore) {
+  if (photoGalleryMode) {
+    fill = selected ? "rgba(37, 99, 235, 0.14)" : "rgba(255, 255, 255, 0.01)"
+    fillOpacity = 1
+  } else if (colorByAssessmentScore) {
     fill = scoreFillRgba(assessmentScore ?? null, selected ? 0.58 : 0.45)
     fillOpacity = 1
   } else if (sizeDeviationColor) {
@@ -905,7 +1103,11 @@ function RoomOverlay({
 
   const sizeDeviationStroke = sizeDeviationColor
 
-  const stroke = selected
+  const stroke = photoGalleryMode
+    ? selected
+      ? "#2563eb"
+      : "rgba(148, 163, 184, 0.45)"
+    : selected
     ? "#2563eb"
     : colorByAssessmentScore
       ? scoreStrokeRgba(assessmentScore ?? null, selected ? 0.95 : 0.75)
@@ -953,12 +1155,13 @@ function RoomOverlay({
   const lineHeight = labelLayout?.lineHeight ?? 0
 
   return (
-    <g className="pointer-events-auto">
+    <g className={photoGalleryMode && !hasPhotoMarker ? "pointer-events-none" : "pointer-events-auto"}>
       <polygon
         points={room.points.map((p) => `${p.x},${p.y}`).join(" ")}
         fill={fill}
         fillOpacity={fillOpacity}
         stroke={stroke}
+        pointerEvents={photoGalleryMode ? "none" : undefined}
         strokeWidth={
           selected
             ? 14
@@ -970,7 +1173,11 @@ function RoomOverlay({
               ? 8
               : 6
         }
-        style={{ cursor: readOnly ? "default" : "pointer", pointerEvents: "all", touchAction: "manipulation" }}
+        style={{
+          cursor: readOnly ? "default" : "pointer",
+          pointerEvents: photoGalleryMode ? "none" : "all",
+          touchAction: "none",
+        }}
         onPointerDown={(e) => {
           if (readOnly || !interactive) return
           if (e.pointerType === "mouse" && e.button !== 0) return
@@ -1015,6 +1222,98 @@ function RoomOverlay({
           ))}
         </text>
       )}
+      {showInlinePhotoMarker && hasPhotoMarker && (
+        <PhotoRoomMarker
+          room={room}
+          viewBoxArea={viewBoxArea}
+          viewBoxWidth={viewBoxWidth}
+          active={photoMarkerActive}
+          photoGalleryMode={photoGalleryMode}
+          onSelect={onSelect}
+        />
+      )}
+    </g>
+  )
+}
+
+function PhotoRoomMarker({
+  room,
+  viewBoxArea,
+  viewBoxWidth,
+  active,
+  photoGalleryMode = true,
+  onSelect,
+}: {
+  room: ParsedPlanRoom
+  viewBoxArea: number
+  viewBoxWidth: number
+  active: boolean
+  photoGalleryMode?: boolean
+  onSelect: (roomId: string) => void
+}) {
+  const markerTapRef = useRef<{ pointerId: number; x: number; y: number } | null>(null)
+  const { scale: photoMarkerScale, r: photoMarkerR, stroke: photoMarkerStroke, offset: photoMarkerOffset } =
+    photoMarkerLayout(room, viewBoxArea, viewBoxWidth, photoGalleryMode)
+
+  const tryMarkerSelect = (pointerId: number, x: number, y: number) => {
+    const start = markerTapRef.current
+    markerTapRef.current = null
+    if (!start || start.pointerId !== pointerId) return
+    if (Math.hypot(x - start.x, y - start.y) > PAN_THRESHOLD_PX) return
+    onSelect(room.id)
+  }
+
+  return (
+    <g
+      transform={`translate(${room.x}, ${room.y - photoMarkerOffset})`}
+      className={photoGalleryMode ? "cursor-pointer" : undefined}
+      pointerEvents={photoGalleryMode ? "all" : "none"}
+      {...(photoGalleryMode
+        ? {
+            role: "button" as const,
+            "aria-label": `View photos for ${room.name || room.id}`,
+            "aria-pressed": active,
+            onPointerDown: (event: React.PointerEvent<SVGGElement>) => {
+              event.stopPropagation()
+              markerTapRef.current = {
+                pointerId: event.pointerId,
+                x: event.clientX,
+                y: event.clientY,
+              }
+            },
+            onPointerUp: (event: React.PointerEvent<SVGGElement>) => {
+              event.stopPropagation()
+              tryMarkerSelect(event.pointerId, event.clientX, event.clientY)
+            },
+            onPointerCancel: (event: React.PointerEvent<SVGGElement>) => {
+              if (markerTapRef.current?.pointerId === event.pointerId) markerTapRef.current = null
+            },
+          }
+        : { "aria-hidden": true })}
+    >
+      <circle
+        r={photoMarkerR + (photoGalleryMode ? 6 : 0)}
+        fill="transparent"
+        pointerEvents="all"
+      />
+      <g pointerEvents="none" aria-hidden>
+        <circle
+          r={photoMarkerR + (photoGalleryMode ? 2 : 0)}
+          fill="rgba(15, 23, 42, 0.22)"
+          transform="translate(0, 2)"
+        />
+        <circle
+          r={photoMarkerR}
+          fill={active ? "#2563eb" : "#ea580c"}
+          stroke="#ffffff"
+          strokeWidth={photoMarkerStroke}
+        />
+        <g transform={`scale(${photoMarkerScale * 0.9})`}>
+          <rect x="-10" y="-7" width="20" height="14" rx="2.5" fill="#ffffff" />
+          <circle cx="0" cy="0" r="4" fill={active ? "#2563eb" : "#ea580c"} />
+          <circle cx="7" cy="-4.5" r="1.6" fill="#ffffff" opacity={0.85} />
+        </g>
+      </g>
     </g>
   )
 }

@@ -40,6 +40,14 @@ export function preWalkSpaceTypePhotoKey(surveyType: SurveyType, spaceType: stri
   return `${surveyType}::${spaceType}`
 }
 
+export function preWalkRoomSpaceTypePhotoKey(
+  surveyType: SurveyType,
+  roomId: string,
+  spaceType: string,
+): string {
+  return `${surveyType}::${roomId}::${spaceType}`
+}
+
 export function getPreWalkSpaceTypePhoto(
   preWalk: PreWalkState,
   surveyType: SurveyType,
@@ -47,6 +55,49 @@ export function getPreWalkSpaceTypePhoto(
 ): string | undefined {
   const photo = preWalk.spaceTypePhotos?.[preWalkSpaceTypePhotoKey(surveyType, spaceType)]
   return photo?.trim() || undefined
+}
+
+/** Room-scoped space photo (room survey). Falls back to legacy global space-type key. */
+export function getPreWalkRoomSpaceTypePhoto(
+  preWalk: PreWalkState,
+  surveyType: SurveyType,
+  roomId: string,
+  spaceType: string,
+): string | undefined {
+  const roomPhoto =
+    preWalk.spaceTypePhotos?.[preWalkRoomSpaceTypePhotoKey(surveyType, roomId, spaceType)]
+  if (roomPhoto?.trim()) return roomPhoto.trim()
+  return getPreWalkSpaceTypePhoto(preWalk, surveyType, spaceType)
+}
+
+/** Room-scoped photo only — no legacy global fallback (for upload UI gating). */
+export function getPreWalkRoomSpaceTypePhotoOnly(
+  preWalk: PreWalkState,
+  surveyType: SurveyType,
+  roomId: string,
+  spaceType: string,
+): string | undefined {
+  const photo = preWalk.spaceTypePhotos?.[preWalkRoomSpaceTypePhotoKey(surveyType, roomId, spaceType)]
+  return photo?.trim() || undefined
+}
+
+export function parsePreWalkSpaceTypePhotoKey(key: string): {
+  surveyType: SurveyType
+  roomId?: string
+  spaceType: string
+} | null {
+  const parts = key.split("::")
+  if (parts.length === 2) {
+    return { surveyType: parts[0] as SurveyType, spaceType: parts[1] }
+  }
+  if (parts.length >= 3) {
+    return {
+      surveyType: parts[0] as SurveyType,
+      roomId: parts[1],
+      spaceType: parts.slice(2).join("::"),
+    }
+  }
+  return null
 }
 
 export function inferSurveyTypeForSpaceType(

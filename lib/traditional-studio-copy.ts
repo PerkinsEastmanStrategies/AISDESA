@@ -1,4 +1,5 @@
 import type { ParsedPlanRoom, RoomQuestionResponse, RoomSurveySession, SurveySession } from "@aisd/shared"
+import { normalizeResponsePhotos } from "@/lib/response-photos"
 import {
   getRoomSurveyRubric,
   isElementaryGrade,
@@ -147,12 +148,15 @@ export function cloneTraditionalStudioResponses(
   targetGrade: RoomSurveySession["gradeType"],
 ): RoomQuestionResponse[] {
   return source.responses
-    .map((response) => ({
-      questionId: response.questionId,
-      value: Array.isArray(response.value) ? [...response.value] : response.value,
-      ...(response.comment ? { comment: response.comment } : {}),
-      ...(response.photo ? { photo: response.photo } : {}),
-    }))
+    .map((response) => {
+      const photos = normalizeResponsePhotos(response)
+      return {
+        questionId: response.questionId,
+        value: Array.isArray(response.value) ? [...response.value] : response.value,
+        ...(response.comment ? { comment: response.comment } : {}),
+        ...(photos.length ? { photos } : {}),
+      }
+    })
     .filter((response) => {
       if (response.questionId === "ST-009-ES") return isElementaryGrade(targetGrade)
       if (response.questionId === "ST-009-MSHS" || response.questionId === "ST-009-MS-HS") {

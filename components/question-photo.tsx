@@ -14,8 +14,9 @@ import {
 import { compressImageFile } from "@/lib/photo-utils"
 
 interface QuestionPhotoProps {
-  photo?: string
-  onChange: (photo: string | undefined) => void
+  /** All photos for this slot — Supabase URLs and/or local data URLs. */
+  photos?: string[]
+  onChange: (photos: string[]) => void
   label?: string
   /** Show the picker expanded by default. */
   startExpanded?: boolean
@@ -23,19 +24,22 @@ interface QuestionPhotoProps {
   privacyContextNote?: string
   /** When set, uploads to Supabase Storage after the user confirms submission. */
   uploadContext?: SurveyPhotoUploadContext | null
+  /** Cap how many photos can be attached (e.g. 1 for pre-walk space photos). */
+  maxPhotos?: number
 }
 
 type PhotoPickerSource = "camera" | "gallery"
 
 export default function QuestionPhoto({
-  photo,
+  photos = [],
   onChange,
   label = "Photo",
   startExpanded = false,
   privacyContextNote,
   uploadContext = null,
+  maxPhotos,
 }: QuestionPhotoProps) {
-  const [open, setOpen] = useState(startExpanded || !!photo)
+  const [open, setOpen] = useState(startExpanded || photos.length === 0)
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,23 +53,28 @@ export default function QuestionPhoto({
   const galleryId = `${fieldId}-gallery`
 
   const canUploadToCloud = !!uploadContext && isPhotoStorageEnabled()
-  const photoIsInCloud = isSupabasePhotoUrl(photo)
-  const photoIsLocalOnly = isLocalPhotoDataUrl(photo)
-  const displayPhoto = pendingPreview ?? photo
-  const hasDisplayPhoto = !!displayPhoto
-  const confirmSource =
-    pendingPreview ?? (photoIsLocalOnly && canUploadToCloud ? photo : undefined)
-  const awaitingConfirm =
-    canUploadToCloud && (!!pendingPreview || (photoIsLocalOnly && !!photo && !photoIsInCloud))
-  const isSubmitted = photoIsInCloud && !pendingPreview
+  const submittedPhotos = photos.filter((p) => isSupabasePhotoUrl(p))
+  const localPhotos = photos.filter((p) => isLocalPhotoDataUrl(p))
+  const atMax = maxPhotos != null && photos.length >= maxPhotos
+  const canAddMore = !atMax && !pendingPreview
+
+  const uploadScopeKey = uploadContext
+    ? `${uploadContext.kind}:${uploadContext.campusId}:${uploadContext.schoolId}:${uploadContext.surveyType}:${uploadContext.roomId ?? ""}:${uploadContext.questionId ?? ""}:${uploadContext.spaceType ?? ""}`
+    : "local"
 
   useEffect(() => {
-    if (startExpanded && !photo && !pendingPreview) setOpen(true)
-  }, [startExpanded, photo, pendingPreview])
+    if (startExpanded && photos.length === 0 && !pendingPreview) setOpen(true)
+  }, [startExpanded, photos.length, pendingPreview])
 
   useEffect(() => {
-    if (photoIsInCloud) setPendingPreview(null)
-  }, [photoIsInCloud, photo])
+    setPendingPreview(null)
+    setError(null)
+    setPrivacyReminderOpen(false)
+    setPendingPicker(null)
+    setLoading(false)
+    setUploading(false)
+    setOpen(startExpanded || photos.length === 0)
+  }, [uploadScopeKey, startExpanded, photos.length])
 
   const uploadToCloud = useCallback(
     async (imageDataUrl: string) => {
@@ -75,9 +84,8 @@ export default function QuestionPhoto({
       setError(null)
       try {
         const uploaded = await uploadSurveyPhoto(uploadContext, imageDataUrl)
-        onChange(uploaded.url)
+        onChange([...photos.filter((p) => p !== imageDataUrl), uploaded.url])
         setPendingPreview(null)
-        setOpen(true)
         return true
       } catch (err) {
         const message =
@@ -91,13 +99,17 @@ export default function QuestionPhoto({
         setLoading(false)
       }
     },
-    [onChange, uploadContext],
+    [onChange, photos, uploadContext],
   )
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return
     if (!file.type.startsWith("image/")) {
       setError("Please choose an image file.")
+      return
+    }
+    if (atMax) {
+      setError(`Maximum of ${maxPhotos} photo${maxPhotos === 1 ? "" : "s"} reached.`)
       return
     }
     setLoading(true)
@@ -109,7 +121,7 @@ export default function QuestionPhoto({
         setOpen(true)
         return
       }
-      onChange(compressed)
+      onChange([...photos, compressed])
       setOpen(true)
     } catch {
       setError("Could not add photo. Try a smaller image.")
@@ -119,24 +131,18 @@ export default function QuestionPhoto({
   }
 
   const handleConfirmSubmission = () => {
-    if (!confirmSource) return
-    void uploadToCloud(confirmSource)
+    if (!pendingPreview) return
+    void uploadToCloud(pendingPreview)
   }
 
   const handleDiscardPending = () => {
     setPendingPreview(null)
     setError(null)
-    if (photoIsLocalOnly && canUploadToCloud) {
-      void deleteSurveyPhoto(photo)
-      onChange(undefined)
-    }
   }
 
-  const handleRemove = () => {
-    void deleteSurveyPhoto(photo)
-    setPendingPreview(null)
-    onChange(undefined)
-    setOpen(false)
+  const handleRemovePhoto = (url: string) => {
+    void deleteSurveyPhoto(url)
+    onChange(photos.filter((p) => p !== url))
     setError(null)
   }
 
@@ -158,7 +164,33 @@ export default function QuestionPhoto({
     else if (source === "gallery") galleryRef.current?.click()
   }
 
-  if (!open && !hasDisplayPhoto) {
+  const hasSubmittedOnly = submittedPhotos.length > 0 && localPhotos.length === 0 && !pendingPreview
+
+  if (hasSubmittedOnly && !open && canAddMore) {
+    return (
+      <div className="w-full basis-full">
+        <div className="grid grid-cols-3 gap-1.5">
+          {submittedPhotos.map((url) => (
+            <div key={url} className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt="" className="h-full w-full object-cover" />
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-[var(--color-primary)] ring-1 ring-blue-100"
+        >
+          <Camera className="h-3.5 w-3.5 shrink-0" />
+          {submittedPhotos.length === 1 ? "1 photo submitted" : `${submittedPhotos.length} photos submitted`}
+          {canAddMore ? " · Add another" : ""}
+        </button>
+      </div>
+    )
+  }
+
+  if (!open && photos.length === 0 && !pendingPreview) {
     return (
       <button
         type="button"
@@ -171,19 +203,24 @@ export default function QuestionPhoto({
     )
   }
 
-  if (!open && hasDisplayPhoto) {
+  if (!open && (photos.length > 0 || pendingPreview)) {
+    const pendingLocal = localPhotos.length > 0 || !!pendingPreview
     return (
       <button
         type="button"
         onClick={() => setOpen(true)}
         className={
-          isSubmitted
-            ? "inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-[var(--color-primary)] ring-1 ring-blue-100"
-            : "inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-900 ring-1 ring-amber-200"
+          pendingLocal
+            ? "inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-900 ring-1 ring-amber-200"
+            : "inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-[var(--color-primary)] ring-1 ring-blue-100"
         }
       >
         <Camera className="h-3.5 w-3.5 shrink-0" />
-        {isSubmitted ? "Photo submitted" : "Confirm photo submission"}
+        {pendingLocal
+          ? "Confirm photo submission"
+          : submittedPhotos.length === 1
+            ? "Photo submitted"
+            : `${submittedPhotos.length} photos submitted`}
       </button>
     )
   }
@@ -200,6 +237,7 @@ export default function QuestionPhoto({
         <div className="mb-1.5 flex items-center justify-between gap-2">
           <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
             {label}
+            {maxPhotos != null ? ` (${photos.length}/${maxPhotos})` : photos.length > 0 ? ` (${photos.length})` : ""}
           </span>
           <button
             type="button"
@@ -211,12 +249,44 @@ export default function QuestionPhoto({
           </button>
         </div>
 
-        {hasDisplayPhoto ? (
-          <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+        {(submittedPhotos.length > 0 || localPhotos.length > 0) && (
+          <div className="mb-2 grid grid-cols-3 gap-1.5">
+            {photos.map((url) => (
+              <div
+                key={url}
+                className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="" className="h-full w-full object-cover" />
+                {isSupabasePhotoUrl(url) && (
+                  <div className="absolute inset-x-0 bottom-0 bg-emerald-700/85 px-1 py-0.5 text-center text-[8px] font-medium text-white">
+                    Submitted
+                  </div>
+                )}
+                {isLocalPhotoDataUrl(url) && !canUploadToCloud && (
+                  <div className="absolute inset-x-0 bottom-0 bg-slate-700/80 px-1 py-0.5 text-center text-[8px] font-medium text-white">
+                    Local
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleRemovePhoto(url)}
+                  className="absolute right-1 top-1 rounded bg-black/60 p-0.5 text-white active:bg-black/80"
+                  aria-label="Remove photo"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {pendingPreview && (
+          <div className="relative mb-2 overflow-hidden rounded-lg border border-amber-200 bg-amber-50/50">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={displayPhoto}
-              alt="Question attachment"
+              src={pendingPreview}
+              alt="Pending attachment"
               className="max-h-40 w-full object-cover"
             />
             {uploading && (
@@ -224,55 +294,24 @@ export default function QuestionPhoto({
                 Uploading to Supabase…
               </div>
             )}
-            {!uploading && isSubmitted && (
-              <div className="absolute inset-x-0 bottom-0 bg-emerald-700/85 px-2 py-1 text-center text-[10px] font-medium text-white">
-                Submitted to Supabase
-              </div>
-            )}
-            {!uploading && awaitingConfirm && (
+            {!uploading && (
               <div className="absolute inset-x-0 bottom-0 bg-amber-600/90 px-2 py-1 text-center text-[10px] font-medium text-white">
                 Not submitted — review and confirm below
               </div>
             )}
-            {!uploading && photoIsLocalOnly && !canUploadToCloud && (
-              <div className="absolute inset-x-0 bottom-0 bg-slate-700/80 px-2 py-1 text-center text-[10px] font-medium text-white">
-                Saved on this device
-              </div>
-            )}
             <button
               type="button"
-              onClick={handleRemove}
+              onClick={handleDiscardPending}
               className="absolute right-2 top-2 flex items-center gap-1 rounded-md bg-black/60 px-2 py-1 text-[10px] font-medium text-white active:bg-black/80"
             >
               <Trash2 className="h-3 w-3" />
-              Remove
-            </button>
-          </div>
-        ) : (
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => requestPicker("camera")}
-              className="flex min-h-[44px] flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-2 py-2 text-xs text-[var(--color-muted-foreground)] active:bg-slate-100 disabled:opacity-50"
-            >
-              <Camera className="h-4 w-4" />
-              Take photo
-            </button>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => requestPicker("gallery")}
-              className="flex min-h-[44px] flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-2 py-2 text-xs text-[var(--color-muted-foreground)] active:bg-slate-100 disabled:opacity-50"
-            >
-              <ImagePlus className="h-4 w-4" />
-              Choose file
+              Discard
             </button>
           </div>
         )}
 
-        {awaitingConfirm && (
-          <div className="mt-2 flex flex-wrap gap-2">
+        {pendingPreview && canUploadToCloud && (
+          <div className="mb-2 flex flex-wrap gap-2">
             <button
               type="button"
               disabled={loading || uploading}
@@ -293,23 +332,25 @@ export default function QuestionPhoto({
           </div>
         )}
 
-        {hasDisplayPhoto && (
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+        {canAddMore && !pendingPreview && (
+          <div className="flex gap-2">
             <button
               type="button"
-              disabled={loading || uploading}
+              disabled={loading}
               onClick={() => requestPicker("camera")}
-              className="text-[10px] text-[var(--color-primary)] active:underline disabled:opacity-50"
+              className="flex min-h-[44px] flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-2 py-2 text-xs text-[var(--color-muted-foreground)] active:bg-slate-100 disabled:opacity-50"
             >
-              Retake
+              <Camera className="h-4 w-4" />
+              Take photo
             </button>
             <button
               type="button"
-              disabled={loading || uploading}
+              disabled={loading}
               onClick={() => requestPicker("gallery")}
-              className="text-[10px] text-[var(--color-primary)] active:underline disabled:opacity-50"
+              className="flex min-h-[44px] flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-2 py-2 text-xs text-[var(--color-muted-foreground)] active:bg-slate-100 disabled:opacity-50"
             >
-              Replace
+              <ImagePlus className="h-4 w-4" />
+              Choose file
             </button>
           </div>
         )}

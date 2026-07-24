@@ -7,6 +7,7 @@ import QuestionComment from "@/components/question-comment"
 import QuestionPhoto from "@/components/question-photo"
 import { getRoomSurveyRubric, isMultiSelectQuestionType, canonicalizeResponseValues, isOptionValueSelected, type EsaQuestion, type EsaQuestionOption, type RoomQuestionResponse } from "@aisd/shared"
 import { isSkippedDependentQuestion } from "@/lib/question-dependencies"
+import { mergeResponsePhotoFields, normalizeResponsePhotos } from "@/lib/response-photos"
 import { effectiveCloseOutPendingQuestionIds } from "@/lib/closeout"
 import { isQuestionAnswered, isQuestionFullyAnswered, responseRequiresUnableToAssessNote } from "@/lib/survey-validation"
 import { cn } from "@/lib/utils"
@@ -85,6 +86,7 @@ export default function QuestionForm() {
     state.surveyType,
     currentRoomSession?.roomType,
     currentRoomSession?.gradeType,
+    currentRoomSession?.sourceSurveyType,
   )
 
   const optionsByQuestion = useMemo(() => {
@@ -136,7 +138,7 @@ export default function QuestionForm() {
           ? patch.value
           : existing?.value ?? (isMultiSelectQuestionType(q.questionType) ? [] : ""),
       comment: patch.comment !== undefined ? patch.comment : existing?.comment,
-      photo: patch.photo !== undefined ? patch.photo : existing?.photo,
+      ...mergeResponsePhotoFields(existing, patch),
     })
   }
 
@@ -182,7 +184,7 @@ export default function QuestionForm() {
               options={optionsByQuestion.get(q.questionId) ?? []}
               value={response?.value}
               comment={response?.comment}
-              photo={response?.photo}
+              photos={normalizeResponsePhotos(response)}
               disabled={autoFilled}
               highlighted={flaggedSet.has(q.questionId)}
               disabledReason={
@@ -198,7 +200,7 @@ export default function QuestionForm() {
                 })
               }
               onCommentChange={(comment) => updateResponse(q.questionId, { comment: comment || undefined })}
-              onPhotoChange={(photo) => updateResponse(q.questionId, { photo })}
+              onPhotoChange={(photos) => updateResponse(q.questionId, { photos })}
             />
           )
         })}
@@ -283,7 +285,7 @@ function QuestionField({
   options,
   value,
   comment,
-  photo,
+  photos = [],
   disabled = false,
   highlighted = false,
   disabledReason,
@@ -297,13 +299,13 @@ function QuestionField({
   options: EsaQuestionOption[]
   value: string | string[] | undefined
   comment?: string
-  photo?: string
+  photos?: string[]
   disabled?: boolean
   highlighted?: boolean
   disabledReason?: string
   onChange: (value: string | string[]) => void
   onCommentChange: (comment: string) => void
-  onPhotoChange: (photo: string | undefined) => void
+  onPhotoChange: (photos: string[]) => void
 }) {
   const rootRef = useRef<HTMLFieldSetElement>(null)
   const answered = isQuestionFullyAnswered(question, { value, comment })
@@ -395,7 +397,7 @@ function QuestionField({
   }, [answered])
 
   const summary = formatAnswerSummary(question, value)
-  const hasExtras = !!(comment?.trim() || photo)
+  const hasExtras = !!(comment?.trim() || photos.length > 0)
   const accent = categoryAccent(question.category)
 
   if (collapsed && answered && !highlighted) {
@@ -564,7 +566,7 @@ function QuestionField({
           onChange={onCommentChange}
           required={noteRequired}
         />
-        <QuestionPhoto photo={photo} onChange={onPhotoChange} />
+        <QuestionPhoto photos={photos} onChange={onPhotoChange} />
       </div>
     </fieldset>
   )

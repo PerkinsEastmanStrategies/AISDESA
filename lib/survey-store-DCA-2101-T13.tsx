@@ -732,7 +732,12 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       const existing = state.session.rooms[action.roomId]
       const base = ensureRoomSession(state, action.roomId, existing)
       const responses = applyQuestionDependencies(base.responses, action.response)
-      const rubric = getRoomSurveyRubric(state.surveyType, base.roomType, base.gradeType)
+      const rubric = getRoomSurveyRubric(
+        state.surveyType,
+        base.roomType,
+        base.gradeType,
+        base.sourceSurveyType,
+      )
       let nextRoom: RoomSurveySession = { ...base, responses }
       if (state.surveyType === "closeout" && rubric) {
         nextRoom = withPendingUpdatedForResponse(nextRoom, action.response, rubric.questions)
@@ -783,6 +788,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
           state.surveyType,
           roomSession.roomType,
           roomSession.gradeType,
+          roomSession.sourceSurveyType,
         )
         if (!rubric) continue
         const weights = mergeRubricWeights(rubric, state.weightOverrides)

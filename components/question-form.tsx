@@ -16,8 +16,9 @@ import {
   type EsaQuestionOption,
   type RoomQuestionResponse,
 } from "@aisd/shared"
-import { getPreWalkSpaceTypePhoto } from "@/lib/prewalk"
-import type { SurveyPhotoUploadContext } from "@/lib/photo-storage"
+import { getPreWalkRoomSpaceTypePhoto, getPreWalkRoomSpaceTypePhotoOnly } from "@/lib/prewalk"
+import { isSupabasePhotoUrl, type SurveyPhotoUploadContext } from "@/lib/photo-storage"
+import { mergeResponsePhotoFields, normalizeResponsePhotos } from "@/lib/response-photos"
 import { SURVEY_SPACE_TYPE_PHOTO_PROMPT } from "@/lib/photo-privacy"
 import {
   dependentQuestionDisabledReason,
@@ -136,6 +137,7 @@ export default function QuestionForm() {
     currentRoomSession?.roomType,
     currentRoomSession?.gradeType,
     state.school?.schoolClass,
+    currentRoomSession?.sourceSurveyType,
   )
 
   const optionsByQuestion = useMemo(() => {
@@ -193,8 +195,13 @@ export default function QuestionForm() {
     surveyModuleUsesSpaceTypePicker(state.surveyType, state.school?.schoolClass) &&
     isSpaceTypeForSurveyModule(state.surveyType, spaceType, state.school?.schoolClass)
   const spaceTypePhoto = showSpaceTypePhoto
-    ? getPreWalkSpaceTypePhoto(state.preWalk, state.surveyType, spaceType)
+    ? getPreWalkRoomSpaceTypePhoto(state.preWalk, state.surveyType, roomId, spaceType)
     : undefined
+  const roomSpaceTypePhotoOnly = showSpaceTypePhoto
+    ? getPreWalkRoomSpaceTypePhotoOnly(state.preWalk, state.surveyType, roomId, spaceType)
+    : undefined
+  const spaceTypePhotoSubmitted = isSupabasePhotoUrl(roomSpaceTypePhotoOnly ?? spaceTypePhoto)
+  const showSpaceTypePhotoCapture = showSpaceTypePhoto && !isSupabasePhotoUrl(roomSpaceTypePhotoOnly)
   const photoUploadBase: Pick<SurveyPhotoUploadContext, "campusId" | "schoolId" | "surveyType"> | null =
     state.school
       ? {
@@ -228,7 +235,7 @@ export default function QuestionForm() {
           ? patch.value
           : existing?.value ?? (isMultiSelectQuestionType(q.questionType) ? [] : ""),
       comment: patch.comment !== undefined ? patch.comment : existing?.comment,
-      photo: patch.photo !== undefined ? patch.photo : existing?.photo,
+      ...mergeResponsePhotoFields(existing, patch),
     })
   }
 
@@ -242,7 +249,7 @@ export default function QuestionForm() {
         />
       )}
       <div className="min-w-0 bg-gradient-to-b from-slate-200 to-slate-300/90 px-3 py-5 pb-10">
-      {showSpaceTypePhoto && (
+      {showSpaceTypePhotoCapture && (
         <div className="mb-4 rounded-2xl border border-slate-200/80 bg-white/95 px-4 py-3 shadow-sm">
           <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400">
             General space photo
@@ -250,16 +257,20 @@ export default function QuestionForm() {
           <p className="mt-1 text-sm leading-snug text-slate-700">{SURVEY_SPACE_TYPE_PHOTO_PROMPT}</p>
           <div className="mt-3 [&>button]:w-full">
             <QuestionPhoto
-              photo={spaceTypePhoto}
+              key={`space-photo:${state.surveyType}:${spaceType}:${roomId}`}
+              photos={spaceTypePhotoSubmitted ? [] : spaceTypePhoto ? [spaceTypePhoto] : []}
+              maxPhotos={1}
               label="General photo"
               startExpanded={!spaceTypePhoto}
               privacyContextNote={`General photo of ${spaceType}.`}
               uploadContext={
                 photoUploadBase && spaceType
-                  ? { ...photoUploadBase, kind: "prewalk-space-type", spaceType }
+                  ? { ...photoUploadBase, kind: "prewalk-space-type", spaceType, roomId }
                   : null
               }
-              onChange={(photo) => setPreWalkSpaceTypePhoto(state.surveyType, spaceType, photo)}
+              onChange={(photos) =>
+                setPreWalkSpaceTypePhoto(state.surveyType, spaceType, photos[0], roomId)
+              }
             />
           </div>
         </div>
@@ -317,7 +328,7 @@ export default function QuestionForm() {
               options={optionsByQuestion.get(q.questionId) ?? []}
               value={response?.value}
               comment={response?.comment}
-              photo={response?.photo}
+              photos={normalizeResponsePhotos(response)}
               uploadContext={
                 photoUploadBase
                   ? {
@@ -339,7 +350,7 @@ export default function QuestionForm() {
                 })
               }
               onCommentChange={(comment) => updateResponse(q.questionId, { comment: comment || undefined })}
-              onPhotoChange={(photo) => updateResponse(q.questionId, { photo })}
+              onPhotoChange={(photos) => updateResponse(q.questionId, { photos })}
             />
           )
         })}
@@ -426,7 +437,7 @@ function QuestionField({
   options,
   value,
   comment,
-  photo,
+  photos = [],
   uploadContext = null,
   disabled = false,
   autoAnswered = false,
@@ -443,7 +454,7 @@ function QuestionField({
   options: EsaQuestionOption[]
   value: string | string[] | undefined
   comment?: string
-  photo?: string
+  photos?: string[]
   uploadContext?: SurveyPhotoUploadContext | null
   disabled?: boolean
   /** Locked because a parent answer forced this value — keep options visible with selection. */
@@ -454,7 +465,7 @@ function QuestionField({
   disabledReason?: string
   onChange: (value: string | string[]) => void
   onCommentChange: (comment: string) => void
-  onPhotoChange: (photo: string | undefined) => void
+  onPhotoChange: (photos: string[]) => void
 }) {
   const rootRef = useRef<HTMLFieldSetElement>(null)
   const answered = isQuestionFullyAnswered(question, { value: value ?? "", comment })
@@ -558,7 +569,8 @@ function QuestionField({
   }, [answered, autoAnswered])
 
   const summary = formatAnswerSummary(question, value)
-  const hasExtras = !!(comment?.trim() || photo)
+  const hasExtras =
+    !!(comment?.trim() || photos.some((p) => !isSupabasePhotoUrl(p)) || photos.length > 0)
   const accent = categoryAccent(question.category)
   const contextText = showContext ? question.context?.trim() : ""
 
@@ -736,7 +748,16 @@ function QuestionField({
           onChange={onCommentChange}
           required={noteRequired}
         />
-        <QuestionPhoto photo={photo} uploadContext={uploadContext} onChange={onPhotoChange} />
+        <QuestionPhoto
+          key={
+            uploadContext
+              ? `${uploadContext.kind}:${uploadContext.roomId ?? ""}:${uploadContext.questionId ?? ""}:${uploadContext.spaceType ?? ""}`
+              : id
+          }
+          photos={photos}
+          uploadContext={uploadContext}
+          onChange={onPhotoChange}
+        />
       </div>
     </fieldset>
   )

@@ -67,8 +67,10 @@ export interface RoomQuestionResponse {
   questionId: string
   value: string | string[]
   comment?: string
-  /** Supabase public URL or local data URL — optional field photo */
+  /** @deprecated Use `photos` — kept for backward compatibility with older drafts */
   photo?: string
+  /** Supabase public URLs or local data URLs — optional field photos */
+  photos?: string[]
 }
 
 export type GradeType = "PK" | "K" | "1" | "2" | "3" | "4" | "5" | "MS" | "HS"

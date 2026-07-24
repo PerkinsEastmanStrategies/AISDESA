@@ -15,12 +15,23 @@ function isUploadContext(value: unknown): value is SurveyPhotoUploadContext {
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as SurveyPhotoUploadContext & { imageDataUrl?: string }
+    const body = (await request.json()) as SurveyPhotoUploadContext & {
+      imageDataUrl?: string
+      photoId?: string
+      replaceExisting?: boolean
+    }
     if (!isUploadContext(body) || typeof body.imageDataUrl !== "string" || !body.imageDataUrl.startsWith("data:image/")) {
       return Response.json({ error: "Invalid photo upload request" }, { status: 400 })
     }
 
-    const result = await uploadSurveyPhotoToSupabase(body, body.imageDataUrl)
+    const result = await uploadSurveyPhotoToSupabase(
+      {
+        ...body,
+        photoId: typeof body.photoId === "string" ? body.photoId : undefined,
+        replaceExisting: body.replaceExisting === true,
+      },
+      body.imageDataUrl,
+    )
     return Response.json(result)
   } catch (error) {
     const message = error instanceof Error ? error.message : "Photo upload failed"

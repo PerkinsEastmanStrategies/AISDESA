@@ -2,8 +2,11 @@ import "server-only"
 
 import {
   buildSurveyPhotoStoragePath,
+  generateSurveyPhotoId,
   getSupabasePhotoPublicUrl,
+  parseSurveyPhotoStoragePath,
   photosBucketName,
+  type ParsedSurveyPhotoPath,
   type SurveyPhotoUploadContext,
 } from "@/lib/photo-storage"
 
@@ -44,7 +47,9 @@ export async function uploadSurveyPhotoToSupabase(
   context: SurveyPhotoUploadContext,
   imageDataUrl: string,
 ): Promise<{ url: string; path: string }> {
-  const path = buildSurveyPhotoStoragePath(context)
+  const replaceExisting = !!(context.replaceExisting && context.photoId?.trim())
+  const photoId = replaceExisting ? context.photoId!.trim() : context.photoId?.trim() || generateSurveyPhotoId()
+  const path = buildSurveyPhotoStoragePath({ ...context, photoId })
   const { mime, buffer } = parseDataUrl(imageDataUrl)
   const bucket = photosBucketName()
   const uploadUrl = `${supabaseUrl()}/storage/v1/object/${encodeURIComponent(bucket)}/${path
@@ -57,7 +62,7 @@ export async function uploadSurveyPhotoToSupabase(
     headers: {
       Authorization: `Bearer ${supabaseUploadKey()}`,
       "Content-Type": mime,
-      "x-upsert": "true",
+      "x-upsert": replaceExisting ? "true" : "false",
     },
     body: new Uint8Array(buffer),
   })
@@ -94,4 +99,81 @@ export async function deleteSurveyPhotoFromSupabase(url: string): Promise<void> 
     const detail = await response.text().catch(() => "")
     throw new Error(detail || `Supabase delete failed (${response.status})`)
   }
+}
+
+interface StorageListEntry {
+  name: string
+  id: string | null
+  metadata: Record<string, unknown> | null
+}
+
+const MAX_LISTED_PHOTOS = 250
+
+async function listStoragePrefix(prefix: string): Promise<StorageListEntry[]> {
+  const bucket = photosBucketName()
+  const response = await fetch(`${supabaseUrl()}/storage/v1/object/list/${encodeURIComponent(bucket)}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${supabaseUploadKey()}`,
+      apikey: supabaseUploadKey(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      prefix,
+      limit: 1000,
+      offset: 0,
+      sortBy: { column: "name", order: "asc" },
+    }),
+  })
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "")
+    throw new Error(detail || `Supabase list failed (${response.status})`)
+  }
+
+  return (await response.json()) as StorageListEntry[]
+}
+
+async function walkJpegPaths(prefix: string, results: string[], depth: number): Promise<void> {
+  if (results.length >= MAX_LISTED_PHOTOS || depth > 8) return
+
+  const entries = await listStoragePrefix(prefix)
+  for (const entry of entries) {
+    if (results.length >= MAX_LISTED_PHOTOS) break
+    const childPath = `${prefix}${entry.name}`
+    const isFolder = entry.id === null
+    const isJpeg = entry.name.toLowerCase().endsWith(".jpg")
+    if (!isFolder && isJpeg) {
+      results.push(childPath)
+      continue
+    }
+    if (isFolder) {
+      await walkJpegPaths(`${childPath}/`, results, depth + 1)
+    }
+  }
+}
+
+/** List uploaded survey photos for one school (called only from the Photos results tab). */
+export async function listSurveyPhotosForSchool(
+  campusId: string,
+  schoolId: string,
+): Promise<ParsedSurveyPhotoPath[]> {
+  const rootPrefix = buildSurveyPhotoStoragePath({
+    kind: "question",
+    campusId,
+    schoolId,
+    surveyType: "studios",
+    roomId: "_",
+    questionId: "_",
+  })
+    .split("/")
+    .slice(0, 2)
+    .join("/")
+
+  const paths: string[] = []
+  await walkJpegPaths(`${rootPrefix}/`, paths, 0)
+
+  return paths
+    .map((path) => parseSurveyPhotoStoragePath(path))
+    .filter((parsed): parsed is NonNullable<typeof parsed> => parsed != null)
 }

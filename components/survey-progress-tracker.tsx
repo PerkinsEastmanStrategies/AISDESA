@@ -4,6 +4,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from "react-dom"
 import type { EsaQuestion, RoomQuestionResponse } from "@aisd/shared"
 import { computeRoomQuestionProgress } from "@/lib/survey-question-progress"
+import {
+  clearSurveyProgressTrackerLayout,
+  setSurveyProgressTrackerLayout,
+} from "@/lib/survey-progress-tracker-layout"
 import { cn } from "@/lib/utils"
 
 function ProgressBarContent({
@@ -81,11 +85,15 @@ export default function SurveyProgressTracker({
   const syncPinGeometry = useCallback(() => {
     const scrollRoot =
       scrollRootRef.current ??
-      (document.querySelector(".min-h-0.flex-1.overflow-y-auto") as HTMLElement | null)
+      (document.querySelector("[data-survey-scroll-root]") as HTMLElement | null)
     if (!scrollRoot) return
     scrollRootRef.current = scrollRoot
     const rect = scrollRoot.getBoundingClientRect()
-    setPinStyle({ top: rect.top, left: rect.left, width: rect.width })
+    const sidebar = document.querySelector("[data-survey-sidebar]") as HTMLElement | null
+    const sidebarWidth = sidebar?.getBoundingClientRect().width ?? 0
+    const left = Math.max(rect.left, sidebarWidth)
+    const width = Math.max(0, rect.right - left)
+    setPinStyle({ top: rect.top, left, width })
   }, [])
 
   useLayoutEffect(() => {
@@ -97,6 +105,16 @@ export default function SurveyProgressTracker({
     observer.observe(node)
     return () => observer.disconnect()
   }, [mounted, pinStyle.width, progress.answered, progress.total, activeIndex])
+
+  useEffect(() => {
+    if (progress.total === 0) {
+      clearSurveyProgressTrackerLayout()
+      return
+    }
+    const offset = pinStyle.top + barHeight
+    setSurveyProgressTrackerLayout(barHeight, offset)
+    return () => clearSurveyProgressTrackerLayout()
+  }, [progress.total, barHeight, pinStyle.top])
 
   useEffect(() => {
     if (!questions.length) return

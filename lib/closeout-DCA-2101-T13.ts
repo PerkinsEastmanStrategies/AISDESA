@@ -181,9 +181,10 @@ export function syncSourceProgressToCloseOut(
     if (!closeRoom || !roomHasCloseOutWork(closeRoom)) continue
 
     const rubric = getRoomSurveyRubric(
-      sourceSession.surveyType,
+      "closeout",
       sourceRoom.roomType,
       sourceRoom.gradeType,
+      closeRoom.sourceSurveyType,
     )
     const questions = rubric?.questions ?? []
 

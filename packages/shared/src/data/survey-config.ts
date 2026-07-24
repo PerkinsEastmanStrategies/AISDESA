@@ -423,17 +423,20 @@ export function filterNeighborhoodRubricByGrade(
  * Room-aware rubric: package studio types use v3 CSV packages filtered by school CLASS;
  * all other studio types keep the shared Studios rubric.
  * Arrival / Administration / Neighborhoods pick by room type.
- * Close Out picks by the room's roomType (copied from the source survey).
+ * Close Out uses sourceSurveyType when set; otherwise falls back to roomType (studios path).
  */
 export function getRoomSurveyRubric(
   surveyType: SurveyType,
   roomType?: string | null,
   gradeType?: string | GradeType | null,
   schoolClass?: string | null,
+  sourceSurveyType?: SurveyType | null,
 ): SurveyRubric | null {
+  const effectiveType =
+    surveyType === "closeout" && sourceSurveyType ? sourceSurveyType : surveyType
   let rubric: SurveyRubric | null = null
 
-  if (surveyType === "neighborhoods") {
+  if (effectiveType === "neighborhoods") {
     let base: SurveyRubric | null = null
     if (roomType === "Neighborhood") base = NEIGHBORHOOD_SPACE_RUBRIC
     else if (roomType === "Group Room" || roomType === "Large Group Room") base = GROUP_ROOM_RUBRIC
@@ -443,16 +446,16 @@ export function getRoomSurveyRubric(
       gradeType ||
       (schoolClass === "ELEM" ? "K" : schoolClass === "MID" ? "MS" : schoolClass === "HIGH" ? "HS" : null)
     rubric = filterNeighborhoodRubricByGrade(base, neighborhoodGrade)
-  } else if (surveyType === "arrival") {
+  } else if (effectiveType === "arrival") {
     if (roomType === "Main Office" || roomType === "Main Admin Suite") rubric = MAIN_OFFICE_RUBRIC
     else if (roomType === "Community Partner Suite") rubric = COMMUNITY_PARTNER_RUBRIC
     else return null
-  } else if (surveyType === "administration") {
+  } else if (effectiveType === "administration") {
     if (roomType === "Counseling Suite") rubric = COUNSELING_SUITE_RUBRIC
     else if (roomType === "Admin Office") rubric = ADMIN_OFFICE_RUBRIC
     else if (roomType === "Professional Learning Center") rubric = PLC_RUBRIC
     else return null
-  } else if (surveyType === "outdoor") {
+  } else if (effectiveType === "outdoor") {
     if (roomType === "Outdoor Spaces") {
       rubric = filterRubricBySchoolLevel(OUTDOOR_SPACES_RUBRIC, schoolClass)
     } else if (roomType === "Outdoor Athletics") {
@@ -461,14 +464,14 @@ export function getRoomSurveyRubric(
       return null
     }
   } else if (
-    surveyType === "athletics" ||
-    surveyType === "performing_arts" ||
-    surveyType === "cte" ||
-    surveyType === "shared_spaces"
+    effectiveType === "athletics" ||
+    effectiveType === "performing_arts" ||
+    effectiveType === "cte" ||
+    effectiveType === "shared_spaces"
   ) {
     rubric = filterRubricBySchoolLevel(TRADITIONAL_STUDIOS_RUBRIC, schoolClass)
-  } else if (surveyType !== "studios" && surveyType !== "closeout") {
-    rubric = RUBRICS[surveyType]
+  } else if (effectiveType !== "studios" && effectiveType !== "closeout") {
+    rubric = RUBRICS[effectiveType]
   } else if (roomType === "Traditional studio") {
     rubric = filterRubricBySchoolLevel(TRADITIONAL_STUDIOS_RUBRIC, schoolClass)
   } else if (roomType === "Sensory Lab") {

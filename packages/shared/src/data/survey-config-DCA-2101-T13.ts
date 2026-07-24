@@ -281,34 +281,37 @@ export function filterNeighborhoodRubricByGrade(
  * Arrival picks Main Office vs Community Partner Suite by room type.
  * Administration picks Admin Office / Counseling Suite / PLC by room type.
  * Neighborhoods picks Neighborhood / Group Room / Open Collaboration by room type.
- * Close Out picks by the room's roomType (copied from the source survey).
+ * Close Out uses sourceSurveyType when set; otherwise falls back to roomType (studios path).
  */
 export function getRoomSurveyRubric(
   surveyType: SurveyType,
   roomType?: string | null,
   gradeType?: string | GradeType | null,
+  sourceSurveyType?: SurveyType | null,
 ): SurveyRubric | null {
+  const effectiveType =
+    surveyType === "closeout" && sourceSurveyType ? sourceSurveyType : surveyType
   let rubric: SurveyRubric | null = null
 
-  if (surveyType === "neighborhoods") {
+  if (effectiveType === "neighborhoods") {
     let base: SurveyRubric | null = null
     if (roomType === "Neighborhood") base = NEIGHBORHOOD_SPACE_RUBRIC
     else if (roomType === "Group Room") base = GROUP_ROOM_RUBRIC
     else if (roomType === "Open Collaboration Space") base = OPEN_COLLAB_RUBRIC
     if (!base) return null
     rubric = filterNeighborhoodRubricByGrade(base, gradeType)
-  } else if (surveyType === "arrival") {
+  } else if (effectiveType === "arrival") {
     if (roomType === "Main Office") rubric = MAIN_OFFICE_RUBRIC
     else if (roomType === "Community Partner Suite") rubric = COMMUNITY_PARTNER_RUBRIC
     else return null
-  } else if (surveyType === "administration") {
+  } else if (effectiveType === "administration") {
     if (roomType === "Counseling Suite") rubric = COUNSELING_SUITE_RUBRIC
     else if (roomType === "Admin Office") rubric = ADMIN_OFFICE_RUBRIC
     else if (roomType === "Professional Learning Center") rubric = PLC_RUBRIC
     // Require a space type before showing questions
     else return null
-  } else if (surveyType !== "studios" && surveyType !== "closeout") {
-    rubric = RUBRICS[surveyType]
+  } else if (effectiveType !== "studios" && effectiveType !== "closeout") {
+    rubric = RUBRICS[effectiveType]
   } else if (roomType === "Traditional studio") {
     rubric = filterTraditionalRubricByGrade(TRADITIONAL_STUDIOS_RUBRIC, gradeType)
   } else if (roomType === "Sensory Lab") {

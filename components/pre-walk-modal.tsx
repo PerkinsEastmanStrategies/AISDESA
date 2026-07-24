@@ -21,7 +21,7 @@ import {
   spaceTypeOptionsForPreWalk,
 } from "@/lib/prewalk"
 import { PREWALK_SPACE_TYPE_PHOTO_PROMPT } from "@/lib/photo-privacy"
-import type { SurveyPhotoUploadContext } from "@/lib/photo-storage"
+import { isSupabasePhotoUrl, type SurveyPhotoUploadContext } from "@/lib/photo-storage"
 import { loadRoomUseMap, roomUseForRoom, type RoomUseMap } from "@/lib/room-neighborhood-lookup"
 import { cn } from "@/lib/utils"
 import { surveyTypeLabel, type SurveyType } from "@aisd/shared"
@@ -437,24 +437,32 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
                   {PREWALK_SPACE_TYPE_PHOTO_PROMPT}
                 </p>
                 <div className="mt-2 [&>button]:w-full">
-                  <QuestionPhoto
-                    photo={activeSpaceTypePhoto}
-                    label="Overview photo"
-                    startExpanded={!activeSpaceTypePhoto}
-                    privacyContextNote={`Add a general photo of ${activeSpaceType}.`}
-                    uploadContext={
-                      photoUploadBase && activeSpaceType
-                        ? {
-                            ...photoUploadBase,
-                            kind: "prewalk-space-type",
-                            spaceType: activeSpaceType,
-                          }
-                        : null
-                    }
-                    onChange={(photo) =>
-                      setPreWalkSpaceTypePhoto(selectedSurveyType, activeSpaceType, photo)
-                    }
-                  />
+                  {isSupabasePhotoUrl(activeSpaceTypePhoto) ? (
+                    <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800 ring-1 ring-emerald-100">
+                      Photo submitted to Supabase for this space type.
+                    </p>
+                  ) : (
+                    <QuestionPhoto
+                      key={`prewalk-photo:${selectedSurveyType}:${activeSpaceType}`}
+                      photos={activeSpaceTypePhoto ? [activeSpaceTypePhoto] : []}
+                      maxPhotos={1}
+                      label="Overview photo"
+                      startExpanded={!activeSpaceTypePhoto}
+                      privacyContextNote={`Add a general photo of ${activeSpaceType}.`}
+                      uploadContext={
+                        photoUploadBase && activeSpaceType
+                          ? {
+                              ...photoUploadBase,
+                              kind: "prewalk-space-type",
+                              spaceType: activeSpaceType,
+                            }
+                          : null
+                      }
+                      onChange={(photos) =>
+                        setPreWalkSpaceTypePhoto(selectedSurveyType, activeSpaceType, photos[0])
+                      }
+                    />
+                  )}
                 </div>
               </div>
             )}

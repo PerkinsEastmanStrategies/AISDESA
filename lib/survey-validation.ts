@@ -151,6 +151,7 @@ export function validateSurveySubmission(
       roomSession.roomType,
       roomSession.gradeType,
       schoolClass,
+      surveyType === "closeout" ? roomSession.sourceSurveyType : undefined,
     )
     if (!rubric) continue
 
@@ -208,6 +209,7 @@ export function validateSurveyBeforeDeferral(
       roomSession.roomType,
       roomSession.gradeType,
       schoolClass,
+      surveyType === "closeout" ? roomSession.sourceSurveyType : undefined,
     )
     if (!rubric) continue
 

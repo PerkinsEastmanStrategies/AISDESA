@@ -142,7 +142,12 @@ export function validateSurveySubmission(
   const incompleteRooms: RoomValidationResult[] = []
 
   for (const [roomId, roomSession] of Object.entries(session.rooms)) {
-    const rubric = getRoomSurveyRubric(surveyType, roomSession.roomType, roomSession.gradeType)
+    const rubric = getRoomSurveyRubric(
+      surveyType,
+      roomSession.roomType,
+      roomSession.gradeType,
+      surveyType === "closeout" ? roomSession.sourceSurveyType : undefined,
+    )
     if (!rubric) continue
 
     if (surveyType === "closeout") {
@@ -190,7 +195,12 @@ export function validateSurveyBeforeDeferral(
     const roomSession = session.rooms[roomId]
     if (!roomSession) continue
 
-    const rubric = getRoomSurveyRubric(surveyType, roomSession.roomType, roomSession.gradeType)
+    const rubric = getRoomSurveyRubric(
+      surveyType,
+      roomSession.roomType,
+      roomSession.gradeType,
+      surveyType === "closeout" ? roomSession.sourceSurveyType : undefined,
+    )
     if (!rubric) continue
 
     if (surveyType === "closeout") {

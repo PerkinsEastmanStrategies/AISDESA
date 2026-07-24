@@ -87,7 +87,7 @@ import {
   withPendingUpdatedForGrade,
   withPendingUpdatedForResponse,
 } from "@/lib/closeout"
-import { EMPTY_PREWALK, getPreWalkMapping, migratePreWalkState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkSpaceTypePhotoKey, shouldPromptPreWalkOnSchoolSelect } from "@/lib/prewalk"
+import { EMPTY_PREWALK, getPreWalkMapping, migratePreWalkState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypePhotoKey, shouldPromptPreWalkOnSchoolSelect } from "@/lib/prewalk"
 import { applyTraditionalStudioCopyToRoom, getTraditionalStudioCopyOffer } from "@/lib/traditional-studio-copy"
 import { scoreRoomSessionWithMetadata } from "@/lib/traditional-studio-room-score"
 
@@ -140,7 +140,7 @@ type Action =
   | { type: "SET_GRADE"; roomId: string; gradeType: string }
   | { type: "SET_NEIGHBORHOOD"; roomId: string; neighborhood: string }
   | { type: "SET_SCHOOL_ROOM_NUMBER"; roomId: string; schoolRoomNumber: string }
-  | { type: "SET_PREWALK_SPACE_TYPE_PHOTO"; surveyType: SurveyType; spaceType: string; photo?: string }
+  | { type: "SET_PREWALK_SPACE_TYPE_PHOTO"; surveyType: SurveyType; spaceType: string; roomId?: string; photo?: string }
   | { type: "SET_PREWALK_MAPPING"; surveyType: SurveyType; roomId: string; spaceType: string }
   | { type: "UPDATE_PREWALK_NOTES"; surveyType: SurveyType; roomId: string; note1: string; note2: string }
   | { type: "REMOVE_PREWALK_MAPPING"; surveyType: SurveyType; roomId: string }
@@ -1019,7 +1019,9 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       }
     }
     case "SET_PREWALK_SPACE_TYPE_PHOTO": {
-      const photoKey = preWalkSpaceTypePhotoKey(action.surveyType, action.spaceType)
+      const photoKey = action.roomId
+        ? preWalkRoomSpaceTypePhotoKey(action.surveyType, action.roomId, action.spaceType)
+        : preWalkSpaceTypePhotoKey(action.surveyType, action.spaceType)
       const spaceTypePhotos = { ...(state.preWalk.spaceTypePhotos ?? {}) }
       if (action.photo) spaceTypePhotos[photoKey] = action.photo
       else delete spaceTypePhotos[photoKey]
@@ -1241,6 +1243,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         base.roomType,
         base.gradeType,
         state.school?.schoolClass,
+        base.sourceSurveyType,
       )
       let nextRoom: RoomSurveySession = { ...base, responses }
       if (state.surveyType === "closeout" && rubric) {
@@ -1294,6 +1297,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
           roomSession.roomType,
           roomSession.gradeType,
           state.school?.schoolClass,
+          roomSession.sourceSurveyType,
         )
         if (!rubric) continue
         const result = scoreRoomSessionWithMetadata(
@@ -1430,6 +1434,7 @@ interface SurveyContextValue {
     surveyType: SurveyType,
     spaceType: string,
     photo: string | undefined,
+    roomId?: string,
   ) => void
   setPreWalkMapping: (surveyType: SurveyType, roomId: string, spaceType: string) => void
   updatePreWalkNotes: (surveyType: SurveyType, roomId: string, note1: string, note2: string) => void
@@ -1980,8 +1985,8 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     [],
   )
   const setPreWalkSpaceTypePhoto = useCallback(
-    (surveyType: SurveyType, spaceType: string, photo: string | undefined) =>
-      dispatch({ type: "SET_PREWALK_SPACE_TYPE_PHOTO", surveyType, spaceType, photo }),
+    (surveyType: SurveyType, spaceType: string, photo: string | undefined, roomId?: string) =>
+      dispatch({ type: "SET_PREWALK_SPACE_TYPE_PHOTO", surveyType, spaceType, roomId, photo }),
     [],
   )
   const setPreWalkMapping = useCallback(

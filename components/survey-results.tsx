@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import {
   ArrowLeft,
+  Camera,
   GitCompare,
   Home,
   Info,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
 import SurveyFloorPlan from "@/components/survey-floor-plan"
+import ResultsPhotosPanel from "@/components/results-photos-panel"
 import ScoringMethodologyModal from "@/components/scoring-methodology-modal"
 import ScoringHierarchy, {
   NeighborhoodScoreCards,
@@ -24,7 +26,7 @@ import { OverallScoreDisplay } from "@/components/score-display"
 import { cn } from "@/lib/utils"
 import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
 
-type ResultsTab = "campus" | "room" | "neighborhood" | "compare"
+type ResultsTab = "campus" | "room" | "neighborhood" | "compare" | "photos"
 
 export default function SurveyResults() {
   const { state, currentResults, continueSurvey, resetSurvey, selectRoom, submission, schools } =
@@ -87,6 +89,14 @@ export default function SurveyResults() {
     return map
   }, [snapshot])
 
+  const roomNameById = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const room of state.allRooms) {
+      map[room.id] = room.name?.trim() || room.id
+    }
+    return map
+  }, [state.allRooms])
+
   const resultsFloorPlanScoreMode =
     tab === "room" ? "room" : tab === "neighborhood" ? "neighborhood" : undefined
 
@@ -121,6 +131,7 @@ export default function SurveyResults() {
     { id: "room", label: "By Room", shortLabel: "Rooms", icon: LayoutGrid },
     { id: "neighborhood", label: "By Neighborhood", shortLabel: "Hood", icon: Map },
     { id: "compare", label: "Compare", shortLabel: "Compare", icon: GitCompare },
+    { id: "photos", label: "Photos", shortLabel: "Photos", icon: Camera },
   ]
 
   return (
@@ -184,7 +195,22 @@ export default function SurveyResults() {
       </div>
 
       <div className="flex flex-col lg:flex-row">
-        <div className="flex-1 p-3 lg:border-r lg:border-slate-200/80">
+        {tab === "photos" ? (
+          <div className="w-full p-3">
+            <ResultsPhotosPanel
+              campusId={state.school!.campusId}
+              schoolId={state.school!.id}
+              schoolClass={state.school?.schoolClass}
+              sessionsBySurveyType={snapshot.sessionsBySurveyType}
+              liveSurveyType={state.surveyType}
+              liveSession={state.session}
+              livePreWalk={state.preWalk}
+              roomNameById={roomNameById}
+            />
+          </div>
+        ) : (
+          <>
+            <div className="flex-1 p-3 lg:border-r lg:border-slate-200/80">
           {tab === "campus" && (
             <section className="rounded-2xl border border-slate-200/90 bg-slate-50/50 p-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
               <div className="mb-3 flex items-start justify-between gap-2 px-0.5">
@@ -246,19 +272,21 @@ export default function SurveyResults() {
           {tab === "compare" && (
             <FocusAreaComparisonPanel snapshot={snapshot} schools={schools} />
           )}
-        </div>
-
-        {plan && tab !== "compare" && (
-          <div className="border-t border-slate-200/80 p-3 lg:w-[45%] lg:border-t-0 lg:pl-0">
-            <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-              <SurveyFloorPlan
-                readOnly
-                resultsScoreMode={resultsFloorPlanScoreMode}
-                roomScoreById={roomScoreById}
-                neighborhoodScoreById={neighborhoodScoreById}
-              />
             </div>
-          </div>
+
+            {plan && (
+              <div className="border-t border-slate-200/80 p-3 lg:w-[45%] lg:border-t-0 lg:pl-0">
+                <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+                  <SurveyFloorPlan
+                    readOnly
+                    resultsScoreMode={resultsFloorPlanScoreMode}
+                    roomScoreById={roomScoreById}
+                    neighborhoodScoreById={neighborhoodScoreById}
+                  />
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

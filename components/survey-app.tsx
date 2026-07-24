@@ -105,7 +105,10 @@ function SurveyAppContent() {
             <SurveyTypeNav variant="tabs" />
           </div>
         )}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+        <div
+          data-survey-scroll-root
+          className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
+        >
           <SurveyHeaderControls />
           <ResumeBanner />
           <main className="flex min-h-full flex-col">

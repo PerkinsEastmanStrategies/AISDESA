@@ -143,7 +143,7 @@ export function applyQuestionDependencies(
         questionId: rule.dependentId,
         value: rule.dependentValue,
         comment: existingDep?.comment,
-        photo: existingDep?.photo,
+        photos: existingDep?.photos ?? (existingDep?.photo ? [existingDep.photo] : undefined),
       })
     } else if (responseValue(map.get(rule.dependentId)) === rule.dependentValue) {
       map.delete(rule.dependentId)
