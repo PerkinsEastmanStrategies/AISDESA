@@ -75,6 +75,10 @@ export function isSupabasePhotoUrl(url: string | undefined | null): boolean {
   return url.startsWith(`${base}/storage/v1/object/`)
 }
 
+export function isLocalPhotoDataUrl(url: string | undefined | null): boolean {
+  return !!url?.startsWith("data:image/")
+}
+
 export async function uploadSurveyPhoto(
   context: SurveyPhotoUploadContext,
   imageDataUrl: string,

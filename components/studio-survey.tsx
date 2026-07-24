@@ -54,6 +54,11 @@ export default function StudioSurvey() {
   const onOpenFloorPlan = useCallback(() => setShowFloorPlan(true), [])
   const onCloseFloorPlan = useCallback(() => setShowFloorPlan(false), [])
 
+  // Never carry an open floor plan picker across school, module, or space-type changes.
+  useEffect(() => {
+    setShowFloorPlan(false)
+  }, [state.school?.id, state.surveyType, state.pendingStudioType])
+
   if (!state.school) {
     return (
       <div className="flex flex-1 items-center justify-center px-6 py-12 text-center">

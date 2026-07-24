@@ -681,6 +681,7 @@ export default function RoomSelector({
           key={`picker-${state.selectedLevelId}`}
           variant="picker"
           panelVisible={floorPlanOpen}
+          startExpanded
           onRoomSelect={onCloseFloorPlan}
           onClose={onCloseFloorPlan}
         />

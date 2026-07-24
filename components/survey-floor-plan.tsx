@@ -77,6 +77,7 @@ export default function SurveyFloorPlan({
   onPreWalkRoomTap,
   expanded: expandedProp,
   onExpandedChange,
+  startExpanded = false,
   resultsScoreMode,
   roomScoreById,
   neighborhoodScoreById,
@@ -93,6 +94,8 @@ export default function SurveyFloorPlan({
   onPreWalkRoomTap?: (roomId: string) => void
   expanded?: boolean
   onExpandedChange?: (expanded: boolean) => void
+  /** Picker only: open in the larger expanded view when first shown. */
+  startExpanded?: boolean
   /** Results view: color rooms by assessment score instead of neighborhood identity. */
   resultsScoreMode?: "room" | "neighborhood"
   roomScoreById?: Record<string, number | null>
@@ -114,9 +117,7 @@ export default function SurveyFloorPlan({
   const [neighborhoodMap, setNeighborhoodMap] = useState<RoomNeighborhoodMap>(new Map())
   const [sizeDeviationMap, setSizeDeviationMap] = useState<RoomSizeDeviationMap>(new Map())
   const [isPanning, setIsPanning] = useState(false)
-  const [internalExpanded, setInternalExpanded] = useState(
-    () => variant === "picker" && panelVisible !== false,
-  )
+  const [internalExpanded, setInternalExpanded] = useState(false)
   const expanded = expandedProp ?? internalExpanded
   const setExpanded = onExpandedChange ?? setInternalExpanded
   const canExpand = variant === "picker" || variant === "inline"
@@ -207,15 +208,14 @@ export default function SurveyFloorPlan({
   }, [variant, panelVisible, levelId, readOnly, setZoom, setPan])
 
   useEffect(() => {
-    if (panelVisible !== false) return
-    setExpanded(false)
-  }, [panelVisible, setExpanded])
-
-  useEffect(() => {
-    if (variant === "picker" && panelVisible) {
+    if (panelVisible === false) {
+      setExpanded(false)
+      return
+    }
+    if (variant === "picker" && startExpanded) {
       setExpanded(true)
     }
-  }, [variant, panelVisible, setExpanded])
+  }, [variant, panelVisible, startExpanded, setExpanded])
 
   useEffect(() => {
     if (!expanded) return
