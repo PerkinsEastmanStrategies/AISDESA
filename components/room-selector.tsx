@@ -109,7 +109,6 @@ export default function RoomSelector({
   const [manualAddOpen, setManualAddOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
   const manualRoomRef = useRef<HTMLInputElement>(null)
-  const wasStudioTypeReady = useRef(false)
   const selectedGrade = currentRoomSession?.gradeType ?? ""
   const selectedNeighborhood = currentRoomSession?.neighborhood ?? ""
   const [neighborhoodOptions, setNeighborhoodOptions] = useState<string[]>([...NEIGHBORHOOD_OPTIONS])
@@ -130,16 +129,6 @@ export default function RoomSelector({
     () => gradeOptionsForSchool(state.school?.schoolClass),
     [state.school?.schoolClass],
   )
-  // Auto-open the floor plan once space type (or Close Out) is ready; X can still dismiss it.
-  useEffect(() => {
-    if (spaceTypeReady && !wasStudioTypeReady.current) {
-      const frame = requestAnimationFrame(() => onOpenFloorPlan())
-      wasStudioTypeReady.current = spaceTypeReady
-      return () => cancelAnimationFrame(frame)
-    }
-    wasStudioTypeReady.current = spaceTypeReady
-  }, [spaceTypeReady, onOpenFloorPlan])
-
   const buildingOptions = useMemo(() => {
     const set = new Set<string>()
     const level = state.floorPlan?.levels.find((l) => l.id === state.selectedLevelId)
@@ -375,7 +364,6 @@ export default function RoomSelector({
       setPendingStudioType(roomType || null)
     }
     setStudioTypePickerOpen(false)
-    if (roomType) onOpenFloorPlan()
     if (roomType === "Traditional studio") {
       setTraditionalGuidanceOpen(true)
     }

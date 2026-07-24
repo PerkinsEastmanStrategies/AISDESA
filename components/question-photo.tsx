@@ -3,6 +3,12 @@
 import { useEffect, useId, useRef, useState } from "react"
 import { Camera, ImagePlus, Trash2, X } from "lucide-react"
 import PhotoPrivacyReminderModal from "@/components/photo-privacy-reminder-modal"
+import {
+  deleteSurveyPhoto,
+  isPhotoStorageEnabled,
+  uploadSurveyPhoto,
+  type SurveyPhotoUploadContext,
+} from "@/lib/photo-storage"
 import { compressImageFile } from "@/lib/photo-utils"
 
 interface QuestionPhotoProps {
@@ -13,6 +19,8 @@ interface QuestionPhotoProps {
   startExpanded?: boolean
   /** Optional note shown in the privacy popup before capture. */
   privacyContextNote?: string
+  /** When set, uploads to Supabase Storage instead of keeping a local data URL. */
+  uploadContext?: SurveyPhotoUploadContext | null
 }
 
 type PhotoPickerSource = "camera" | "gallery"
@@ -23,9 +31,11 @@ export default function QuestionPhoto({
   label = "Photo",
   startExpanded = false,
   privacyContextNote,
+  uploadContext = null,
 }: QuestionPhotoProps) {
   const [open, setOpen] = useState(startExpanded || !!photo)
   const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [privacyReminderOpen, setPrivacyReminderOpen] = useState(false)
   const [pendingPicker, setPendingPicker] = useState<PhotoPickerSource | null>(null)
@@ -51,6 +61,21 @@ export default function QuestionPhoto({
     setError(null)
     try {
       const compressed = await compressImageFile(file)
+
+      if (uploadContext && isPhotoStorageEnabled()) {
+        setUploading(true)
+        try {
+          const uploaded = await uploadSurveyPhoto(uploadContext, compressed)
+          onChange(uploaded.url)
+          setOpen(true)
+          return
+        } catch {
+          setError("Cloud upload failed — photo saved on this device only.")
+        } finally {
+          setUploading(false)
+        }
+      }
+
       onChange(compressed)
       setOpen(true)
     } catch {
@@ -61,6 +86,7 @@ export default function QuestionPhoto({
   }
 
   const handleRemove = () => {
+    void deleteSurveyPhoto(photo)
     onChange(undefined)
     setOpen(false)
     setError(null)
@@ -190,7 +216,11 @@ export default function QuestionPhoto({
         </div>
       )}
 
-      {loading && <p className="mt-1 text-[10px] text-[var(--color-muted-foreground)]">Processing…</p>}
+      {loading && (
+        <p className="mt-1 text-[10px] text-[var(--color-muted-foreground)]">
+          {uploading ? "Uploading to cloud…" : "Processing…"}
+        </p>
+      )}
       {error && <p className="mt-1 text-[10px] text-amber-700">{error}</p>}
 
       <input

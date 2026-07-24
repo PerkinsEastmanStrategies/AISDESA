@@ -21,6 +21,7 @@ import {
   spaceTypeOptionsForPreWalk,
 } from "@/lib/prewalk"
 import { PREWALK_SPACE_TYPE_PHOTO_PROMPT } from "@/lib/photo-privacy"
+import type { SurveyPhotoUploadContext } from "@/lib/photo-storage"
 import { loadRoomUseMap, roomUseForRoom, type RoomUseMap } from "@/lib/room-neighborhood-lookup"
 import { cn } from "@/lib/utils"
 import { surveyTypeLabel, type SurveyType } from "@aisd/shared"
@@ -99,6 +100,14 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
   const activeSpaceTypePhoto = activeSpaceType
     ? getPreWalkSpaceTypePhoto(state.preWalk, selectedSurveyType, activeSpaceType)
     : undefined
+  const photoUploadBase: Pick<SurveyPhotoUploadContext, "campusId" | "schoolId" | "surveyType"> | null =
+    state.school
+      ? {
+          campusId: state.session?.campusId ?? state.school.campusId,
+          schoolId: state.school.id,
+          surveyType: selectedSurveyType,
+        }
+      : null
   const levelId = state.selectedLevelId ?? state.floorPlan?.defaultLevelId ?? "floor-1"
   const selectedMapping = selectedRoomId
     ? getPreWalkMapping(state.preWalk.mappings, selectedSurveyType, selectedRoomId)
@@ -433,6 +442,15 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
                     label="Overview photo"
                     startExpanded={!activeSpaceTypePhoto}
                     privacyContextNote={`Add a general photo of ${activeSpaceType}.`}
+                    uploadContext={
+                      photoUploadBase && activeSpaceType
+                        ? {
+                            ...photoUploadBase,
+                            kind: "prewalk-space-type",
+                            spaceType: activeSpaceType,
+                          }
+                        : null
+                    }
                     onChange={(photo) =>
                       setPreWalkSpaceTypePhoto(selectedSurveyType, activeSpaceType, photo)
                     }

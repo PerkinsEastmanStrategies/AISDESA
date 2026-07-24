@@ -67,7 +67,7 @@ export interface RoomQuestionResponse {
   questionId: string
   value: string | string[]
   comment?: string
-  /** Base64 data URL — optional field photo */
+  /** Supabase public URL or local data URL — optional field photo */
   photo?: string
 }
 
@@ -158,7 +158,7 @@ export interface PreWalkRoomMapping {
 
 export interface PreWalkState {
   mappings: Record<string, PreWalkRoomMapping>
-  /** General overview photo per survey space type (key: surveyType::spaceType). */
+  /** General overview photo per survey space type (Supabase URL or local data URL). */
   spaceTypePhotos?: Record<string, string>
   completedAt?: string | null
   skippedAt?: string | null

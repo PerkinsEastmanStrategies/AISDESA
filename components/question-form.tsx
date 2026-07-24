@@ -17,6 +17,7 @@ import {
   type RoomQuestionResponse,
 } from "@aisd/shared"
 import { getPreWalkSpaceTypePhoto } from "@/lib/prewalk"
+import type { SurveyPhotoUploadContext } from "@/lib/photo-storage"
 import { SURVEY_SPACE_TYPE_PHOTO_PROMPT } from "@/lib/photo-privacy"
 import {
   dependentQuestionDisabledReason,
@@ -194,6 +195,14 @@ export default function QuestionForm() {
   const spaceTypePhoto = showSpaceTypePhoto
     ? getPreWalkSpaceTypePhoto(state.preWalk, state.surveyType, spaceType)
     : undefined
+  const photoUploadBase: Pick<SurveyPhotoUploadContext, "campusId" | "schoolId" | "surveyType"> | null =
+    state.school
+      ? {
+          campusId: state.session?.campusId ?? state.school.campusId,
+          schoolId: state.school.id,
+          surveyType: state.surveyType,
+        }
+      : null
 
   const copiedFromRoomId = currentRoomSession?.traditionalStudioCopiedFromRoomId
   const copyReviewPending = !!currentRoomSession?.traditionalStudioCopyReviewPending
@@ -245,6 +254,11 @@ export default function QuestionForm() {
               label="General photo"
               startExpanded={!spaceTypePhoto}
               privacyContextNote={`General photo of ${spaceType}.`}
+              uploadContext={
+                photoUploadBase && spaceType
+                  ? { ...photoUploadBase, kind: "prewalk-space-type", spaceType }
+                  : null
+              }
               onChange={(photo) => setPreWalkSpaceTypePhoto(state.surveyType, spaceType, photo)}
             />
           </div>
@@ -304,6 +318,16 @@ export default function QuestionForm() {
               value={response?.value}
               comment={response?.comment}
               photo={response?.photo}
+              uploadContext={
+                photoUploadBase
+                  ? {
+                      ...photoUploadBase,
+                      kind: "question",
+                      roomId,
+                      questionId: q.questionId,
+                    }
+                  : null
+              }
               disabled={locked}
               autoAnswered={autoAnswered}
               highlighted={flaggedSet.has(q.questionId)}
@@ -403,6 +427,7 @@ function QuestionField({
   value,
   comment,
   photo,
+  uploadContext = null,
   disabled = false,
   autoAnswered = false,
   highlighted = false,
@@ -419,6 +444,7 @@ function QuestionField({
   value: string | string[] | undefined
   comment?: string
   photo?: string
+  uploadContext?: SurveyPhotoUploadContext | null
   disabled?: boolean
   /** Locked because a parent answer forced this value — keep options visible with selection. */
   autoAnswered?: boolean
@@ -710,7 +736,7 @@ function QuestionField({
           onChange={onCommentChange}
           required={noteRequired}
         />
-        <QuestionPhoto photo={photo} onChange={onPhotoChange} />
+        <QuestionPhoto photo={photo} uploadContext={uploadContext} onChange={onPhotoChange} />
       </div>
     </fieldset>
   )
