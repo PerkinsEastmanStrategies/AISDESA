@@ -48,29 +48,31 @@ export function PreWalkBanner() {
     setPreWalkOpen(true)
   }, [state.preWalkRequested, state.school?.id, offerPreWalk, state.floorPlanLoading])
 
-  if (!supportsPreWalk || preWalkOpen) return null
+  if (!supportsPreWalk) return null
 
   return (
     <>
-      <div className="border-b border-slate-200/80 bg-blue-50/60 px-3 py-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-slate-700">
-            {mappedCount > 0
-              ? `${mappedCount} room assignment${mappedCount === 1 ? "" : "s"} mapped in pre-walk`
-              : "Walk the building to map rooms to space types across all surveys before scoring"}
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setPreWalkInitialFlow(false)
-              setPreWalkOpen(true)
-            }}
-            className="shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)] shadow-sm ring-1 ring-slate-200 active:bg-slate-50"
-          >
-            {state.preWalk.completedAt ? "Edit room map" : "Open pre-walk"}
-          </button>
+      {!preWalkOpen && (
+        <div className="border-b border-slate-200/80 bg-blue-50/60 px-3 py-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-slate-700">
+              {mappedCount > 0
+                ? `${mappedCount} room assignment${mappedCount === 1 ? "" : "s"} mapped in pre-walk`
+                : "Walk the building to map rooms to space types across all surveys before scoring"}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setPreWalkInitialFlow(false)
+                setPreWalkOpen(true)
+              }}
+              className="shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)] shadow-sm ring-1 ring-slate-200 active:bg-slate-50"
+            >
+              {state.preWalk.completedAt ? "Edit room map" : "Open pre-walk"}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       <PreWalkModal
         open={preWalkOpen}
