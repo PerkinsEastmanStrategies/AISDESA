@@ -12,6 +12,7 @@ import { parsePlanRoomsFromSvg } from "@/lib/room-parser"
 import {
   getAvailableFloorsForSchool,
   loadFloorPlanManifest,
+  PREFERRED_DEFAULT_FLOOR_LEVEL_ID,
   type FloorPlanLevelEntry,
 } from "@/lib/floor-plan-manifest"
 import {
@@ -158,10 +159,18 @@ async function loadLivelyFloorPlan(
 ): Promise<FloorPlanLoadResult> {
   revokeFloorPlanBlobUrls(school.id)
 
-  const styledLevels: SchoolFloorPlanConfig["levels"] = []
-  const roomLists: ParsedPlanRoom[][] = []
+  const preferredDefaultId = LIVELY_FLOOR_PLAN.defaultLevelId
+  const levelsInLoadOrder = [
+    ...LIVELY_FLOOR_PLAN.levels.filter((level) => level.id === preferredDefaultId),
+    ...LIVELY_FLOOR_PLAN.levels.filter((level) => level.id !== preferredDefaultId),
+  ]
 
-  for (const level of LIVELY_FLOOR_PLAN.levels) {
+  const loadedById = new Map<
+    string,
+    { level: SchoolFloorPlanConfig["levels"][number]; rooms: ParsedPlanRoom[] }
+  >()
+
+  for (const level of levelsInLoadOrder) {
     try {
       const response = await fetch(level.src)
       if (!response.ok) continue
@@ -176,20 +185,21 @@ async function loadLivelyFloorPlan(
       )
       trackBlobUrl(school.id, blobUrl)
 
-      styledLevels.push({
+      const styledLevel = {
         ...level,
         src: blobUrl,
         viewBox: prepared.viewBox,
-      })
-      roomLists.push(parseRoomsFromSvg(prepared.svgText, level.id))
+      }
+      const rooms = parseRoomsFromSvg(prepared.svgText, level.id)
+      loadedById.set(level.id, { level: styledLevel, rooms })
 
-      if (styledLevels.length === 1) {
+      if (level.id === preferredDefaultId) {
         onFirstFloorReady?.({
           plan: {
             schoolId: school.id,
-            defaultLevelId: styledLevels[0].id,
+            defaultLevelId: preferredDefaultId,
             buildingSqft: LIVELY_FLOOR_PLAN.buildingSqft,
-            levels: [styledLevels[0]],
+            levels: [styledLevel],
           },
           rooms: [],
         })
@@ -199,18 +209,43 @@ async function loadLivelyFloorPlan(
     }
   }
 
+  const styledLevels = LIVELY_FLOOR_PLAN.levels
+    .map((level) => loadedById.get(level.id)?.level)
+    .filter((level): level is SchoolFloorPlanConfig["levels"][number] => Boolean(level))
+
   if (!styledLevels.length) {
     return { plan: null, rooms: [] }
+  }
+
+  const defaultLevelId = styledLevels.some((level) => level.id === preferredDefaultId)
+    ? preferredDefaultId
+    : styledLevels[0].id
+
+  if (!loadedById.has(preferredDefaultId)) {
+    const fallback = loadedById.get(defaultLevelId)
+    if (fallback) {
+      onFirstFloorReady?.({
+        plan: {
+          schoolId: school.id,
+          defaultLevelId,
+          buildingSqft: LIVELY_FLOOR_PLAN.buildingSqft,
+          levels: [fallback.level],
+        },
+        rooms: [],
+      })
+    }
   }
 
   return {
     plan: {
       schoolId: school.id,
-      defaultLevelId: styledLevels[0].id,
+      defaultLevelId,
       buildingSqft: LIVELY_FLOOR_PLAN.buildingSqft,
       levels: styledLevels,
     },
-    rooms: roomLists.flat(),
+    rooms: LIVELY_FLOOR_PLAN.levels.flatMap(
+      (level) => loadedById.get(level.id)?.rooms ?? [],
+    ),
   }
 }
 
@@ -275,11 +310,16 @@ export async function loadFloorPlanForSchool(
 
   const preferMobile = preferMobileFloorPlan()
 
-  // First FLOOR_LEVELS entry with a real file wins as default. Skip empty stubs /
-  // failed fetches so a blank Floor 1 does not block Floor 2 (Bryker Woods).
+  // Prefer Floor 1 when available; skip empty stubs so a blank L1 does not block L2 (Bryker Woods).
+  const preferredIndex = floors.findIndex((floor) => floor.id === PREFERRED_DEFAULT_FLOOR_LEVEL_ID)
+  const defaultCandidateIndexes =
+    preferredIndex >= 0
+      ? [preferredIndex, ...floors.map((_, i) => i).filter((i) => i !== preferredIndex)]
+      : floors.map((_, i) => i)
+
   let defaultIndex = -1
   let defaultResult: LevelLoadResult | null = null
-  for (let i = 0; i < floors.length; i++) {
+  for (const i of defaultCandidateIndexes) {
     const result = await loadLevel(school.id, floors[i], false, preferMobile)
     if (result) {
       defaultIndex = i

@@ -19,6 +19,9 @@ export const FLOOR_LEVELS = [
 
 export type FloorLevelId = (typeof FLOOR_LEVELS)[number]["id"]
 
+/** Default floor shown when a school’s plan opens (unless a room selects another level). */
+export const PREFERRED_DEFAULT_FLOOR_LEVEL_ID: FloorLevelId = "floor-1"
+
 export interface FloorPlanLevelEntry {
   id: FloorLevelId
   shortLabel: string

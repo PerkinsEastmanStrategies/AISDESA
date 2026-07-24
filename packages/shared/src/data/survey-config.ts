@@ -5,12 +5,15 @@ import {
   TABLE_OF_SURVEY_ENTRIES,
   isSpaceTypeRequiredForSchool,
   lookupTableEntry,
+  lookupTableEntryBySpaceType,
   requiredSurveyTypesForSchool,
   scoringFocusAreaForRoomFromTable,
   scoringFocusAreaLabel,
   spaceTypesForSurveyModule,
+  surveyFocusForSurveyType,
   surveyTypeAvailableForSchoolFromTable,
   surveyTypesForSchool,
+  surveyTypesInSameNavGroup,
   type ScoringFocusAreaId,
   type TableOfSurveyEntry,
 } from "../data/table-of-surveys"
@@ -433,7 +436,7 @@ export function getRoomSurveyRubric(
   if (surveyType === "neighborhoods") {
     let base: SurveyRubric | null = null
     if (roomType === "Neighborhood") base = NEIGHBORHOOD_SPACE_RUBRIC
-    else if (roomType === "Group Room") base = GROUP_ROOM_RUBRIC
+    else if (roomType === "Group Room" || roomType === "Large Group Room") base = GROUP_ROOM_RUBRIC
     else if (roomType === "Open Collaboration Space") base = OPEN_COLLAB_RUBRIC
     if (!base) return null
     const neighborhoodGrade =
@@ -501,9 +504,9 @@ export function surveyTypeLabel(type: SurveyType): string {
     case "neighborhoods":
       return "Neighborhoods"
     case "arrival":
-      return "Arrival/Main Office"
+      return "Arrival/Administration"
     case "administration":
-      return "Administration"
+      return "Arrival/Administration"
     case "athletics":
       return "Athletics and Wellness"
     case "performing_arts":
@@ -560,12 +563,21 @@ export function surveyTypeAvailableForSchool(
   return surveyTypeAvailableForSchoolFromTable(type, schoolClass)
 }
 
-/** Space types configured for a survey module at this school (from Table of Surveys). */
+/** Space types configured for a survey module at this school (from Categories CSV). */
 export function spaceTypeOptionsForSurvey(
   surveyType: SurveyType,
   schoolClass?: string | null,
 ): readonly string[] {
-  return spaceTypesForSurveyModule(surveyType, schoolClass).map((entry) => entry.spaceType)
+  const seen = new Set<string>()
+  const types: string[] = []
+  for (const moduleType of surveyTypesInSameNavGroup(surveyType, schoolClass)) {
+    for (const entry of spaceTypesForSurveyModule(moduleType, schoolClass)) {
+      if (seen.has(entry.spaceType)) continue
+      seen.add(entry.spaceType)
+      types.push(entry.spaceType)
+    }
+  }
+  return types
 }
 
 export function tableEntryForSpaceType(
@@ -573,16 +585,35 @@ export function tableEntryForSpaceType(
   spaceType: string,
   schoolClass?: string | null,
 ): TableOfSurveyEntry | null {
-  return lookupTableEntry(surveyType, spaceType, schoolClass)
+  return (
+    lookupTableEntry(surveyType, spaceType, schoolClass) ??
+    lookupTableEntryBySpaceType(spaceType, schoolClass)
+  )
 }
 
-/** Whether this survey module shows a space-type picker (from Table of Surveys). */
+/** Survey module that owns a space type for this school (from Categories CSV). */
+export function surveyTypeForSpaceType(
+  spaceType: string,
+  schoolClass?: string | null,
+): SurveyType | null {
+  return lookupTableEntryBySpaceType(spaceType, schoolClass)?.surveyType ?? null
+}
+
+/** Sidebar label from CSV survey focus area. */
+export function surveyNavLabel(
+  surveyType: SurveyType,
+  schoolClass?: string | null,
+): string {
+  return surveyFocusForSurveyType(surveyType, schoolClass) ?? surveyTypeLabel(surveyType)
+}
+
+/** Whether this survey module shows a space-type picker (from Categories CSV). */
 export function surveyModuleUsesSpaceTypePicker(
   surveyType: SurveyType,
   schoolClass?: string | null,
 ): boolean {
   if (surveyType === "closeout") return false
-  return spaceTypesForSurveyModule(surveyType, schoolClass).length > 0
+  return spaceTypeOptionsForSurvey(surveyType, schoolClass).length > 0
 }
 
 /** Whether a value is a configured space type for this survey at this school. */
@@ -591,7 +622,12 @@ export function isSpaceTypeForSurveyModule(
   value: string,
   schoolClass?: string | null,
 ): boolean {
-  return (spaceTypeOptionsForSurvey(surveyType, schoolClass) as readonly string[]).includes(value)
+  for (const moduleType of surveyTypesInSameNavGroup(surveyType, schoolClass)) {
+    if ((spaceTypeOptionsForSurvey(moduleType, schoolClass) as readonly string[]).includes(value)) {
+      return true
+    }
+  }
+  return false
 }
 
 export const STUDIO_TYPE_OPTIONS = [
@@ -599,6 +635,7 @@ export const STUDIO_TYPE_OPTIONS = [
   "Sensory Lab",
   "Life Skills Room",
   "Early childhood studio",
+  "Early childhood special education studio",
   "Science",
   "Sped flex studio",
   "Vocational Lab",
@@ -636,6 +673,7 @@ export function isArrivalSpaceType(value: string): value is ArrivalSpaceType {
 export const NEIGHBORHOOD_SPACE_TYPE_OPTIONS = [
   "Neighborhood",
   "Group Room",
+  "Large Group Room",
   "Open Collaboration Space",
 ] as const
 
@@ -700,6 +738,7 @@ export function usesPackageNeighborhoodRubric(roomType: string | null | undefine
   return (
     roomType === "Neighborhood" ||
     roomType === "Group Room" ||
+    roomType === "Large Group Room" ||
     roomType === "Open Collaboration Space"
   )
 }
@@ -792,4 +831,5 @@ export {
   requiredSurveyTypesForSchool,
   spaceTypesForSurveyModule,
   surveyTypesForSchool,
+  surveyTypesInSameNavGroup,
 }

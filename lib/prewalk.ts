@@ -3,6 +3,7 @@ import {
   isSpaceTypeForSurveyModule,
   spaceTypeOptionsForSurvey,
   surveyModuleUsesSpaceTypePicker,
+  surveyNavTypesForSchool,
   surveyTypesForSchool,
 } from "@aisd/shared"
 
@@ -94,7 +95,7 @@ export function migratePreWalkState(
 }
 
 export function preWalkSurveyTypesForSchool(schoolClass?: string | null): SurveyType[] {
-  return surveyTypesForSchool(schoolClass).filter((surveyType) =>
+  return surveyNavTypesForSchool(schoolClass).filter((surveyType) =>
     surveyModuleUsesSpaceTypePicker(surveyType, schoolClass),
   )
 }

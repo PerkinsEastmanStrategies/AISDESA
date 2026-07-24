@@ -4,11 +4,12 @@ import { CheckCircle2, Circle, LoaderCircle, User } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
 import {
   isMsHsOnlySurveyType,
-  surveyTypeLabel,
-  surveyTypesForSchool,
+  surveyNavLabel,
+  surveyNavTypesForSchool,
+  surveyTypesInSameNavGroup,
   type SurveyType,
 } from "@aisd/shared"
-import { surveyStatusLabel, type SurveyTypeStatus } from "@/lib/survey-status"
+import { surveyStatusLabel, type SurveyTypeInfo, type SurveyTypeStatus } from "@/lib/survey-status"
 import { cn } from "@/lib/utils"
 
 function StatusIcon({ status }: { status: SurveyTypeStatus }) {
@@ -20,6 +21,33 @@ function StatusIcon({ status }: { status: SurveyTypeStatus }) {
     default:
       return <Circle className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
   }
+}
+
+function combinedNavStatus(
+  surveyTypes: SurveyType[],
+  infos: Record<SurveyType, SurveyTypeInfo>,
+): SurveyTypeStatus {
+  const statuses = surveyTypes.map((type) => infos[type]?.status ?? "not_started")
+  if (statuses.every((status) => status === "complete")) return "complete"
+  if (statuses.some((status) => status === "complete" || status === "in_progress")) {
+    return "in_progress"
+  }
+  return "not_started"
+}
+
+function combinedNavAssessor(
+  surveyTypes: SurveyType[],
+  infos: Record<SurveyType, SurveyTypeInfo>,
+): SurveyTypeInfo["assessor"] {
+  for (const type of surveyTypes) {
+    const info = infos[type]
+    if (info?.status === "in_progress" && info.assessor) return info.assessor
+  }
+  for (const type of surveyTypes) {
+    const assessor = infos[type]?.assessor
+    if (assessor) return assessor
+  }
+  return null
 }
 
 interface SurveyTypeNavProps {
@@ -35,29 +63,35 @@ export default function SurveyTypeNav({ variant }: SurveyTypeNavProps) {
   }
 
   const schoolClass = state.school?.schoolClass
-  const items = surveyTypesForSchool(schoolClass).map((type) => ({
-    type,
-    label: surveyTypeLabel(type),
-    info: surveyTypeInfos[type],
-    msHsOnly: isMsHsOnlySurveyType(type),
-  }))
+  const items = surveyNavTypesForSchool(schoolClass).map((type) => {
+    const group = surveyTypesInSameNavGroup(type, schoolClass)
+    return {
+      type,
+      group,
+      label: surveyNavLabel(type, schoolClass),
+      status: combinedNavStatus(group, surveyTypeInfos),
+      assessor: combinedNavAssessor(group, surveyTypeInfos),
+      msHsOnly: group.some((member) => isMsHsOnlySurveyType(member)),
+      active: group.includes(state.surveyType),
+    }
+  }).filter((item, index, list) => list.findIndex((other) => other.label === item.label) === index)
 
   if (variant === "tabs") {
     return (
       <div className="flex gap-1 overflow-x-auto px-3 pb-2 pt-3 scrollbar-none md:hidden">
-        {items.map(({ type, label, info }) => (
+        {items.map(({ type, label, status, active }) => (
           <button
             key={type}
             type="button"
             onClick={() => handleSelect(type)}
             className={cn(
               "flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
-              state.surveyType === type
+              active
                 ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
                 : "bg-[var(--color-muted)] text-[var(--color-muted-foreground)] active:bg-slate-200",
             )}
           >
-            <StatusIcon status={info.status} />
+            <StatusIcon status={status} />
             <span>{label}</span>
           </button>
         ))}
@@ -75,8 +109,7 @@ export default function SurveyTypeNav({ variant }: SurveyTypeNavProps) {
         <p className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">Select an assessment</p>
       </div>
       <ul className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-y-contain p-2">
-        {items.map(({ type, label, info, msHsOnly }) => {
-          const active = state.surveyType === type
+        {items.map(({ type, label, status, assessor, msHsOnly, active }) => {
           return (
             <li key={type}>
               <button
@@ -91,7 +124,7 @@ export default function SurveyTypeNav({ variant }: SurveyTypeNavProps) {
                 )}
               >
                 <span className="flex items-start gap-2">
-                  <StatusIcon status={info.status} />
+                  <StatusIcon status={status} />
                   <span className="min-w-0">
                     <span
                       className={cn(
@@ -109,12 +142,12 @@ export default function SurveyTypeNav({ variant }: SurveyTypeNavProps) {
                   </span>
                 </span>
                 <span className="mt-1 pl-6 text-xs text-[var(--color-muted-foreground)]">
-                  {surveyStatusLabel(info.status)}
+                  {surveyStatusLabel(status)}
                 </span>
-                {info.assessor && (
+                {assessor && (
                   <span className="mt-1 flex items-center gap-1 pl-6 text-xs text-[var(--color-muted-foreground)]">
                     <User className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
-                    <span className="truncate">{info.assessor.name}</span>
+                    <span className="truncate">{assessor.name}</span>
                   </span>
                 )}
               </button>

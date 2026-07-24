@@ -122,7 +122,12 @@ interface SurveyState {
 }
 
 type Action =
-  | { type: "SET_SURVEY_TYPE"; surveyType: SurveyType; draft?: PersistedSurveyDraft | null }
+  | {
+      type: "SET_SURVEY_TYPE"
+      surveyType: SurveyType
+      draft?: PersistedSurveyDraft | null
+      pendingStudioType?: string | null
+    }
   | { type: "SET_SCHOOL"; school: AisdSchoolOption | null; draft?: PersistedSurveyDraft | null }
   | { type: "RESTORE"; school: AisdSchoolOption; draft: PersistedSurveyDraft; showResumeBanner?: boolean }
   | { type: "UPDATE_SCHOOL"; school: AisdSchoolOption }
@@ -664,9 +669,21 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         return { ...state, surveyType: action.surveyType, submission: null, showResumeBanner: false }
       }
       if (action.draft) {
+        const restored = stateFromDraft(
+          state.school,
+          action.draft,
+          false,
+          state.assessorByType,
+          state.allRooms,
+          state.floorPlan,
+        )
         return bootstrapCampusScopedSurvey({
-          ...stateFromDraft(state.school, action.draft, false, state.assessorByType, state.allRooms, state.floorPlan),
+          ...restored,
           surveyType: action.surveyType,
+          pendingStudioType:
+            action.pendingStudioType !== undefined
+              ? action.pendingStudioType
+              : restored.pendingStudioType,
         })
       }
       const assessor = state.assessorByType[action.surveyType]
@@ -679,7 +696,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         submission: null,
         showResumeBanner: false,
         weightOverrides: EMPTY_WEIGHT_OVERRIDES,
-        pendingStudioType: null,
+        pendingStudioType: action.pendingStudioType ?? null,
         preWalk: EMPTY_PREWALK,
         ...emptyScoreState(),
       })
@@ -745,18 +762,18 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         ? action.rooms.find((r) => r.id === state.selectedRoomId) ??
           state.manualRooms.find((r) => r.id === state.selectedRoomId)
         : undefined
-      const preferredLevel = selectedRoom?.levelId ?? state.selectedLevelId
       const mergedRooms = mergeManualRooms(action.rooms, state.manualRooms)
-      const levelStillValid =
-        !!preferredLevel && mergedRooms.some((r) => r.levelId === preferredLevel)
+      const roomLevel = selectedRoom?.levelId
+      const levelStillValidForRoom =
+        !!roomLevel && mergedRooms.some((r) => r.levelId === roomLevel)
       return {
         ...state,
         floorPlan: action.plan,
         floorPlanLoading: false,
         allRooms: mergedRooms,
-        selectedLevelId: levelStillValid
-          ? preferredLevel
-          : (action.plan?.defaultLevelId ?? preferredLevel ?? null),
+        selectedLevelId: levelStillValidForRoom
+          ? roomLevel
+          : (action.plan?.defaultLevelId ?? null),
       }
     }
     case "SET_FLOOR_PLAN_LOADING":
@@ -1401,7 +1418,7 @@ interface SurveyContextValue {
   schools: AisdSchoolOption[]
   schoolsLoading: boolean
   lastSavedAt: string | null
-  setSurveyType: (t: SurveyType) => void
+  setSurveyType: (t: SurveyType, options?: { pendingStudioType?: string | null }) => void
   setSchool: (s: AisdSchoolOption | null) => void
   setLevel: (levelId: string) => void
   selectRoom: (roomId: string | null) => void
@@ -1901,12 +1918,21 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   )
 
   const setSurveyType = useCallback(
-    (t: SurveyType) => {
+    (t: SurveyType, options?: { pendingStudioType?: string | null }) => {
       if (state.school) {
         const draft = loadDraft(state.school.id, t)
-        dispatch({ type: "SET_SURVEY_TYPE", surveyType: t, draft })
+        dispatch({
+          type: "SET_SURVEY_TYPE",
+          surveyType: t,
+          draft,
+          pendingStudioType: options?.pendingStudioType,
+        })
       } else {
-        dispatch({ type: "SET_SURVEY_TYPE", surveyType: t })
+        dispatch({
+          type: "SET_SURVEY_TYPE",
+          surveyType: t,
+          pendingStudioType: options?.pendingStudioType,
+        })
       }
     },
     [state.school],

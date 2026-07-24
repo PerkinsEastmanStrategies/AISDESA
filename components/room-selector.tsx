@@ -15,6 +15,7 @@ import {
   spaceTypeOptionsForSurvey,
   studioTypeShowsGradePicker,
   surveyModuleUsesSpaceTypePicker,
+  surveyTypeForSpaceType,
   tableEntryForSpaceType,
 } from "@aisd/shared"
 import { roomNeedsCloseOut } from "@/lib/closeout"
@@ -54,6 +55,7 @@ export default function RoomSelector({
     setNeighborhood,
     setSchoolRoomNumber,
     setPendingStudioType,
+    setSurveyType,
     currentRoomSession,
     submitValidation,
     traditionalStudioCopyOffer,
@@ -365,7 +367,13 @@ export default function RoomSelector({
   }
 
   const handleSelectStudioType = (roomType: string) => {
-    setPendingStudioType(roomType || null)
+    const targetSurveyType =
+      surveyTypeForSpaceType(roomType, state.school?.schoolClass) ?? state.surveyType
+    if (targetSurveyType !== state.surveyType) {
+      setSurveyType(targetSurveyType, { pendingStudioType: roomType || null })
+    } else {
+      setPendingStudioType(roomType || null)
+    }
     setStudioTypePickerOpen(false)
     if (roomType) onOpenFloorPlan()
     if (roomType === "Traditional studio") {
@@ -737,7 +745,7 @@ export default function RoomSelector({
                   type,
                   state.school?.schoolClass,
                 )
-                const isRequired = isSpaceTypeRequiredForSchool(
+                const isRequired = tableEntry?.required ?? isSpaceTypeRequiredForSchool(
                   state.surveyType,
                   type,
                   state.school?.schoolClass,
@@ -771,11 +779,6 @@ export default function RoomSelector({
                             Optional
                           </span>
                         )}
-                        {tableEntry?.notes ? (
-                          <span className="mt-0.5 block text-[11px] font-normal leading-snug text-slate-500">
-                            {tableEntry.notes}
-                          </span>
-                        ) : null}
                         {isTraditional ? (
                           progress.complete > 0 || progress.started > 0 ? (
                             <span className="mt-0.5 block text-xs font-normal text-[var(--color-muted-foreground)]">

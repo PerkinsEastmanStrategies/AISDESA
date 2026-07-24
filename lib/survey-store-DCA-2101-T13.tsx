@@ -508,18 +508,18 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         ? action.rooms.find((r) => r.id === state.selectedRoomId) ??
           state.manualRooms.find((r) => r.id === state.selectedRoomId)
         : undefined
-      const preferredLevel = selectedRoom?.levelId ?? state.selectedLevelId
       const mergedRooms = mergeManualRooms(action.rooms, state.manualRooms)
-      const levelStillValid =
-        !!preferredLevel && mergedRooms.some((r) => r.levelId === preferredLevel)
+      const roomLevel = selectedRoom?.levelId
+      const levelStillValidForRoom =
+        !!roomLevel && mergedRooms.some((r) => r.levelId === roomLevel)
       return {
         ...state,
         floorPlan: action.plan,
         floorPlanLoading: false,
         allRooms: mergedRooms,
-        selectedLevelId: levelStillValid
-          ? preferredLevel
-          : (action.plan?.defaultLevelId ?? preferredLevel ?? null),
+        selectedLevelId: levelStillValidForRoom
+          ? roomLevel
+          : (action.plan?.defaultLevelId ?? null),
       }
     }
     case "SET_FLOOR_PLAN_LOADING":

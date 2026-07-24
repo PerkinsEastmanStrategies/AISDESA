@@ -4,8 +4,8 @@ import { fileURLToPath } from "url"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const surveyDir = path.join(__dirname, "..")
-const csvPath = path.join(surveyDir, "AISD_ESA_TableofSurveys.csv")
-const publicPath = path.join(surveyDir, "public", "AISD_ESA_TableofSurveys.csv")
+const csvPath = path.join(surveyDir, "AISD_ESA_Categories.csv")
+const publicPath = path.join(surveyDir, "public", "AISD_ESA_Categories.csv")
 const localShared = path.join(surveyDir, "packages", "shared", "src", "data", "table-of-surveys.ts")
 const monorepoShared = path.join(surveyDir, "..", "packages", "shared", "src", "data", "table-of-surveys.ts")
 const outPath = fs.existsSync(path.dirname(localShared)) ? localShared : monorepoShared
@@ -54,12 +54,26 @@ function esc(s) {
   return JSON.stringify(s)
 }
 
-function surveyModuleFromFocusAreaSurvey(name) {
-  switch (name) {
-    case "Arrival/Main Office":
-      return "arrival"
-    case "Administration":
-      return "administration"
+const ARRIVAL_ADMIN_ARRIVAL_RAW = new Set([
+  "Main Entry/Reception",
+  "Main Admin Suite",
+  "Community Partners Suite",
+])
+
+const ARRIVAL_ADMIN_ADMIN_RAW = new Set([
+  "Admin Offices",
+  "Professional Learning Center",
+  "Mental Wellness and Counseling Suite",
+])
+
+function surveyModuleFromFocusArea(focusArea, spaceTypeRaw) {
+  if (focusArea === "Arrival/Administration") {
+    if (ARRIVAL_ADMIN_ARRIVAL_RAW.has(spaceTypeRaw)) return "arrival"
+    if (ARRIVAL_ADMIN_ADMIN_RAW.has(spaceTypeRaw)) return "administration"
+    throw new Error(`Unknown Arrival/Administration space type: ${spaceTypeRaw}`)
+  }
+
+  switch (focusArea) {
     case "Studios":
       return "studios"
     case "Neighborhoods":
@@ -83,21 +97,14 @@ function surveyModuleFromFocusAreaSurvey(name) {
 function scoringFocusAreaIdFromLabel(label) {
   const normalized = label.trim().toLowerCase()
   switch (normalized) {
-    case "arrival/main office":
-      return "arrival_main_office"
-    case "admin":
-      return "admin"
-    case "early childhood":
-      return "early_childhood"
-    case "special education":
+    case "arrival/administration":
+      return "arrival_administration"
+    case "studios":
+      return "studios"
     case "special education":
       return "special_education"
-    case "studio":
-      return "studio"
-    case "specials":
-      return "specials"
-    case "neighborhood":
-      return "neighborhood"
+    case "neighborhoods":
+      return "neighborhoods"
     case "athletics and wellness":
       return "athletics_wellness"
     case "shared spaces":
@@ -132,8 +139,19 @@ function canonicalSpaceType(name) {
     "Auditorium": "Auditorium",
     "Dance": "Dance",
     "Outdoor Athletics": "Outdoor Athletics",
+    Gym: "Gym",
+    "Multi-Purpose Gym": "Multi-Purpose Gym",
+    "Practice Gym": "Practice Gym",
+    "Competition Gym": "Competition Gym",
+    "PE Fitness Room": "PE Fitness Room",
   }
   return map[name] ?? name
+}
+
+function normalizeScoreCode(spaceTypeRaw, scoreCode) {
+  const code = scoreCode.trim()
+  if (spaceTypeRaw === "Neighborhood" && code === "MG") return "NE"
+  return code
 }
 
 if (!fs.existsSync(csvPath)) {
@@ -142,22 +160,24 @@ if (!fs.existsSync(csvPath)) {
 }
 
 fs.copyFileSync(csvPath, publicPath)
-console.log("Copied AISD_ESA_TableofSurveys.csv -> public/")
+console.log("Copied AISD_ESA_Categories.csv -> public/")
 
 const rows = parseCsv(fs.readFileSync(csvPath, "utf8"))
-const header = rows[0]
-const dataRows = rows.slice(1).filter((r) => r.length >= 8 && r[0]?.trim())
+const dataRows = rows.slice(1).filter((r) => {
+  const level = r[2]?.trim()
+  return level === "ES" || level === "MS" || level === "HS"
+})
 
 const entries = dataRows.map((r) => {
   const surveyFocus = r[0].trim()
   const spaceTypeRaw = r[1].trim()
   const schoolLevel = r[2].trim()
   const required = r[3].trim().toUpperCase() === "Y"
-  const notes = r[4]?.trim() ?? ""
-  const scoringFocusLabel = r[5].trim()
-  const spaceTypeWeight = Number.parseInt(r[6], 10) || 0
-  const focusAreaWeight = Number.parseInt(r[7], 10) || 0
-  const surveyType = surveyModuleFromFocusAreaSurvey(surveyFocus)
+  const scoringFocusLabel = r[4].trim()
+  const spaceTypeWeight = Number.parseInt(r[5], 10) || 0
+  const focusAreaWeight = Number.parseInt(r[6], 10) || 0
+  const scoreCode = normalizeScoreCode(spaceTypeRaw, r[7]?.trim() ?? "")
+  const surveyType = surveyModuleFromFocusArea(surveyFocus, spaceTypeRaw)
   const scoringFocusAreaId = scoringFocusAreaIdFromLabel(scoringFocusLabel)
   const spaceType = canonicalSpaceType(spaceTypeRaw)
 
@@ -172,11 +192,11 @@ const entries = dataRows.map((r) => {
     spaceTypeRaw,
     schoolLevel,
     required,
-    notes,
     scoringFocusLabel,
     scoringFocusAreaId,
     spaceTypeWeight,
     focusAreaWeight,
+    scoreCode,
   }
 })
 
@@ -192,13 +212,10 @@ for (const entry of entries) {
 }
 
 const focusAreaOrder = [
-  "arrival_main_office",
-  "admin",
-  "early_childhood",
+  "arrival_administration",
+  "studios",
   "special_education",
-  "studio",
-  "specials",
-  "neighborhood",
+  "neighborhoods",
   "athletics_wellness",
   "shared_spaces",
   "outdoor_elements",
@@ -228,7 +245,7 @@ const surveyOrder = [
   "closeout",
 ]
 
-const out = `/** Generated from AISD_ESA_TableofSurveys.csv — do not edit by hand. */
+const out = `/** Generated from AISD_ESA_Categories.csv — do not edit by hand. */
 import type { SurveyType } from "../types/survey"
 
 export type TableSchoolLevel = "ES" | "MS" | "HS"
@@ -243,11 +260,11 @@ export interface TableOfSurveyEntry {
   spaceTypeRaw: string
   schoolLevel: TableSchoolLevel
   required: boolean
-  notes: string
   scoringFocusLabel: string
   scoringFocusAreaId: ScoringFocusAreaId
   spaceTypeWeight: number
   focusAreaWeight: number
+  scoreCode: string
 }
 
 export interface ScoringFocusAreaDef {
@@ -260,7 +277,7 @@ export const TABLE_OF_SURVEY_ENTRIES: TableOfSurveyEntry[] = [
 ${entries
   .map(
     (e) =>
-      `  { surveyFocus: ${esc(e.surveyFocus)}, surveyType: ${esc(e.surveyType)}, spaceType: ${esc(e.spaceType)}, spaceTypeRaw: ${esc(e.spaceTypeRaw)}, schoolLevel: ${esc(e.schoolLevel)}, required: ${e.required}, notes: ${esc(e.notes)}, scoringFocusLabel: ${esc(e.scoringFocusLabel)}, scoringFocusAreaId: ${esc(e.scoringFocusAreaId)}, spaceTypeWeight: ${e.spaceTypeWeight}, focusAreaWeight: ${e.focusAreaWeight} },`,
+      `  { surveyFocus: ${esc(e.surveyFocus)}, surveyType: ${esc(e.surveyType)}, spaceType: ${esc(e.spaceType)}, spaceTypeRaw: ${esc(e.spaceTypeRaw)}, schoolLevel: ${esc(e.schoolLevel)}, required: ${e.required}, scoringFocusLabel: ${esc(e.scoringFocusLabel)}, scoringFocusAreaId: ${esc(e.scoringFocusAreaId)}, spaceTypeWeight: ${e.spaceTypeWeight}, focusAreaWeight: ${e.focusAreaWeight}, scoreCode: ${esc(e.scoreCode)} },`,
   )
   .join("\n")}
 ]
@@ -344,6 +361,11 @@ export function spaceTypesForSurveyModule(
   })
 }
 
+const SPACE_TYPE_ALIASES = {
+  Gym: "Multi-Purpose Gym",
+  "Competition Gym": "Multi-Purpose Gym",
+} as const
+
 export function lookupTableEntry(
   surveyType: SurveyType,
   spaceType: string | null | undefined,
@@ -352,14 +374,22 @@ export function lookupTableEntry(
   const level = schoolLevelFromSchoolClass(schoolClass)
   const normalized = spaceType?.trim()
   if (!normalized) return null
-  return (
-    TABLE_OF_SURVEY_ENTRIES.find(
+
+  const candidates = [normalized]
+  const alias = SPACE_TYPE_ALIASES[normalized as keyof typeof SPACE_TYPE_ALIASES]
+  if (alias) candidates.push(alias)
+
+  for (const candidate of candidates) {
+    const match = TABLE_OF_SURVEY_ENTRIES.find(
       (entry) =>
         entry.surveyType === surveyType &&
-        entry.spaceType === normalized &&
+        entry.spaceType === candidate &&
         (!level || entry.schoolLevel === level),
-    ) ?? null
-  )
+    )
+    if (match) return match
+  }
+
+  return null
 }
 
 export function scoringFocusAreaForRoomFromTable(
@@ -406,6 +436,103 @@ export function isSpaceTypeRequiredForSchool(
   schoolClass: string | null | undefined,
 ): boolean {
   return lookupTableEntry(surveyType, spaceType, schoolClass)?.required ?? false
+}
+
+export function scoreCodeForSpaceType(
+  surveyType: SurveyType,
+  spaceType: string,
+  schoolClass: string | null | undefined,
+): string | null {
+  return lookupTableEntry(surveyType, spaceType, schoolClass)?.scoreCode ?? null
+}
+
+export function surveyFocusForSurveyType(
+  surveyType: SurveyType,
+  schoolClass: string | null | undefined,
+): string | null {
+  const level = schoolLevelFromSchoolClass(schoolClass)
+  const entry = TABLE_OF_SURVEY_ENTRIES.find(
+    (row) => row.surveyType === surveyType && (!level || row.schoolLevel === level),
+  )
+  return entry?.surveyFocus ?? null
+}
+
+/** Internal survey modules that share one sidebar entry (CSV survey focus area). */
+export function surveyTypesInSameNavGroup(
+  surveyType: SurveyType,
+  schoolClass: string | null | undefined,
+): SurveyType[] {
+  const focus = surveyFocusForSurveyType(surveyType, schoolClass)?.trim()
+  if (!focus) return [surveyType]
+  const level = schoolLevelFromSchoolClass(schoolClass)
+  const types = new Set<SurveyType>()
+  for (const entry of TABLE_OF_SURVEY_ENTRIES) {
+    if (entry.surveyFocus.trim() !== focus) continue
+    if (level && entry.schoolLevel !== level) continue
+    types.add(entry.surveyType)
+  }
+  const ordered = SURVEY_MODULE_ORDER.filter((type) => types.has(type))
+  return ordered.length ? ordered : [surveyType]
+}
+
+/** One sidebar item per CSV survey focus area. */
+export function surveyNavTypesForSchool(
+  schoolClass: string | null | undefined,
+): SurveyType[] {
+  const level = schoolLevelFromSchoolClass(schoolClass)
+  const primaryTypeByFocus = new Map<string, SurveyType>()
+
+  for (const type of SURVEY_MODULE_ORDER) {
+    const hasEntry = TABLE_OF_SURVEY_ENTRIES.some(
+      (entry) => entry.surveyType === type && (!level || entry.schoolLevel === level),
+    )
+    if (!hasEntry) continue
+
+    const focus = surveyFocusForSurveyType(type, schoolClass)?.trim()
+    if (!focus) {
+      primaryTypeByFocus.set(\`__\${type}\`, type)
+      continue
+    }
+
+    if (!primaryTypeByFocus.has(focus)) {
+      primaryTypeByFocus.set(focus, type)
+    }
+  }
+
+  const navTypes: SurveyType[] = []
+  for (const type of SURVEY_MODULE_ORDER) {
+    const focus = surveyFocusForSurveyType(type, schoolClass)?.trim()
+    if (!focus) {
+      if (primaryTypeByFocus.get(\`__\${type}\`) === type) navTypes.push(type)
+      continue
+    }
+    if (primaryTypeByFocus.get(focus) === type) navTypes.push(type)
+  }
+
+  return navTypes
+}
+
+export function lookupTableEntryBySpaceType(
+  spaceType: string | null | undefined,
+  schoolClass: string | null | undefined,
+): TableOfSurveyEntry | null {
+  const level = schoolLevelFromSchoolClass(schoolClass)
+  const normalized = spaceType?.trim()
+  if (!normalized) return null
+
+  const candidates = [normalized]
+  const alias = SPACE_TYPE_ALIASES[normalized as keyof typeof SPACE_TYPE_ALIASES]
+  if (alias) candidates.push(alias)
+
+  for (const candidate of candidates) {
+    const match = TABLE_OF_SURVEY_ENTRIES.find(
+      (entry) =>
+        entry.spaceType === candidate && (!level || entry.schoolLevel === level),
+    )
+    if (match) return match
+  }
+
+  return null
 }
 `
 
