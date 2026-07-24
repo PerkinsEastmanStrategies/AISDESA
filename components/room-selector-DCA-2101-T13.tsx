@@ -94,9 +94,7 @@ export default function RoomSelector({
         : selectedStudioType
   const spaceTypeReady = !showSpaceType || !!selectedSpaceType
   const spaceTypeNoun = showStudioType ? "studio type" : "space type"
-  const showGrade =
-    selectedStudioType === "Traditional studio" ||
-    (state.surveyType === "closeout" && !!currentRoomSession?.pendingGrade)
+  const showGrade = false
   const floorPlanOpen = spaceTypeReady && showFloorPlan
   const [roomPickerOpen, setRoomPickerOpen] = useState(false)
   const [gradePickerOpen, setGradePickerOpen] = useState(false)

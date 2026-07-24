@@ -468,7 +468,7 @@ export function usesDedicatedSpaceRubric(roomType: string | null | undefined): b
   )
 }
 
-/** Grade is only collected for traditional studios. */
-export function studioTypeRequiresGrade(roomType: string | null | undefined): boolean {
-  return roomType === "Traditional studio"
+/** Per-room grade is no longer collected. */
+export function studioTypeRequiresGrade(_roomType?: string | null | undefined): boolean {
+  return false
 }

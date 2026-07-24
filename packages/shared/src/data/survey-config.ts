@@ -763,24 +763,21 @@ export function usesDedicatedSpaceRubric(roomType: string | null | undefined): b
 }
 
 /**
- * Grade is collected only for Traditional studios at elementary schools.
- * Other packages filter questions by school CLASS (ELEM / MID / HIGH).
+ * Per-room grade is no longer collected; package questions filter by school CLASS instead.
  */
 export function studioTypeRequiresGrade(
-  roomType: string | null | undefined,
-  schoolClass?: string | null,
+  _roomType?: string | null,
+  _schoolClass?: string | null,
 ): boolean {
-  return roomType === "Traditional studio" && isElementarySchool(schoolClass)
+  return false
 }
 
-/**
- * Grade picker: Traditional studios at elementary schools only.
- */
+/** Grade picker removed — kept for call-site compatibility. */
 export function studioTypeShowsGradePicker(
-  roomType: string | null | undefined,
-  schoolClass: string | null | undefined,
+  _roomType?: string | null,
+  _schoolClass?: string | null | undefined,
 ): boolean {
-  return studioTypeRequiresGrade(roomType, schoolClass)
+  return false
 }
 
 /** Grade choices for the picker — elementary Traditional: PK–5 only. */

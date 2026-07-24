@@ -124,9 +124,6 @@ export default function QuestionForm() {
       ? rubric.questions.filter((q) => pendingIds.includes(q.questionId))
       : rubric.questions
 
-  // Traditional: wait for grade before ST-009 appears — show a short note when needed
-  const waitingOnGrade =
-    currentRoomSession?.roomType === "Traditional studio" && !currentRoomSession.gradeType
 
   const updateResponse = (questionId: string, patch: Partial<RoomQuestionResponse>) => {
     const existing = responses.get(questionId)
@@ -157,12 +154,7 @@ export default function QuestionForm() {
                   : "Studios Questions"}
         </h2>
       </div>
-      {waitingOnGrade && (
-        <p className="mb-3 rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
-          Select a grade above to unlock the grade-specific writable surface question.
-        </p>
-      )}
-      {state.surveyType === "closeout" && questions.length === 0 && !currentRoomSession?.pendingGrade ? (
+      {state.surveyType === "closeout" && questions.length === 0 ? (
         <p className="rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-8 text-center text-sm text-slate-500 shadow-sm">
           No pending questions for this room.
         </p>

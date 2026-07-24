@@ -304,7 +304,7 @@ export default function QuestionForm() {
         </div>
       </div>
       <SurveyProgressTracker roomId={roomId} questions={questions} responses={roomResponses} />
-      {state.surveyType === "closeout" && questions.length === 0 && !currentRoomSession?.pendingGrade ? (
+      {state.surveyType === "closeout" && questions.length === 0 ? (
         <p className="rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-8 text-center text-sm text-slate-500 shadow-sm">
           No pending questions for this room.
         </p>
