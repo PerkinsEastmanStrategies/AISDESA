@@ -1,0 +1,5 @@
+﻿IssueType,Level,RecordKey,ValuesFound,ResolutionUsed,Notes
+Source Weight Override,Category,Studios | Traditional Studio | Amenities,9 in source workbook,12,03_Categories.csv is authoritative. Amenities was confirmed by the user as CategoryWeight 12.
+Source Weight Conflict,Subcategory,Studios | Traditional Studio | Amenities | Display and Presentation,"9, 12",9,04_Subcategories.csv is authoritative; repeated source values are ignored after import.
+Source Weight Conflict,Subcategory,Studios | Traditional Studio | Amenities | Furniture and Equipment,"9, 12",12,04_Subcategories.csv is authoritative; repeated source values are ignored after import.
+Source Blank Weight,Question,OD-006,,Inventory,"All OD-006 items use inventory ScoreIDs ending in i, so the question is excluded from scoring."

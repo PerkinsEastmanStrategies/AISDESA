@@ -1,0 +1,33 @@
+{
+  "name": "aisd-survey",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/generate-table-of-surveys.mjs && node scripts/generate-studio-rubric.mjs && node scripts/generate-traditional-studio-rubric.mjs && node scripts/generate-outdoor-rubric.mjs && node scripts/generate-admin-rubric.mjs && node scripts/generate-arrival-admin-rubric.mjs && node scripts/generate-neighborhood-rubric.mjs && next dev --webpack -p 3002",
+    "build": "node scripts/generate-table-of-surveys.mjs && node scripts/generate-studio-rubric.mjs && node scripts/generate-traditional-studio-rubric.mjs && node scripts/generate-outdoor-rubric.mjs && node scripts/generate-admin-rubric.mjs && node scripts/generate-arrival-admin-rubric.mjs && node scripts/generate-neighborhood-rubric.mjs && next build",
+    "generate:table-of-surveys": "node scripts/generate-table-of-surveys.mjs",
+    "generate:admin": "node scripts/generate-admin-rubric.mjs",
+    "generate:arrival-admin": "node scripts/generate-arrival-admin-rubric.mjs",
+    "generate:neighborhood": "node scripts/generate-neighborhood-rubric.mjs",
+    "start": "next start -p 3002",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@aisd/shared": "file:./packages/shared",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.454.0",
+    "next": "16.2.6",
+    "react": "^19",
+    "react-dom": "^19",
+    "tailwind-merge": "^3.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.0",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "postcss": "^8.5",
+    "tailwindcss": "^4.2.0",
+    "typescript": "^5.7.3"
+  }
+}

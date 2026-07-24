@@ -1,0 +1,3 @@
+﻿SurveyID,SurveyName,DisplayName,Description,DisplayOrder,IsActive
+SRV-ARRIVAL-MAIN-ENTRY,Arrival and Main Entry,Arrival and Main Entry Survey,"Assessment of arrival, main entry, main office, and community-facing partner spaces.",10,True
+SRV-ADMIN,Administration,Administration Survey,Assessment of administrative and professional support spaces.,20,True

@@ -1,0 +1,4 @@
+﻿SpaceTypeID,SurveyID,ParentSpaceTypeID,SpaceTypeName,DisplayOrder,IsActive,Description
+SPT-MAIN-OFFICE,SRV-ARRIVAL-MAIN-ENTRY,,Main Office,10,True,Main Office assessed through Arrival and Main Entry Survey.
+SPT-COMMUNITY-PARTNER,SRV-ARRIVAL-MAIN-ENTRY,,Community Partner Suite,20,True,Community Partner Suite assessed through Arrival and Main Entry Survey.
+SPT-PLC,SRV-ADMIN,,Professional Learning Center,10,True,Professional Learning Center assessed through Administration Survey.

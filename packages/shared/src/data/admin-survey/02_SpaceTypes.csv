@@ -1,0 +1,3 @@
+﻿SpaceTypeID,SurveyID,ParentSpaceTypeID,SpaceTypeName,DisplayOrder,IsActive,Description
+SPT-COUNSELING-SUITE,SRV-ADMIN,,Counseling Suite,20,True,Counseling Suite space assessed through the Admin Survey.
+SPT-ADMIN-OFFICE,SRV-ADMIN,,Admin Office,10,True,Admin Office space assessed through the Admin Survey.

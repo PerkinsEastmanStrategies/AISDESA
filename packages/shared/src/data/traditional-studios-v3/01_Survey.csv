@@ -1,0 +1,6 @@
+SurveyID,SurveyName,DisplayName,Description,IsActive
+SRV-TRAD-STU,Traditional Studios,Traditional Studios Assessment,Educational suitability assessment for traditional instructional studios.,True
+SRV-SENSORY-LAB,Sensory Lab,Sensory Lab Assessment,Educational suitability assessment configuration for Sensory Lab.,True
+SRV-VOC-LAB,Vocational Lab,Vocational Lab Assessment,Educational suitability assessment configuration for Vocational Lab.,True
+SRV-LIFE-SKILLS,Life Skills Room,Life Skills Room Assessment,Educational suitability assessment configuration for Life Skills Room.,True
+SRV-SPED-FLEX,SPED Flex Studio,SPED Flex Studio Assessment,Educational suitability assessment configuration for SPED Flex Studio.,True

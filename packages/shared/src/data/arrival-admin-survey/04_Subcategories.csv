@@ -1,0 +1,26 @@
+﻿SubcategoryID,CategoryID,SubcategoryName,SubcategoryWeight,DisplayOrder,IsActive,Description
+SUB-MAIN-OFFICE-FUNCTION-LAYOUT,CAT-MAIN-OFFICE-FUNCTION,Layout,1,10,True,Layout within Function for Main Office.
+SUB-MAIN-OFFICE-FUNCTION-SAFETY,CAT-MAIN-OFFICE-FUNCTION,Safety,1,20,True,Safety within Function for Main Office.
+SUB-MAIN-OFFICE-FUNCTION-ADJACENCIES,CAT-MAIN-OFFICE-FUNCTION,Adjacencies,1,30,True,Adjacencies within Function for Main Office.
+SUB-MAIN-OFFICE-INFRASTRUCTURE-GENERAL,CAT-MAIN-OFFICE-INFRASTRUCTURE,General,1,10,True,General within Infrastructure for Main Office.
+SUB-COMMUNITY-PARTNER-FUNCTION-GENERAL,CAT-COMMUNITY-PARTNER-FUNCTION,General,1,10,True,General within Function for Community Partner Suite.
+SUB-COMMUNITY-PARTNER-FUNCTION-SAFETY,CAT-COMMUNITY-PARTNER-FUNCTION,Safety,1,20,True,Safety within Function for Community Partner Suite.
+SUB-COMMUNITY-PARTNER-FUNCTION-ADJACENCIES,CAT-COMMUNITY-PARTNER-FUNCTION,Adjacencies,1,30,True,Adjacencies within Function for Community Partner Suite.
+SUB-COMMUNITY-PARTNER-FUNCTION-LAYOUT,CAT-COMMUNITY-PARTNER-FUNCTION,Layout,1,40,True,Layout within Function for Community Partner Suite.
+SUB-COMMUNITY-PARTNER-ENVIRONMENTAL--ACOUSTICS,CAT-COMMUNITY-PARTNER-ENVIRONMENTAL-QUAL,Acoustics,1,10,True,Acoustics within Environmental Quality for Community Partner Suite.
+SUB-COMMUNITY-PARTNER-ENVIRONMENTAL--OCCUPANT-COMFORT,CAT-COMMUNITY-PARTNER-ENVIRONMENTAL-QUAL,Occupant Comfort,1,20,True,Occupant Comfort within Environmental Quality for Community Partner Suite.
+SUB-COMMUNITY-PARTNER-FF-E-FURNITURE,CAT-COMMUNITY-PARTNER-FF-E,Furniture,1,10,True,Furniture within FF&E for Community Partner Suite.
+SUB-COMMUNITY-PARTNER-FF-E-FLOORING,CAT-COMMUNITY-PARTNER-FF-E,Flooring,1,20,True,Flooring within FF&E for Community Partner Suite.
+SUB-COMMUNITY-PARTNER-INFRASTRUCTURE-GENERAL,CAT-COMMUNITY-PARTNER-INFRASTRUCTURE,General,1,10,True,General within Infrastructure for Community Partner Suite.
+SUB-PLC-FUNCTION-LAYOUT,CAT-PLC-FUNCTION,Layout,1,10,True,Layout within Function for Professional Learning Center.
+SUB-PLC-INFRASTRUCTURE-LIGHTING,CAT-PLC-INFRASTRUCTURE,Lighting,1,10,True,Lighting within Infrastructure for Professional Learning Center.
+SUB-PLC-ENVIRONMENTAL--AESTHETICS,CAT-PLC-ENVIRONMENTAL-QUAL,Aesthetics,1,10,True,Aesthetics within Environmental Quality for Professional Learning Center.
+SUB-PLC-INFRASTRUCTURE-DAYLIGHTING,CAT-PLC-INFRASTRUCTURE,Daylighting,1,20,True,Daylighting within Infrastructure for Professional Learning Center.
+SUB-PLC-INFRASTRUCTURE-STORAGE,CAT-PLC-INFRASTRUCTURE,Storage,1,30,True,Storage within Infrastructure for Professional Learning Center.
+SUB-PLC-INFRASTRUCTURE-DISPLAY,CAT-PLC-INFRASTRUCTURE,Display,1,40,True,Display within Infrastructure for Professional Learning Center.
+SUB-PLC-INFRASTRUCTURE-POWER-SOURCES,CAT-PLC-INFRASTRUCTURE,Power Sources,1,50,True,Power Sources within Infrastructure for Professional Learning Center.
+SUB-PLC-ENVIRONMENTAL--OCCUPANT-COMFORT,CAT-PLC-ENVIRONMENTAL-QUAL,Occupant Comfort,1,20,True,Occupant Comfort within Environmental Quality for Professional Learning Center.
+SUB-PLC-FUNCTION-SAFETY,CAT-PLC-FUNCTION,Safety,1,20,True,Safety within Function for Professional Learning Center.
+SUB-PLC-FF-E-FURNITURE,CAT-PLC-FF-E,Furniture,1,10,True,Furniture within FF&E for Professional Learning Center.
+SUB-PLC-FF-E-FLOORING,CAT-PLC-FF-E,Flooring,1,20,True,Flooring within FF&E for Professional Learning Center.
+SUB-PLC-INFRASTRUCTURE-GENERAL,CAT-PLC-INFRASTRUCTURE,General,1,60,True,General within Infrastructure for Professional Learning Center.

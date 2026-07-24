@@ -1,0 +1,6 @@
+SpaceTypeID,SurveyID,ParentSpaceTypeID,SpaceTypeName,DisplayOrder,IsActive,Description
+SPT-TRAD-STU,SRV-TRAD-STU,,Traditional Studio,10,True,Traditional general instructional studio/classroom.
+SPT-SENSORY-LAB,SRV-SENSORY-LAB,,Sensory Lab,10,True,Special education sensory lab assessment space.
+SPT-VOC-LAB,SRV-VOC-LAB,,Vocational Lab,10,True,Special education vocational lab assessment space.
+SPT-LIFE-SKILLS,SRV-LIFE-SKILLS,,Life Skills Room,10,True,Special education life skills room assessment space.
+SPT-SPED-FLEX,SRV-SPED-FLEX,,SPED Flex Studio,10,True,Special education sped flex studio assessment space.

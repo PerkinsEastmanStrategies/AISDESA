@@ -1,0 +1,11 @@
+﻿CategoryID,SurveyID,SpaceTypeID,CategoryName,CategoryWeight,DisplayOrder,IsActive,Description
+CAT-MAIN-OFFICE-FUNCTION,SRV-ARRIVAL-MAIN-ENTRY,SPT-MAIN-OFFICE,Function,1,10,True,Function category for Main Office.
+CAT-MAIN-OFFICE-INFRASTRUCTURE,SRV-ARRIVAL-MAIN-ENTRY,SPT-MAIN-OFFICE,Infrastructure,1,20,True,Infrastructure category for Main Office.
+CAT-COMMUNITY-PARTNER-FUNCTION,SRV-ARRIVAL-MAIN-ENTRY,SPT-COMMUNITY-PARTNER,Function,1,10,True,Function category for Community Partner Suite.
+CAT-COMMUNITY-PARTNER-ENVIRONMENTAL-QUAL,SRV-ARRIVAL-MAIN-ENTRY,SPT-COMMUNITY-PARTNER,Environmental Quality,1,20,True,Environmental Quality category for Community Partner Suite.
+CAT-COMMUNITY-PARTNER-FF-E,SRV-ARRIVAL-MAIN-ENTRY,SPT-COMMUNITY-PARTNER,FF&E,1,30,True,FF&E category for Community Partner Suite.
+CAT-COMMUNITY-PARTNER-INFRASTRUCTURE,SRV-ARRIVAL-MAIN-ENTRY,SPT-COMMUNITY-PARTNER,Infrastructure,1,40,True,Infrastructure category for Community Partner Suite.
+CAT-PLC-FUNCTION,SRV-ADMIN,SPT-PLC,Function,1,10,True,Function category for Professional Learning Center.
+CAT-PLC-INFRASTRUCTURE,SRV-ADMIN,SPT-PLC,Infrastructure,1,20,True,Infrastructure category for Professional Learning Center.
+CAT-PLC-ENVIRONMENTAL-QUAL,SRV-ADMIN,SPT-PLC,Environmental Quality,1,30,True,Environmental Quality category for Professional Learning Center.
+CAT-PLC-FF-E,SRV-ADMIN,SPT-PLC,FF&E,1,40,True,FF&E category for Professional Learning Center.

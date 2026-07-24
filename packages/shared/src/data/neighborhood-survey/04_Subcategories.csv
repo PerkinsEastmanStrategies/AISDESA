@@ -1,0 +1,20 @@
+﻿SubcategoryID,CategoryID,SubcategoryName,SubcategoryWeight,DisplayOrder,IsActive,Description
+SUB-NEIGHBORHOOD-ADJACENCIES-NEIGHBORHOOD,CAT-NEIGHBORHOOD-ADJACENCIES,Neighborhood,1,10,True,Neighborhood within Adjacencies for Neighborhood.
+SUB-NEIGHBORHOOD-INFRASTRUCTURE-STORAGE,CAT-NEIGHBORHOOD-INFRASTRUCTURE,Storage,1,10,True,Storage within Infrastructure for Neighborhood.
+SUB-NEIGHBORHOOD-INFRASTRUCTURE-PARTITION-WALLS,CAT-NEIGHBORHOOD-INFRASTRUCTURE,Partition walls,1,20,True,Partition walls within Infrastructure for Neighborhood.
+SUB-GROUP-ROOM-INFRASTRUCTURE-LIGHTING,CAT-GROUP-ROOM-INFRASTRUCTURE,Lighting,1,10,True,Lighting within Infrastructure for Group Room.
+SUB-GROUP-ROOM-INFRASTRUCTURE-STORAGE,CAT-GROUP-ROOM-INFRASTRUCTURE,Storage,1,20,True,Storage within Infrastructure for Group Room.
+SUB-GROUP-ROOM-INFRASTRUCTURE-DISPLAY,CAT-GROUP-ROOM-INFRASTRUCTURE,Display,1,30,True,Display within Infrastructure for Group Room.
+SUB-GROUP-ROOM-INFRASTRUCTURE-POWER-SOURCES,CAT-GROUP-ROOM-INFRASTRUCTURE,Power Sources,1,40,True,Power Sources within Infrastructure for Group Room.
+SUB-GROUP-ROOM-INFRASTRUCTURE-DATA-SOURCES,CAT-GROUP-ROOM-INFRASTRUCTURE,Data Sources,1,50,True,Data Sources within Infrastructure for Group Room.
+SUB-GROUP-ROOM-INFRASTRUCTURE-SAFETY,CAT-GROUP-ROOM-INFRASTRUCTURE,Safety,1,60,True,Safety within Infrastructure for Group Room.
+SUB-GROUP-ROOM-FF-E-FURNITURE,CAT-GROUP-ROOM-FF-E,Furniture,1,10,True,Furniture within FF&E for Group Room.
+SUB-OPEN-COLLAB-INFRASTRUCTURE-STORAGE,CAT-OPEN-COLLAB-INFRASTRUCTURE,Storage,1,10,True,Storage within Infrastructure for Open Collaboration Space.
+SUB-OPEN-COLLAB-INFRASTRUCTURE-DISPLAY,CAT-OPEN-COLLAB-INFRASTRUCTURE,Display,1,20,True,Display within Infrastructure for Open Collaboration Space.
+SUB-OPEN-COLLAB-INFRASTRUCTURE-POWER,CAT-OPEN-COLLAB-INFRASTRUCTURE,Power,1,30,True,Power within Infrastructure for Open Collaboration Space.
+SUB-OPEN-COLLAB-INFRASTRUCTURE-DATA-SOURCES,CAT-OPEN-COLLAB-INFRASTRUCTURE,Data Sources,1,40,True,Data Sources within Infrastructure for Open Collaboration Space.
+SUB-OPEN-COLLAB-FUNCTION-SAFETY,CAT-OPEN-COLLAB-FUNCTION,Safety,1,10,True,Safety within Function for Open Collaboration Space.
+SUB-OPEN-COLLAB-FUNCTION-ADJACENCY,CAT-OPEN-COLLAB-FUNCTION,Adjacency,1,20,True,Adjacency within Function for Open Collaboration Space.
+SUB-OPEN-COLLAB-FF-E-FURNITURE,CAT-OPEN-COLLAB-FF-E,Furniture,1,10,True,Furniture within FF&E for Open Collaboration Space.
+SUB-OPEN-COLLAB-FF-E-FLOORING,CAT-OPEN-COLLAB-FF-E,Flooring,1,20,True,Flooring within FF&E for Open Collaboration Space.
+SUB-OPEN-COLLAB-INFRASTRUCTURE-WATER-FOUNTAINS,CAT-OPEN-COLLAB-INFRASTRUCTURE,Water Fountains,1,50,True,Water Fountains within Infrastructure for Open Collaboration Space.

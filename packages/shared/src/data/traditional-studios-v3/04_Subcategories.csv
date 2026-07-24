@@ -1,0 +1,73 @@
+SubcategoryID,CategoryID,SubcategoryName,SubcategoryWeight,DisplayOrder,IsActive,Description
+SUB-TRAD-FUNCTION-LAYOUT,CAT-TRAD-FUNCTION,Layout,1,10,True,Layout component within Function.
+SUB-TRAD-INFRASTRUCTURE-LIGHTING,CAT-TRAD-INFRASTRUCTURE,Lighting,1,10,True,Lighting component within Infrastructure.
+SUB-TRAD-ENVIRONMENTAL-QUALIT-AESTHETICS,CAT-TRAD-ENVIRONMENTAL-QUALIT,Aesthetics,1,10,True,Aesthetics component within Environmental Quality.
+SUB-TRAD-INFRASTRUCTURE-DAYLIGHTING,CAT-TRAD-INFRASTRUCTURE,Daylighting,1,20,True,Daylighting component within Infrastructure.
+SUB-TRAD-INFRASTRUCTURE-STORAGE,CAT-TRAD-INFRASTRUCTURE,Storage,1,30,True,Storage component within Infrastructure.
+SUB-TRAD-INFRASTRUCTURE-DISPLAY,CAT-TRAD-INFRASTRUCTURE,Display,1,40,True,Display component within Infrastructure.
+SUB-TRAD-INFRASTRUCTURE-POWER-SOURCES,CAT-TRAD-INFRASTRUCTURE,Power Sources,1,50,True,Power Sources component within Infrastructure.
+SUB-TRAD-INFRASTRUCTURE-DATA-SOURCES,CAT-TRAD-INFRASTRUCTURE,Data Sources,1,60,True,Data Sources component within Infrastructure.
+SUB-TRAD-ENVIRONMENTAL-QUALIT-OCCUPANT-COMFORT,CAT-TRAD-ENVIRONMENTAL-QUALIT,Occupant Comfort,1,20,True,Occupant Comfort component within Environmental Quality.
+SUB-TRAD-FUNCTION-SAFETY,CAT-TRAD-FUNCTION,Safety,1,20,True,Safety component within Function.
+SUB-TRAD-FF-E-FURNITURE,CAT-TRAD-FF-E,Furniture,1,10,True,Furniture component within FF&E.
+SUB-TRAD-FF-E-FLOORING,CAT-TRAD-FF-E,Flooring,1,20,True,Flooring component within FF&E.
+SUB-TRAD-FUNCTION-ADJACENCIES,CAT-TRAD-FUNCTION,Adjacencies,1,30,True,Adjacencies component within Function.
+SUB-TRAD-INFRASTRUCTURE-GENERAL,CAT-TRAD-INFRASTRUCTURE,General,1,70,True,General component within Infrastructure.
+SUB-SL-FUNCTION-AVAILABILITY,CAT-SL-FUNCTION,Availability,1,10,True,Availability within Function.
+SUB-SL-FUNCTION-LAYOUT,CAT-SL-FUNCTION,Layout,1,20,True,Layout within Function.
+SUB-SL-INFRASTRUCTURE-LIGHTING,CAT-SL-INFRASTRUCTURE,Lighting,1,10,True,Lighting within Infrastructure.
+SUB-SL-ENVIRONMENTAL-QUALITY-AESTHETICS,CAT-SL-ENVIRONMENTAL-QUALITY,Aesthetics,1,10,True,Aesthetics within Environmental Quality.
+SUB-SL-INFRASTRUCTURE-DAYLIGHTING,CAT-SL-INFRASTRUCTURE,Daylighting,1,20,True,Daylighting within Infrastructure.
+SUB-SL-INFRASTRUCTURE-STORAGE,CAT-SL-INFRASTRUCTURE,Storage,1,30,True,Storage within Infrastructure.
+SUB-SL-INFRASTRUCTURE-POWER-SOURCES,CAT-SL-INFRASTRUCTURE,Power Sources,1,40,True,Power Sources within Infrastructure.
+SUB-SL-ENVIRONMENTAL-QUALITY-OCCUPANT-COMFORT,CAT-SL-ENVIRONMENTAL-QUALITY,Occupant Comfort,1,20,True,Occupant Comfort within Environmental Quality.
+SUB-SL-FUNCTION-SAFETY,CAT-SL-FUNCTION,Safety,1,30,True,Safety within Function.
+SUB-SL-FF-E-FURNITURE,CAT-SL-FF-E,Furniture,1,10,True,Furniture within FF&E.
+SUB-SL-FF-E-FLOORING,CAT-SL-FF-E,Flooring,1,20,True,Flooring within FF&E.
+SUB-SL-FUNCTION-ADJACENCIES,CAT-SL-FUNCTION,Adjacencies,1,40,True,Adjacencies within Function.
+SUB-SL-INFRASTRUCTURE-GENERAL,CAT-SL-INFRASTRUCTURE,General,1,50,True,General within Infrastructure.
+SUB-VL-FUNCTION-AVAILABILITY,CAT-VL-FUNCTION,Availability,1,10,True,Availability within Function.
+SUB-VL-FUNCTION-LAYOUT,CAT-VL-FUNCTION,Layout,1,20,True,Layout within Function.
+SUB-VL-INFRASTRUCTURE-LIGHTING,CAT-VL-INFRASTRUCTURE,Lighting,1,10,True,Lighting within Infrastructure.
+SUB-VL-ENVIRONMENTAL-QUALITY-AESTHETICS,CAT-VL-ENVIRONMENTAL-QUALITY,Aesthetics,1,10,True,Aesthetics within Environmental Quality.
+SUB-VL-INFRASTRUCTURE-DAYLIGHTING,CAT-VL-INFRASTRUCTURE,Daylighting,1,20,True,Daylighting within Infrastructure.
+SUB-VL-INFRASTRUCTURE-STORAGE,CAT-VL-INFRASTRUCTURE,Storage,1,30,True,Storage within Infrastructure.
+SUB-VL-INFRASTRUCTURE-POWER-SOURCES,CAT-VL-INFRASTRUCTURE,Power Sources,1,40,True,Power Sources within Infrastructure.
+SUB-VL-ENVIRONMENTAL-QUALITY-OCCUPANT-COMFORT,CAT-VL-ENVIRONMENTAL-QUALITY,Occupant Comfort,1,20,True,Occupant Comfort within Environmental Quality.
+SUB-VL-FUNCTION-SAFETY,CAT-VL-FUNCTION,Safety,1,30,True,Safety within Function.
+SUB-VL-FF-E-FURNITURE,CAT-VL-FF-E,Furniture,1,10,True,Furniture within FF&E.
+SUB-VL-FF-E-FLOORING,CAT-VL-FF-E,Flooring,1,20,True,Flooring within FF&E.
+SUB-VL-FUNCTION-ADJACENCIES,CAT-VL-FUNCTION,Adjacencies,1,40,True,Adjacencies within Function.
+SUB-VL-INFRASTRUCTURE-GENERAL,CAT-VL-INFRASTRUCTURE,General,1,50,True,General within Infrastructure.
+SUB-VL-ENVIRONMENTAL-QUALITY-FINISHES,CAT-VL-ENVIRONMENTAL-QUALITY,Finishes,1,30,True,Finishes within Environmental Quality.
+SUB-VL-INFRASTRUCTURE-DISPLAY,CAT-VL-INFRASTRUCTURE,Display,1,60,True,Display within Infrastructure.
+SUB-LS-FUNCTION-AVAILABILITY,CAT-LS-FUNCTION,Availability,1,10,True,Availability within Function.
+SUB-LS-FUNCTION-LAYOUT,CAT-LS-FUNCTION,Layout,1,20,True,Layout within Function.
+SUB-LS-INFRASTRUCTURE-LIGHTING,CAT-LS-INFRASTRUCTURE,Lighting,1,10,True,Lighting within Infrastructure.
+SUB-LS-ENVIRONMENTAL-QUALITY-AESTHETICS,CAT-LS-ENVIRONMENTAL-QUALITY,Aesthetics,1,10,True,Aesthetics within Environmental Quality.
+SUB-LS-INFRASTRUCTURE-DAYLIGHTING,CAT-LS-INFRASTRUCTURE,Daylighting,1,20,True,Daylighting within Infrastructure.
+SUB-LS-INFRASTRUCTURE-STORAGE,CAT-LS-INFRASTRUCTURE,Storage,1,30,True,Storage within Infrastructure.
+SUB-LS-INFRASTRUCTURE-POWER-SOURCES,CAT-LS-INFRASTRUCTURE,Power Sources,1,40,True,Power Sources within Infrastructure.
+SUB-LS-ENVIRONMENTAL-QUALITY-OCCUPANT-COMFORT,CAT-LS-ENVIRONMENTAL-QUALITY,Occupant Comfort,1,20,True,Occupant Comfort within Environmental Quality.
+SUB-LS-FUNCTION-SAFETY,CAT-LS-FUNCTION,Safety,1,30,True,Safety within Function.
+SUB-LS-FF-E-FURNITURE,CAT-LS-FF-E,Furniture,1,10,True,Furniture within FF&E.
+SUB-LS-FF-E-FLOORING,CAT-LS-FF-E,Flooring,1,20,True,Flooring within FF&E.
+SUB-LS-FUNCTION-ADJACENCIES,CAT-LS-FUNCTION,Adjacencies,1,40,True,Adjacencies within Function.
+SUB-LS-INFRASTRUCTURE-GENERAL,CAT-LS-INFRASTRUCTURE,General,1,50,True,General within Infrastructure.
+SUB-LS-ENVIRONMENTAL-QUALITY-FINISHES,CAT-LS-ENVIRONMENTAL-QUALITY,Finishes,1,30,True,Finishes within Environmental Quality.
+SUB-LS-INFRASTRUCTURE-DISPLAY,CAT-LS-INFRASTRUCTURE,Display,1,60,True,Display within Infrastructure.
+SUB-SF-FUNCTION-AVAILABILITY,CAT-SF-FUNCTION,Availability,1,10,True,Availability within Function.
+SUB-SF-FUNCTION-LAYOUT,CAT-SF-FUNCTION,Layout,1,20,True,Layout within Function.
+SUB-SF-INFRASTRUCTURE-LIGHTING,CAT-SF-INFRASTRUCTURE,Lighting,1,10,True,Lighting within Infrastructure.
+SUB-SF-ENVIRONMENTAL-QUALITY-AESTHETICS,CAT-SF-ENVIRONMENTAL-QUALITY,Aesthetics,1,10,True,Aesthetics within Environmental Quality.
+SUB-SF-INFRASTRUCTURE-DAYLIGHTING,CAT-SF-INFRASTRUCTURE,Daylighting,1,20,True,Daylighting within Infrastructure.
+SUB-SF-INFRASTRUCTURE-STORAGE,CAT-SF-INFRASTRUCTURE,Storage,1,30,True,Storage within Infrastructure.
+SUB-SF-INFRASTRUCTURE-POWER-SOURCES,CAT-SF-INFRASTRUCTURE,Power Sources,1,40,True,Power Sources within Infrastructure.
+SUB-SF-ENVIRONMENTAL-QUALITY-OCCUPANT-COMFORT,CAT-SF-ENVIRONMENTAL-QUALITY,Occupant Comfort,1,20,True,Occupant Comfort within Environmental Quality.
+SUB-SF-FUNCTION-SAFETY,CAT-SF-FUNCTION,Safety,1,30,True,Safety within Function.
+SUB-SF-FF-E-FURNITURE,CAT-SF-FF-E,Furniture,1,10,True,Furniture within FF&E.
+SUB-SF-FF-E-FLOORING,CAT-SF-FF-E,Flooring,1,20,True,Flooring within FF&E.
+SUB-SF-FUNCTION-ADJACENCIES,CAT-SF-FUNCTION,Adjacencies,1,40,True,Adjacencies within Function.
+SUB-SF-INFRASTRUCTURE-GENERAL,CAT-SF-INFRASTRUCTURE,General,1,50,True,General within Infrastructure.
+SUB-SF-ENVIRONMENTAL-QUALITY-FINISHES,CAT-SF-ENVIRONMENTAL-QUALITY,Finishes,1,30,True,Finishes within Environmental Quality.
+SUB-SF-INFRASTRUCTURE-DISPLAY,CAT-SF-INFRASTRUCTURE,Display,1,60,True,Display within Infrastructure.

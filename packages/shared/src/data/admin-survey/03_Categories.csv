@@ -1,0 +1,9 @@
+﻿CategoryID,SurveyID,SpaceTypeID,CategoryName,CategoryWeight,DisplayOrder,IsActive,Description
+CAT-COUNSELING-SUITE-FUNCTION,SRV-ADMIN,SPT-COUNSELING-SUITE,Function,1,10,True,Function category for Counseling Suite.
+CAT-COUNSELING-SUITE-INFRASTRUCTURE,SRV-ADMIN,SPT-COUNSELING-SUITE,Infrastructure,1,20,True,Infrastructure category for Counseling Suite.
+CAT-COUNSELING-SUITE-ENVIRONMENTAL-QUALITY,SRV-ADMIN,SPT-COUNSELING-SUITE,Environmental Quality,1,30,True,Environmental Quality category for Counseling Suite.
+CAT-COUNSELING-SUITE-FF-E,SRV-ADMIN,SPT-COUNSELING-SUITE,FF&E,1,40,True,FF&E category for Counseling Suite.
+CAT-ADMIN-OFFICE-FUNCTION,SRV-ADMIN,SPT-ADMIN-OFFICE,Function,1,10,True,Function category for Admin Office.
+CAT-ADMIN-OFFICE-INFRASTRUCTURE,SRV-ADMIN,SPT-ADMIN-OFFICE,Infrastructure,1,20,True,Infrastructure category for Admin Office.
+CAT-ADMIN-OFFICE-ENVIRONMENTAL-QUALITY,SRV-ADMIN,SPT-ADMIN-OFFICE,Environmental Quality,1,30,True,Environmental Quality category for Admin Office.
+CAT-ADMIN-OFFICE-FF-E,SRV-ADMIN,SPT-ADMIN-OFFICE,FF&E,1,40,True,FF&E category for Admin Office.

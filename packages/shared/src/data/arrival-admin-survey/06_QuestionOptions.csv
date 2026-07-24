@@ -1,0 +1,209 @@
+OptionID,QuestionID,SourceScoreID,OptionText,OptionRole,ItemScoringMode,ScoreGroupID,OptionScore,MaxPoints,ItemWeight,IsExclusionOption,DisplayOrder,IsActive
+OPT-MA-001-01,MA-001,MA-001a,Reception / secretary area,FieldItem,SingleResponse,SR-MA-001-01,1,1,1,False,10,True
+OPT-MA-001-02,MA-001,MA-001b,Workroom,FieldItem,SingleResponse,SR-MA-001-02,1,1,1,False,20,True
+OPT-MA-001-03,MA-001,MA-001c,Principal's office,FieldItem,SingleResponse,SR-MA-001-03,1,1,1,False,30,True
+OPT-MA-001-04,MA-001,MA-001d,Assistant Principal office(s),FieldItem,SingleResponse,SR-MA-001-04,1,1,1,False,40,True
+OPT-MA-001-05,MA-001,MA-001e,Bookkeeper office,FieldItem,SingleResponse,SR-MA-001-05,1,1,1,False,50,True
+OPT-MA-001-06,MA-001,MA-001f,Conference room,FieldItem,SingleResponse,SR-MA-001-06,1,1,1,False,60,True
+OPT-MA-001-07,MA-001,MA-001g,Records storage,FieldItem,SingleResponse,SR-MA-001-07,1,1,1,False,70,True
+OPT-MA-001-08,MA-001,MA-001h,Supply storage,FieldItem,SingleResponse,SR-MA-001-08,1,1,1,False,80,True
+OPT-MA-001-09,MA-001,MA-001j,Mother's room,FieldItem,SingleResponse,SR-MA-001-09,1,1,1,False,90,True
+OPT-MA-001-10,MA-001,MA-001k,School Resource Officer (SRO) office,FieldItem,SingleResponse,SR-MA-001-10,1,1,1,False,100,True
+OPT-MA-001-11,MA-001,MA-001i,Commuter shower,FieldItem,Inventory,INV-MA-001-11,,,0,False,110,True
+OPT-MA-001-12,MA-001,MA-001i,Other (please note),FieldItem,Inventory,INV-MA-001-12,,,0,False,120,True
+OPT-MA-002-01,MA-002,MA-002a,Yes,ResponseOption,SingleResponse,SR-MA-002-01,1,1,1,False,10,True
+OPT-MA-002-02,MA-002,MA-002a,No,ResponseOption,SingleResponse,SR-MA-002-01,0,1,1,False,20,True
+OPT-MA-002-03,MA-002,MA-002a,Not Able to Assess,ResponseOption,SingleResponse,SR-MA-002-01,,,1,True,30,True
+OPT-MA-003-01,MA-003,MA-003a,Direct visibility,ResponseOption,SingleResponse,SR-MA-003-01,1,1,1,False,10,True
+OPT-MA-003-02,MA-003,MA-003a,"Partial visibility (i.e., limited or through doorways only)",ResponseOption,SingleResponse,SR-MA-003-01,0.5,1,1,False,20,True
+OPT-MA-003-03,MA-003,MA-003a,No visibility,ResponseOption,SingleResponse,SR-MA-003-01,0,1,1,False,30,True
+OPT-MA-003-04,MA-003,MA-003a,Not Able to Assess,ResponseOption,SingleResponse,SR-MA-003-01,,,1,True,40,True
+OPT-MA-004-01,MA-004,MA-004a,Adjacent to the main office area with visibility between the two,ResponseOption,SingleResponse,SR-MA-004-01,1,1,1,False,10,True
+OPT-MA-004-02,MA-004,MA-004a,"Near the main office area or visible from it, but not both",ResponseOption,SingleResponse,SR-MA-004-01,0.5,1,1,False,20,True
+OPT-MA-004-03,MA-004,MA-004a,Neither near the main office area nor visible from it,ResponseOption,SingleResponse,SR-MA-004-01,0,1,1,False,30,True
+OPT-MA-004-04,MA-004,MA-004a,Not Able to Assess,ResponseOption,SingleResponse,SR-MA-004-01,,,1,True,40,True
+OPT-MA-005-01,MA-005,MA-005a,Copier or multifunction printer,FieldItem,SingleResponse,SR-MA-005-01,1,1,1,False,10,True
+OPT-MA-005-02,MA-005,MA-005b,Staff mailboxes,FieldItem,SingleResponse,SR-MA-005-02,1,1,1,False,20,True
+OPT-MA-005-03,MA-005,MA-005c,Countertop work surface,FieldItem,SingleResponse,SR-MA-005-03,1,1,1,False,30,True
+OPT-MA-005-04,MA-005,MA-005d,Casework or shelving for shared supplies,FieldItem,SingleResponse,SR-MA-005-04,1,1,1,False,40,True
+OPT-MA-005-05,MA-005,MA-005e,Sink,FieldItem,SingleResponse,SR-MA-005-05,1,1,1,False,50,True
+OPT-MA-005-06,MA-005,MA-005i,Whiteboard,FieldItem,Inventory,INV-MA-005-06,,,0,False,60,True
+OPT-MA-005-07,MA-005,MA-005i,Tack board,FieldItem,Inventory,INV-MA-005-07,,,0,False,70,True
+OPT-MA-005-08,MA-005,MA-005i,Refrigerator,FieldItem,Inventory,INV-MA-005-08,,,0,False,80,True
+OPT-MA-005-09,MA-005,MA-005i,Microwave,FieldItem,Inventory,INV-MA-005-09,,,0,False,90,True
+OPT-MA-006-01,MA-006,MA-006a,Yes,ResponseOption,SingleResponse,SR-MA-006-01,1,1,1,False,10,True
+OPT-MA-006-02,MA-006,MA-006a,No,ResponseOption,SingleResponse,SR-MA-006-01,0,1,1,False,20,True
+OPT-MA-006-03,MA-006,MA-006a,Not Able to Assess,ResponseOption,SingleResponse,SR-MA-006-01,,,1,True,30,True
+OPT-MA-007-01,MA-007,MA-007i,Interior window,FieldItem,Inventory,INV-MA-007-01,,,0,False,10,True
+OPT-MA-007-02,MA-007,MA-007i,Sidelight,FieldItem,Inventory,INV-MA-007-02,,,0,False,20,True
+OPT-MA-007-03,MA-007,MA-007i,"Door panel (i.e., glass panel in the door)",FieldItem,Inventory,INV-MA-007-03,,,0,False,30,True
+OPT-MA-008-01,MA-008,MA-008a,Interior windows and doors with glass can be covered with a single movement,FieldItem,SingleResponse,SR-MA-008-01,1,1,1,False,10,True
+OPT-MA-008-02,MA-008,MA-008b,Exterior windows and doors with glass can be covered with a single movement,FieldItem,SingleResponse,SR-MA-008-02,1,1,1,False,20,True
+OPT-MA-008-03,MA-008,MA-008c,Interior door hardware is lockable from inside the space,FieldItem,SingleResponse,SR-MA-008-03,1,1,1,False,30,True
+OPT-MA-009-01,MA-009,MA-009i,PA speaker,FieldItem,Inventory,INV-MA-009-01,,,0,False,10,True
+OPT-MA-009-02,MA-009,MA-009i,Synchronous clock,FieldItem,Inventory,INV-MA-009-02,,,0,False,20,True
+OPT-MA-009-03,MA-009,MA-009i,Digital display or monitor,FieldItem,Inventory,INV-MA-009-03,,,0,False,30,True
+OPT-MA-009-04,MA-009,MA-009i,Other (please note),FieldItem,Inventory,INV-MA-009-04,,,0,False,40,True
+OPT-CP-001-01,CP-001,CP-001a,Yes,ResponseOption,SingleResponse,SR-CP-001-01,1,1,1,False,10,True
+OPT-CP-001-02,CP-001,CP-001a,No,ResponseOption,SingleResponse,SR-CP-001-01,,1,1,False,20,True
+OPT-CP-001-03,CP-001,CP-001a,Not Able to Assess,ResponseOption,SingleResponse,SR-CP-001-01,,,1,True,30,True
+OPT-CP-002-01,CP-002,CP-002a,The suite is accessible directly from the secure vestibule without requiring travel through the building,FieldItem,SingleResponse,SR-CP-002-01,1,1,1,False,10,True
+OPT-CP-002-02,CP-002,CP-002b,The suite can be locked when not in use,FieldItem,SingleResponse,SR-CP-002-02,1,1,1,False,20,True
+OPT-CP-002-03,CP-002,CP-002c,The suite can be used before and after school hours without providing access to the rest of the building,FieldItem,SingleResponse,SR-CP-002-03,1,1,1,False,30,True
+OPT-CP-003-01,CP-003,CP-003a,The suite entrance and a portion of the interior are visible from reception,ResponseOption,SingleResponse,SR-CP-003-01,1,1,1,False,10,True
+OPT-CP-003-02,CP-003,CP-003a,The suite entrance is visible from reception,ResponseOption,SingleResponse,SR-CP-003-01,0.5,1,1,False,20,True
+OPT-CP-003-03,CP-003,CP-003a,The suite is not visible from reception,ResponseOption,SingleResponse,SR-CP-003-01,,1,1,False,30,True
+OPT-CP-003-04,CP-003,CP-003a,Not Able to Assess,ResponseOption,SingleResponse,SR-CP-003-01,,,1,True,40,True
+OPT-CP-004-01,CP-004,CP-004a,Office space for community partners,FieldItem,SingleResponse,SR-CP-004-01,1,1,1,False,10,True
+OPT-CP-004-02,CP-004,CP-004b,Conference room,FieldItem,SingleResponse,SR-CP-004-02,1,1,1,False,20,True
+OPT-CP-004-03,CP-004,CP-004c,Community Room,FieldItem,SingleResponse,SR-CP-004-03,1,1,1,False,30,True
+OPT-CP-004-04,CP-004,CP-004d,Professional Learning Center (PLC),FieldItem,SingleResponse,SR-CP-004-04,1,1,1,False,40,True
+OPT-CP-004-05,CP-004,CP-004e,Family restroom accessible from the suite,FieldItem,SingleResponse,SR-CP-004-05,1,1,1,False,50,True
+OPT-CP-004-06,CP-004,CP-004f,Ensuite storage closet,FieldItem,SingleResponse,SR-CP-004-06,1,1,1,False,60,True
+OPT-CP-004-07,CP-004,CP-004g,"Small group room (i.e., capacity for 3-5 people)",FieldItem,SingleResponse,SR-CP-004-07,1,1,1,False,70,True
+OPT-CP-005-01,CP-005,CP-005a,Office space for community partners,FieldItem,SingleResponse,SR-CP-005-01,1,1,1,False,10,True
+OPT-CP-005-02,CP-005,CP-005b,Conference room,FieldItem,SingleResponse,SR-CP-005-02,1,1,1,False,20,True
+OPT-CP-005-03,CP-005,CP-005c,Community Room,FieldItem,SingleResponse,SR-CP-005-03,1,1,1,False,30,True
+OPT-CP-005-04,CP-005,CP-005d,Professional Learning Center (PLC),FieldItem,SingleResponse,SR-CP-005-04,1,1,1,False,40,True
+OPT-CP-005-05,CP-005,CP-005e,Family restroom accessible from the suite,FieldItem,SingleResponse,SR-CP-005-05,1,1,1,False,50,True
+OPT-CP-005-06,CP-005,CP-005f,Ensuite storage closet,FieldItem,SingleResponse,SR-CP-005-06,1,1,1,False,60,True
+OPT-CP-005-07,CP-005,CP-005g,"Group room(s) (i.e., capacity for 8-14 people)",FieldItem,SingleResponse,SR-CP-005-07,1,1,1,False,70,True
+OPT-CP-006-01,CP-006,CP-006a,0,ResponseOption,SingleResponse,SR-CP-006-01,0,1,1,False,10,True
+OPT-CP-006-02,CP-006,CP-006a,1,ResponseOption,SingleResponse,SR-CP-006-01,0.5,1,1,False,20,True
+OPT-CP-006-03,CP-006,CP-006a,2+,ResponseOption,SingleResponse,SR-CP-006-01,1,1,1,False,30,True
+OPT-CP-006-04,CP-006,CP-006a,Not Able to Assess,ResponseOption,SingleResponse,SR-CP-006-01,,,1,True,40,True
+OPT-CP-007-01,CP-007,CP-007a,0,ResponseOption,SingleResponse,SR-CP-007-01,,1,1,False,10,True
+OPT-CP-007-02,CP-007,CP-007a,1,ResponseOption,SingleResponse,SR-CP-007-01,0.5,1,1,False,20,True
+OPT-CP-007-03,CP-007,CP-007a,2+,ResponseOption,SingleResponse,SR-CP-007-01,1,1,1,False,30,True
+OPT-CP-007-04,CP-007,CP-007a,Not Able to Assess,ResponseOption,SingleResponse,SR-CP-007-01,,,1,True,40,True
+OPT-CP-008-01,CP-008,CP-008i,Acoustic panel ceiling (ACT),FieldItem,Inventory,INV-CP-008-01,,,0,False,10,True
+OPT-CP-008-02,CP-008,CP-008i,Acoustic wall panels,FieldItem,Inventory,INV-CP-008-02,,,0,False,20,True
+OPT-CP-008-03,CP-008,CP-008i,"Floor coverings (e.g., rugs)",FieldItem,Inventory,INV-CP-008-03,,,0,False,30,True
+OPT-CP-008-04,CP-008,CP-008i,Other (please note),FieldItem,Inventory,INV-CP-008-04,,,0,False,40,True
+OPT-CP-008-05,CP-008,CP-008i,None,FieldItem,Inventory,INV-CP-008-05,,,0,False,50,True
+OPT-CP-009-01,CP-009,CP-009a,A thermostat is provided that has adjustable temperature controls,ResponseOption,SingleResponse,SR-CP-009-01,1,1,1,False,10,True
+OPT-CP-009-02,CP-009,CP-009a,A thermostat is provided that does not have adjustable temperature controls,ResponseOption,SingleResponse,SR-CP-009-01,0.5,1,1,False,20,True
+OPT-CP-009-03,CP-009,CP-009a,Only a temperature sensor is provided,ResponseOption,SingleResponse,SR-CP-009-01,,1,1,False,30,True
+OPT-CP-009-04,CP-009,CP-009a,No thermostat or sensor is present in the space,ResponseOption,SingleResponse,SR-CP-009-01,,1,1,False,40,True
+OPT-CP-010-01,CP-010,CP-010a,Furniture can be rearranged for a variety of uses and group sizes,FieldItem,SingleResponse,SR-CP-010-01,1,1,1,False,10,True
+OPT-CP-010-02,CP-010,CP-010b,Soft seating is provided,FieldItem,SingleResponse,SR-CP-010-02,1,1,1,False,20,True
+OPT-CP-010-03,CP-010,CP-010i,Tables and chairs for group meetings,FieldItem,Inventory,INV-CP-010-03,,,0,False,30,True
+OPT-CP-010-04,CP-010,CP-010i,"Furniture that can be easily moved by a single person (e.g., casters, lightweight construction)",FieldItem,Inventory,INV-CP-010-04,,,0,False,40,True
+OPT-CP-010-05,CP-010,CP-010i,Other (please note),FieldItem,Inventory,INV-CP-010-05,,,0,False,50,True
+OPT-CP-011-01,CP-011,CP-011a,Good - appears relatively new or has minimal wear,ResponseOption,SingleResponse,SR-CP-011-01,1,1,1,False,10,True
+OPT-CP-011-02,CP-011,CP-011a,"Fair - some furniture is noticeably worn or aging, but all is functional",ResponseOption,SingleResponse,SR-CP-011-01,0.5,1,1,False,20,True
+OPT-CP-011-03,CP-011,CP-011a,"Poor - some or all furniture is significantly worn, damaged, or not usable",ResponseOption,SingleResponse,SR-CP-011-01,,1,1,False,30,True
+OPT-CP-012-01,CP-012,CP-012i,"Resilient flooring (e.g., vinyl, rubber)",ResponseOption,Inventory,INV-CP-012-01,,,0,False,10,True
+OPT-CP-012-02,CP-012,CP-012i,Terrazzo,ResponseOption,Inventory,INV-CP-012-01,,,0,False,20,True
+OPT-CP-012-03,CP-012,CP-012i,Polished concrete,ResponseOption,Inventory,INV-CP-012-01,,,0,False,30,True
+OPT-CP-012-04,CP-012,CP-012i,"Carpet (i.e., not a loose rug)",ResponseOption,Inventory,INV-CP-012-01,,,0,False,40,True
+OPT-CP-012-05,CP-012,CP-012i,Other (please note),ResponseOption,Inventory,INV-CP-012-01,,,0,False,50,True
+OPT-CP-012-06,CP-012,CP-012i,Not Able to Assess,ResponseOption,Inventory,INV-CP-012-01,,,0,True,60,True
+OPT-CP-013-01,CP-013,CP-013i,Water cooler,FieldItem,Inventory,INV-CP-013-01,,,0,False,10,True
+OPT-CP-013-02,CP-013,CP-013i,Bottle filler,FieldItem,Inventory,INV-CP-013-02,,,0,False,20,True
+OPT-CP-013-03,CP-013,CP-013i,Digital display or monitor,FieldItem,Inventory,INV-CP-013-03,,,0,False,30,True
+OPT-CP-013-04,CP-013,CP-013i,PA speaker,FieldItem,Inventory,INV-CP-013-04,,,0,False,40,True
+OPT-CP-013-05,CP-013,CP-013i,Synchronous clock,FieldItem,Inventory,INV-CP-013-05,,,0,False,50,True
+OPT-CP-013-06,CP-013,CP-013i,Other (please note),FieldItem,Inventory,INV-CP-013-06,,,0,False,60,True
+OPT-PL-003-01,PL-003,PL-003a,Yes,ResponseOption,SingleResponse,SR-PL-003-01,1,1,1,False,10,True
+OPT-PL-003-02,PL-003,PL-003a,No,ResponseOption,SingleResponse,SR-PL-003-01,0,1,1,False,20,True
+OPT-PL-003-03,PL-003,PL-003a,Not Able to Assess,ResponseOption,SingleResponse,SR-PL-003-01,,,1,True,30,True
+OPT-PL-004-01,PL-004,PL-004a,"Within the PLC (i.e., a dedicated room inside the PLC footprint)",ResponseOption,SingleResponse,SR-PL-004-01,1,1,1,False,10,True
+OPT-PL-004-02,PL-004,PL-004a,"Directly adjacent to the PLC (i.e., a separate room with direct access)",ResponseOption,SingleResponse,SR-PL-004-01,1,1,1,False,20,True
+OPT-PL-004-03,PL-004,PL-004a,Not provided,ResponseOption,SingleResponse,SR-PL-004-01,0,1,1,False,30,True
+OPT-PL-004-04,PL-004,PL-004a,Not Able to Assess,ResponseOption,SingleResponse,SR-PL-004-01,,,1,True,40,True
+OPT-PL-005-01,PL-005,PL-005a,Primary light fixtures are dimmable,FieldItem,SingleResponse,SR-PL-005-01,1,1,1,False,10,True
+OPT-PL-005-02,PL-005,PL-005b,Primary light fixtures are LED,FieldItem,SingleResponse,SR-PL-005-02,1,1,1,False,20,True
+OPT-PL-006-01,PL-006,PL-006a,"Good - walls are painted in light colors that can enhance daylighting, and accent color is used to reduce monotony",ResponseOption,SingleResponse,SR-PL-006-01,1,1,1,False,10,True
+OPT-PL-006-02,PL-006,PL-006a,"Fair - walls are painted in light colors that can enhance daylighting, but no accent color is used",ResponseOption,SingleResponse,SR-PL-006-01,0.5,1,1,False,20,True
+OPT-PL-006-03,PL-006,PL-006a,Poor - walls are painted in dark or monotonous colors,ResponseOption,SingleResponse,SR-PL-006-01,0,1,1,False,30,True
+OPT-PL-006-04,PL-006,PL-006a,Not Able to Assess,ResponseOption,SingleResponse,SR-PL-006-01,,,1,True,40,True
+OPT-PL-007-01,PL-007,PL-007a,Yes,ResponseOption,SingleResponse,SR-PL-007-01,1,1,1,False,10,True
+OPT-PL-007-02,PL-007,PL-007a,No,ResponseOption,SingleResponse,SR-PL-007-01,0,1,1,False,20,True
+OPT-PL-007-03,PL-007,PL-007a,Not Able to Assess,ResponseOption,SingleResponse,SR-PL-007-01,,,1,True,30,True
+OPT-PL-008-01,PL-008,PL-008a,"Access to views of the outdoors (e.g., not solely a view of an exterior wall)",FieldItem,SingleResponse,SR-PL-008-01,1,1,1,False,10,True
+OPT-PL-008-02,PL-008,PL-008i,Only clerestory windows are provided,FieldItem,Inventory,INV-PL-008-02,,,0,False,20,True
+OPT-PL-009-01,PL-009,PL-009a,Roller shades are provided,ResponseOption,SingleResponse,SR-PL-009-01,1,1,1,False,10,True
+OPT-PL-009-02,PL-009,PL-009a,Mini-blinds are provided,ResponseOption,SingleResponse,SR-PL-009-01,,1,1,False,20,True
+OPT-PL-009-03,PL-009,PL-009a,Other (please note),ResponseOption,SingleResponse,SR-PL-009-01,0,1,1,False,30,True
+OPT-PL-009-04,PL-009,PL-009a,No window coverings are provided,ResponseOption,SingleResponse,SR-PL-009-01,0,1,1,False,40,True
+OPT-PL-009-05,PL-009,PL-009a,Not Able to Assess,ResponseOption,SingleResponse,SR-PL-009-01,,,1,True,50,True
+OPT-PL-010-01,PL-010,PL-010i,Built-in casework is provided,FieldItem,Inventory,INV-PL-010-01,,,0,False,10,True
+OPT-PL-010-02,PL-010,PL-010i,Counter space is provided,FieldItem,Inventory,INV-PL-010-02,,,0,False,20,True
+OPT-PL-010-03,PL-010,PL-010i,Ensuite storage closet is provided,FieldItem,Inventory,INV-PL-010-03,,,0,False,30,True
+OPT-PL-010-04,PL-010,PL-010i,"Furniture-based storage is provided (i.e., shelving or cabinets)",FieldItem,Inventory,INV-PL-010-04,,,0,False,40,True
+OPT-PL-010-05,PL-010,PL-010i,Some or all storage is lockable,FieldItem,Inventory,INV-PL-010-05,,,0,False,50,True
+OPT-PL-010-06,PL-010,PL-010i,Storage for teaching tools and mobile carts is provided,FieldItem,Inventory,INV-PL-010-06,,,0,False,60,True
+OPT-PL-011-01,PL-011,PL-011a,Good - storage appears sufficient; the space is organized with little visible clutter,ResponseOption,SingleResponse,SR-PL-011-01,1,1,1,False,10,True
+OPT-PL-011-02,PL-011,PL-011a,Fair - storage appears mostly sufficient; some clutter or overflow is visible,ResponseOption,SingleResponse,SR-PL-011-01,0.5,1,1,False,20,True
+OPT-PL-011-03,PL-011,PL-011a,Poor - storage appears insufficient; significant clutter or materials without a home,ResponseOption,SingleResponse,SR-PL-011-01,0,1,1,False,30,True
+OPT-PL-011-04,PL-011,PL-011a,Not Able to Assess,ResponseOption,SingleResponse,SR-PL-011-01,,,1,True,40,True
+OPT-PL-012-01,PL-012,PL-012a,"Lockable personal storage is provided for four or more users (i.e., PLC lockers)",ResponseOption,SingleResponse,SR-PL-012-01,1,1,1,False,10,True
+OPT-PL-012-02,PL-012,PL-012a,Lockable personal storage is provided for fewer than four users,ResponseOption,SingleResponse,SR-PL-012-01,0.5,1,1,False,20,True
+OPT-PL-012-03,PL-012,PL-012a,No lockable personal storage is provided,ResponseOption,SingleResponse,SR-PL-012-01,0,1,1,False,30,True
+OPT-PL-012-04,PL-012,PL-012a,Not Able to Assess,ResponseOption,SingleResponse,SR-PL-012-01,,,1,True,40,True
+OPT-PL-013-01,PL-013,PL-013a,None,ResponseOption,SingleResponse,SR-PL-013-01,0,1,1,False,10,True
+OPT-PL-013-02,PL-013,PL-013a,<4 linear feet,ResponseOption,SingleResponse,SR-PL-013-01,0.25,1,1,False,20,True
+OPT-PL-013-03,PL-013,PL-013a,4 to <6 linear feet,ResponseOption,SingleResponse,SR-PL-013-01,0.375,1,1,False,30,True
+OPT-PL-013-04,PL-013,PL-013a,6 to <8 linear feet,ResponseOption,SingleResponse,SR-PL-013-01,0.5,1,1,False,40,True
+OPT-PL-013-05,PL-013,PL-013a,8 linear feet or more,ResponseOption,SingleResponse,SR-PL-013-01,1,1,1,False,50,True
+OPT-PL-013-06,PL-013,PL-013a,Not Able to Assess,ResponseOption,SingleResponse,SR-PL-013-01,,,1,True,60,True
+OPT-PL-014-01,PL-014,PL-014a,0,ResponseOption,SingleResponse,SR-PL-014-01,0,1,1,False,10,True
+OPT-PL-014-02,PL-014,PL-014a,1-2,ResponseOption,SingleResponse,SR-PL-014-01,0.25,1,1,False,20,True
+OPT-PL-014-03,PL-014,PL-014a,3-4,ResponseOption,SingleResponse,SR-PL-014-01,0.5,1,1,False,30,True
+OPT-PL-014-04,PL-014,PL-014a,5-7,ResponseOption,SingleResponse,SR-PL-014-01,0.75,1,1,False,40,True
+OPT-PL-014-05,PL-014,PL-014a,8+,ResponseOption,SingleResponse,SR-PL-014-01,1,1,1,False,50,True
+OPT-PL-015-01,PL-015,PL-015a,0,ResponseOption,SingleResponse,SR-PL-015-01,0,1,1,False,10,True
+OPT-PL-015-02,PL-015,PL-015a,1,ResponseOption,SingleResponse,SR-PL-015-01,0.33,1,1,False,20,True
+OPT-PL-015-03,PL-015,PL-015a,2,ResponseOption,SingleResponse,SR-PL-015-01,0.66,1,1,False,30,True
+OPT-PL-015-04,PL-015,PL-015a,3+,ResponseOption,SingleResponse,SR-PL-015-01,1,1,1,False,40,True
+OPT-PL-016-01,PL-016,PL-016a,0,ResponseOption,SingleResponse,SR-PL-016-01,0,1,1,False,10,True
+OPT-PL-016-02,PL-016,PL-016a,1,ResponseOption,SingleResponse,SR-PL-016-01,0.25,1,1,False,20,True
+OPT-PL-016-03,PL-016,PL-016a,2,ResponseOption,SingleResponse,SR-PL-016-01,0.5,1,1,False,30,True
+OPT-PL-016-04,PL-016,PL-016a,3,ResponseOption,SingleResponse,SR-PL-016-01,0.75,1,1,False,40,True
+OPT-PL-016-05,PL-016,PL-016a,4,ResponseOption,SingleResponse,SR-PL-016-01,1,1,1,False,50,True
+OPT-PL-016-06,PL-016,PL-016a,Not Able to Assess,ResponseOption,SingleResponse,SR-PL-016-01,,,1,True,60,True
+OPT-PL-017-01,PL-017,PL-017a,A thermostat is provided that has adjustable temperature controls,ResponseOption,SingleResponse,SR-PL-017-01,1,1,1,False,10,True
+OPT-PL-017-02,PL-017,PL-017a,A thermostat is provided that does not have adjustable temperature controls,ResponseOption,SingleResponse,SR-PL-017-01,0.5,1,1,False,20,True
+OPT-PL-017-03,PL-017,PL-017a,Only a temperature sensor is provided,ResponseOption,SingleResponse,SR-PL-017-01,0,1,1,False,30,True
+OPT-PL-017-04,PL-017,PL-017a,No thermostat or sensor is present in the space,ResponseOption,SingleResponse,SR-PL-017-01,0,1,1,False,40,True
+OPT-PL-018-01,PL-018,PL-018a,Yes,ResponseOption,SingleResponse,SR-PL-018-01,1,1,1,False,10,True
+OPT-PL-018-02,PL-018,PL-018a,No,ResponseOption,SingleResponse,SR-PL-018-01,0,1,1,False,20,True
+OPT-PL-018-03,PL-018,PL-018a,Not Able to Assess,ResponseOption,SingleResponse,SR-PL-018-01,,,1,True,30,True
+OPT-PL-019-01,PL-019,PL-019i,Interior window,FieldItem,Inventory,INV-PL-019-01,,,0,False,10,True
+OPT-PL-019-02,PL-019,PL-019i,Sidelight,FieldItem,Inventory,INV-PL-019-02,,,0,False,20,True
+OPT-PL-019-03,PL-019,PL-019i,"Door panel (i.e., glass panel in the door)",FieldItem,Inventory,INV-PL-019-03,,,0,False,30,True
+OPT-PL-020-01,PL-020,PL-020a,Interior windows and doors with glass can be covered with a single movement,FieldItem,SingleResponse,SR-PL-020-01,1,1,1,False,10,True
+OPT-PL-020-02,PL-020,PL-020b,Exterior windows and doors with glass can be covered with a single movement,FieldItem,SingleResponse,SR-PL-020-02,1,1,1,False,20,True
+OPT-PL-020-03,PL-020,PL-020c,Interior door hardware is lockable from inside the space with a push button or thumb turn lock,FieldItem,SingleResponse,SR-PL-020-03,1,1,1,False,30,True
+OPT-PL-021-01,PL-021,PL-021a,0,ResponseOption,SingleResponse,SR-PL-021-01,0,1,1,False,10,True
+OPT-PL-021-02,PL-021,PL-021a,1,ResponseOption,SingleResponse,SR-PL-021-01,0.25,1,1,False,20,True
+OPT-PL-021-03,PL-021,PL-021a,2,ResponseOption,SingleResponse,SR-PL-021-01,0.5,1,1,False,30,True
+OPT-PL-021-04,PL-021,PL-021a,3,ResponseOption,SingleResponse,SR-PL-021-01,0.75,1,1,False,40,True
+OPT-PL-021-05,PL-021,PL-021a,4+,ResponseOption,SingleResponse,SR-PL-021-01,1,1,1,False,50,True
+OPT-PL-022-01,PL-022,PL-022i,Tables that seat multiple staff,FieldItem,Inventory,INV-PL-022-01,,,0,False,10,True
+OPT-PL-022-02,PL-022,PL-022i,"Hard seating (e.g., standard chairs, stools)",FieldItem,Inventory,INV-PL-022-02,,,0,False,20,True
+OPT-PL-022-03,PL-022,PL-022i,"Soft seating (e.g., lounge chairs)",FieldItem,Inventory,INV-PL-022-03,,,0,False,30,True
+OPT-PL-022-04,PL-022,PL-022i,Height-adjustable tables,FieldItem,Inventory,INV-PL-022-04,,,0,False,40,True
+OPT-PL-022-05,PL-022,PL-022i,"One or more mobile writing surfaces (i.e., mobile markerboards)",FieldItem,Inventory,INV-PL-022-05,,,0,False,50,True
+OPT-PL-022-06,PL-022,PL-022i,Hoteling workstations,FieldItem,Inventory,INV-PL-022-06,,,0,False,60,True
+OPT-PL-022-07,PL-022,PL-022i,Other (please note),FieldItem,Inventory,INV-PL-022-07,,,0,False,70,True
+OPT-PL-023-01,PL-023,PL-023a,"Most furniture can be moved by a single person (e.g., casters, lightweight pieces)",ResponseOption,SingleResponse,SR-PL-023-01,1,1,1,False,10,True
+OPT-PL-023-02,PL-023,PL-023a,"Some furniture is movable, some is heavy or fixed",ResponseOption,SingleResponse,SR-PL-023-01,0.5,1,1,False,20,True
+OPT-PL-023-03,PL-023,PL-023a,"Most furniture is heavy, fixed, or impractical to move",ResponseOption,SingleResponse,SR-PL-023-01,0,1,1,False,30,True
+OPT-PL-024-01,PL-024,PL-024a,Good - appears relatively new or has minimal wear,ResponseOption,SingleResponse,SR-PL-024-01,1,1,1,False,10,True
+OPT-PL-024-02,PL-024,PL-024a,"Fair - some furniture is noticeably worn or aging, but all is functional",ResponseOption,SingleResponse,SR-PL-024-01,0.5,1,1,False,20,True
+OPT-PL-024-03,PL-024,PL-024a,"Poor - some or all furniture is significantly worn, damaged, or not usable",ResponseOption,SingleResponse,SR-PL-024-01,0,1,1,False,30,True
+OPT-PL-025-01,PL-025,PL-025i,"Resilient flooring (e.g., vinyl, rubber)",ResponseOption,Inventory,INV-PL-025-01,,,0,False,10,True
+OPT-PL-025-02,PL-025,PL-025i,Terrazzo,ResponseOption,Inventory,INV-PL-025-01,,,0,False,20,True
+OPT-PL-025-03,PL-025,PL-025i,Polished concrete,ResponseOption,Inventory,INV-PL-025-01,,,0,False,30,True
+OPT-PL-025-04,PL-025,PL-025i,"Carpet (i.e., not a loose rug)",ResponseOption,Inventory,INV-PL-025-01,,,0,False,40,True
+OPT-PL-025-05,PL-025,PL-025i,Other (please note),ResponseOption,Inventory,INV-PL-025-01,,,0,False,50,True
+OPT-PL-025-06,PL-025,PL-025i,Not Able to Assess,ResponseOption,Inventory,INV-PL-025-01,,,0,True,60,True
+OPT-PL-026-01,PL-026,PL-026a,Monitor or projector for sharing content,FieldItem,SingleResponse,SR-PL-026-01,1,1,1,False,10,True
+OPT-PL-026-02,PL-026,PL-026i,PA speaker,FieldItem,Inventory,INV-PL-026-02,,,0,False,20,True
+OPT-PL-026-03,PL-026,PL-026i,Synchronous clock,FieldItem,Inventory,INV-PL-026-03,,,0,False,30,True
+OPT-PL-026-04,PL-026,PL-026i,Refrigerator,FieldItem,Inventory,INV-PL-026-04,,,0,False,40,True
+OPT-PL-026-05,PL-026,PL-026i,Microwave,FieldItem,Inventory,INV-PL-026-05,,,0,False,50,True
+OPT-PL-026-06,PL-026,PL-026i,Printer or copier,FieldItem,Inventory,INV-PL-026-06,,,0,False,60,True
+OPT-PL-026-07,PL-026,PL-026i,Other (please note),FieldItem,Inventory,INV-PL-026-07,,,0,False,70,True

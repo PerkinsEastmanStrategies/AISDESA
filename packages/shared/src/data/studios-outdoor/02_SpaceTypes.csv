@@ -1,0 +1,3 @@
+﻿SpaceTypeID,SurveyID,SurveyFocusArea,ScoreFocusArea,SpaceTypeName,DisplayOrder,IsActive
+SPT-TRADITIONAL-STUDIO,SRV-STUDIOS,Studios,Studios,Traditional Studio,10,True
+SPT-OUTDOOR-SPACES,SRV-OUTDOOR,Outdoor,Outdoor,Outdoor Spaces,20,True

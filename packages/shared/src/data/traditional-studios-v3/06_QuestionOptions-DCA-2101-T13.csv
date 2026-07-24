@@ -1,0 +1,206 @@
+OptionID,QuestionID,SourceScoreID,OptionText,OptionRole,ItemScoringMode,ScoreGroupID,OptionScore,MaxPoints,ItemWeight,IsExclusionOption,DisplayOrder,IsActive
+OPT-ST-001-01,ST-001,ST-001a,Yes,ResponseOption,SingleResponse,SR-ST-001-01,1,1,1,False,10,True
+OPT-ST-001-02,ST-001,ST-001a,No,ResponseOption,SingleResponse,SR-ST-001-01,0,1,1,False,20,True
+OPT-ST-001-03,ST-001,ST-001a,Not Able to Assess,ResponseOption,SingleResponse,SR-ST-001-01,,,1,True,30,True
+OPT-ST-002-01,ST-002,ST-002a,Primary light fixtures are dimmable,FieldItem,SingleResponse,SR-ST-002-ST-002A,1,1,1,False,10,True
+OPT-ST-002-02,ST-002,ST-002b,Primary light fixtures are LED,FieldItem,SingleResponse,SR-ST-002-ST-002B,1,1,1,False,20,True
+OPT-ST-003-01,ST-003,ST-003a,"Good - walls are painted in light colors that can enhance daylighting, and accent color is used to reduce monotony",ResponseOption,SingleResponse,SR-ST-003-01,1,1,1,False,10,True
+OPT-ST-003-02,ST-003,ST-003a,"Fair - walls are painted in light colors that can enhance daylighting, but no accent color is used",ResponseOption,SingleResponse,SR-ST-003-01,0.5,1,1,False,20,True
+OPT-ST-003-03,ST-003,ST-003a,Poor - walls are painted in dark or monotonous colors,ResponseOption,SingleResponse,SR-ST-003-01,0,1,1,False,30,True
+OPT-ST-003-04,ST-003,ST-003a,Not Able to Assess,ResponseOption,SingleResponse,SR-ST-003-01,,,1,True,40,True
+OPT-ST-004-01,ST-004,ST-004a,Yes,ResponseOption,SingleResponse,SR-ST-004-01,1,1,1,False,10,True
+OPT-ST-004-02,ST-004,ST-004a,No,ResponseOption,SingleResponse,SR-ST-004-01,0,1,1,False,20,True
+OPT-ST-004-03,ST-004,ST-004a,Not Able to Assess,ResponseOption,SingleResponse,SR-ST-004-01,,,1,True,30,True
+OPT-ST-005-01,ST-005,ST-005a,"Access to views of the outdoors (e.g., not solely a view of an exterior wall)",FieldItem,SingleResponse,SR-ST-005-ST-005A,1,1,1,False,10,True
+OPT-ST-005-02,ST-005,ST-005i,Only clerestory windows are provided,FieldItem,Inventory,INV-ST-005-ST-005I,,,0,False,20,True
+OPT-ST-006-01,ST-006,ST-006a,Roller shades are provided,ResponseOption,SingleResponse,SR-ST-006-01,1,1,1,False,10,True
+OPT-ST-006-02,ST-006,ST-006a,Mini-blinds are provided,ResponseOption,SingleResponse,SR-ST-006-01,,1,1,False,20,True
+OPT-ST-006-03,ST-006,ST-006a,Other (please note),ResponseOption,SingleResponse,SR-ST-006-01,,1,1,False,30,True
+OPT-ST-006-04,ST-006,ST-006a,No window coverings are provided,ResponseOption,SingleResponse,SR-ST-006-01,,1,1,False,40,True
+OPT-ST-006-05,ST-006,ST-006a,Not Able to Assess,ResponseOption,SingleResponse,SR-ST-006-01,,,1,True,50,True
+OPT-ST-007-01,ST-007,ST-007i,Built-in casework is provided,FieldItem,Inventory,INV-ST-007-ST-007I,,,0,False,10,True
+OPT-ST-007-02,ST-007,ST-007i,Counter space is provided,FieldItem,Inventory,INV-ST-007-ST-007I,,,0,False,20,True
+OPT-ST-007-03,ST-007,ST-007i,Ensuite storage closet is provided,FieldItem,Inventory,INV-ST-007-ST-007I,,,0,False,30,True
+OPT-ST-007-04,ST-007,ST-007i,"Furniture-based storage is provided (i.e., shelving or cabinets)",FieldItem,Inventory,INV-ST-007-ST-007I,,,0,False,40,True
+OPT-ST-007-05,ST-007,ST-007i,Some or all storage is lockable,FieldItem,Inventory,INV-ST-007-ST-007I,,,0,False,50,True
+OPT-ST-008-01,ST-008,ST-008a,Good - storage appears sufficient; the space is organized with little visible clutter,ResponseOption,SingleResponse,SR-ST-008-01,1,1,1,False,10,True
+OPT-ST-008-02,ST-008,ST-008a,Fair - storage appears mostly sufficient; some clutter or overflow is visible,ResponseOption,SingleResponse,SR-ST-008-01,0.5,1,1,False,20,True
+OPT-ST-008-03,ST-008,ST-008a,Poor - storage appears insufficient; significant clutter or materials without a home,ResponseOption,SingleResponse,SR-ST-008-01,0,1,1,False,30,True
+OPT-ST-008-04,ST-008,ST-008a,Not Able to Assess,ResponseOption,SingleResponse,SR-ST-008-01,,,1,True,40,True
+OPT-ST-009-ES-01,ST-009-ES,ST-009a,None,ResponseOption,SingleResponse,SR-ST-009-ES-01,0,1,1,False,10,True
+OPT-ST-009-ES-02,ST-009-ES,ST-009a,<4 linear feet,ResponseOption,SingleResponse,SR-ST-009-ES-01,0.25,1,1,False,20,True
+OPT-ST-009-ES-03,ST-009-ES,ST-009a,4 to <8 linear feet,ResponseOption,SingleResponse,SR-ST-009-ES-01,0.5,1,1,False,30,True
+OPT-ST-009-ES-04,ST-009-ES,ST-009a,8 to <12 linear feet,ResponseOption,SingleResponse,SR-ST-009-ES-01,0.75,1,1,False,40,True
+OPT-ST-009-ES-05,ST-009-ES,ST-009a,12+ linear feet,ResponseOption,SingleResponse,SR-ST-009-ES-01,1,1,1,False,50,True
+OPT-ST-009-ES-06,ST-009-ES,ST-009a,Not Able to Assess,ResponseOption,SingleResponse,SR-ST-009-ES-01,,,1,True,60,True
+OPT-ST-009-MSHS-01,ST-009-MSHS,ST-009a,None,ResponseOption,SingleResponse,SR-ST-009-MSHS-01,0,1,1,False,10,True
+OPT-ST-009-MSHS-02,ST-009-MSHS,ST-009a,<4 linear feet,ResponseOption,SingleResponse,SR-ST-009-MSHS-01,,1,1,False,20,True
+OPT-ST-009-MSHS-03,ST-009-MSHS,ST-009a,4 to <8 linear feet,ResponseOption,SingleResponse,SR-ST-009-MSHS-01,0.25,1,1,False,30,True
+OPT-ST-009-MSHS-04,ST-009-MSHS,ST-009a,8 to <12 linear feet,ResponseOption,SingleResponse,SR-ST-009-MSHS-01,0.5,1,1,False,40,True
+OPT-ST-009-MSHS-05,ST-009-MSHS,ST-009a,12 to <16 linear feet,ResponseOption,SingleResponse,SR-ST-009-MSHS-01,0.75,1,1,False,50,True
+OPT-ST-009-MSHS-06,ST-009-MSHS,ST-009a,16+ linear feet,ResponseOption,SingleResponse,SR-ST-009-MSHS-01,1,1,1,False,60,True
+OPT-ST-009-MSHS-07,ST-009-MSHS,ST-009a,Not Able to Assess,ResponseOption,SingleResponse,SR-ST-009-MSHS-01,,,1,True,70,True
+OPT-ST-010-01,ST-010,ST-010i,Tackstrip,FieldItem,Inventory,INV-ST-010-ST-010I,,,0,False,10,True
+OPT-ST-010-02,ST-010,ST-010i,Tackboard,FieldItem,Inventory,INV-ST-010-ST-010I,,,0,False,20,True
+OPT-ST-010-03,ST-010,ST-010i,Tackwall,FieldItem,Inventory,INV-ST-010-ST-010I,,,0,False,30,True
+OPT-ST-010-04,ST-010,ST-010i,Magnetic markerboard,FieldItem,Inventory,INV-ST-010-ST-010I,,,0,False,40,True
+OPT-ST-011-01,ST-011,ST-011a,None,ResponseOption,SingleResponse,SR-ST-011-01,0,1,1,False,10,True
+OPT-ST-011-02,ST-011,ST-011a,<4 linear feet,ResponseOption,SingleResponse,SR-ST-011-01,0.33,1,1,False,20,True
+OPT-ST-011-03,ST-011,ST-011a,4 to <8 linear feet,ResponseOption,SingleResponse,SR-ST-011-01,0.66,1,1,False,30,True
+OPT-ST-011-04,ST-011,ST-011a,8+ linear feet,ResponseOption,SingleResponse,SR-ST-011-01,1,1,1,False,40,True
+OPT-ST-011-05,ST-011,ST-011a,Not Able to Assess,ResponseOption,SingleResponse,SR-ST-011-01,,,1,True,50,True
+OPT-ST-012-01,ST-012,ST-012a,0,ResponseOption,SingleResponse,SR-ST-012-01,0,1,1,False,10,True
+OPT-ST-012-02,ST-012,ST-012a,1-2,ResponseOption,SingleResponse,SR-ST-012-01,0.25,1,1,False,20,True
+OPT-ST-012-03,ST-012,ST-012a,3-4,ResponseOption,SingleResponse,SR-ST-012-01,0.5,1,1,False,30,True
+OPT-ST-012-04,ST-012,ST-012a,5-7,ResponseOption,SingleResponse,SR-ST-012-01,0.75,1,1,False,40,True
+OPT-ST-012-05,ST-012,ST-012a,8+,ResponseOption,SingleResponse,SR-ST-012-01,1,1,1,False,50,True
+OPT-ST-013-01,ST-013,ST-013a,0,ResponseOption,SingleResponse,SR-ST-013-01,0,1,1,False,10,True
+OPT-ST-013-02,ST-013,ST-013a,1,ResponseOption,SingleResponse,SR-ST-013-01,0.25,1,1,False,20,True
+OPT-ST-013-03,ST-013,ST-013a,2,ResponseOption,SingleResponse,SR-ST-013-01,0.5,1,1,False,30,True
+OPT-ST-013-04,ST-013,ST-013a,3,ResponseOption,SingleResponse,SR-ST-013-01,0.75,1,1,False,40,True
+OPT-ST-013-05,ST-013,ST-013a,4,ResponseOption,SingleResponse,SR-ST-013-01,1,1,1,False,50,True
+OPT-ST-014-01,ST-014,ST-014a,0,ResponseOption,SingleResponse,SR-ST-014-01,0,1,1,False,10,True
+OPT-ST-014-02,ST-014,ST-014a,1,ResponseOption,SingleResponse,SR-ST-014-01,0.25,1,1,False,20,True
+OPT-ST-014-03,ST-014,ST-014a,2,ResponseOption,SingleResponse,SR-ST-014-01,0.5,1,1,False,30,True
+OPT-ST-014-04,ST-014,ST-014a,3,ResponseOption,SingleResponse,SR-ST-014-01,0.75,1,1,False,40,True
+OPT-ST-014-05,ST-014,ST-014a,4,ResponseOption,SingleResponse,SR-ST-014-01,1,1,1,False,50,True
+OPT-ST-015-01,ST-015,ST-015a,A thermostat is provided that has adjustable temperature controls,ResponseOption,SingleResponse,SR-ST-015-01,1,1,1,False,10,True
+OPT-ST-015-02,ST-015,ST-015a,A thermostat is provided that does not have adjustable temperature controls,ResponseOption,SingleResponse,SR-ST-015-01,0.5,1,1,False,20,True
+OPT-ST-015-03,ST-015,ST-015a,Only a temperature sensor is provided,ResponseOption,SingleResponse,SR-ST-015-01,0,1,1,False,30,True
+OPT-ST-015-04,ST-015,ST-015a,No thermostat or sensor is present in the space,ResponseOption,SingleResponse,SR-ST-015-01,0,1,1,False,40,True
+OPT-ST-016-01,ST-016,ST-016a,Yes,ResponseOption,SingleResponse,SR-ST-016-01,1,1,1,False,10,True
+OPT-ST-016-02,ST-016,ST-016a,No,ResponseOption,SingleResponse,SR-ST-016-01,0,1,1,False,20,True
+OPT-ST-016-03,ST-016,ST-016a,Not Able to Assess,ResponseOption,SingleResponse,SR-ST-016-01,,,1,True,30,True
+OPT-ST-017-01,ST-017,ST-017i,Interior window,FieldItem,Inventory,INV-ST-017-ST-017I,,,0,False,10,True
+OPT-ST-017-02,ST-017,ST-017i,Sidelight,FieldItem,Inventory,INV-ST-017-ST-017I,,,0,False,20,True
+OPT-ST-017-03,ST-017,ST-017i,"Door panel (i.e., glass panel in the door)",FieldItem,Inventory,INV-ST-017-ST-017I,,,0,False,30,True
+OPT-ST-018-01,ST-018,ST-018a,Interior windows and doors with glass can be covered with a single movement,FieldItem,SingleResponse,SR-ST-018-ST-018A,1,1,1,False,10,True
+OPT-ST-018-02,ST-018,ST-018b,Exterior windows and doors with glass can be covered with a single movement,FieldItem,SingleResponse,SR-ST-018-ST-018B,1,1,1,False,20,True
+OPT-ST-018-03,ST-018,ST-018c,There is an area large enough for a full class to easily get out of sight to shelter-in-place (without needing to cover windows or doors with glass),FieldItem,SingleResponse,SR-ST-018-ST-018C,1,1,1,False,30,True
+OPT-ST-018-04,ST-018,ST-018d,Interior door hardware is lockable from inside the space with a push button or thumb turn lock,FieldItem,SingleResponse,SR-ST-018-ST-018D,1,1,1,False,40,True
+OPT-ST-019-01,ST-019,ST-019i,Individual student desks,FieldItem,Inventory,INV-ST-019-ST-019I,,,0,False,10,True
+OPT-ST-019-02,ST-019,ST-019i,Tables that seat multiple students,FieldItem,Inventory,INV-ST-019-ST-019I,,,0,False,20,True
+OPT-ST-019-03,ST-019,ST-019i,Height-adjustable student tables,FieldItem,Inventory,INV-ST-019-ST-019I,,,0,False,30,True
+OPT-ST-019-04,ST-019,ST-019i,Standing-height student worksurfaces,FieldItem,Inventory,INV-ST-019-ST-019I,,,0,False,40,True
+OPT-ST-019-05,ST-019,ST-019i,"Student desks with attached chair (i.e., combo units)",FieldItem,Inventory,INV-ST-019-ST-019I,,,0,False,50,True
+OPT-ST-019-06,ST-019,ST-019i,"Hard seating (e.g., standard chairs, stools)",FieldItem,Inventory,INV-ST-019-ST-019I,,,0,False,60,True
+OPT-ST-019-07,ST-019,ST-019i,"Active seating (e.g., wobble stools, rockers)",FieldItem,Inventory,INV-ST-019-ST-019I,,,0,False,70,True
+OPT-ST-019-08,ST-019,ST-019i,"Soft seating (e.g., bean bags, floor cushions)",FieldItem,Inventory,INV-ST-019-ST-019I,,,0,False,80,True
+OPT-ST-019-09,ST-019,ST-019i,"One or more mobile writing surfaces (i.e., mobile markerboards)",FieldItem,Inventory,INV-ST-019-ST-019I,,,0,False,90,True
+OPT-ST-019-10,ST-019,ST-019i,One or more mobile tackboards,FieldItem,Inventory,INV-ST-019-ST-019I,,,0,False,100,True
+OPT-ST-019-11,ST-019,ST-019i,One or more mobile monitors,FieldItem,Inventory,INV-ST-019-ST-019I,,,0,False,110,True
+OPT-ST-019-12,ST-019,ST-019i,Other (please note),FieldItem,Inventory,INV-ST-019-ST-019I,,,0,False,120,True
+OPT-ST-020-01,ST-020,ST-020a,"Most furniture can be moved by students or a single teacher (e.g., casters, lightweight pieces)",ResponseOption,SingleResponse,SR-ST-020-01,1,1,1,False,10,True
+OPT-ST-020-02,ST-020,ST-020a,"Some furniture is movable, some is heavy or fixed",ResponseOption,SingleResponse,SR-ST-020-01,0.5,1,1,False,20,True
+OPT-ST-020-03,ST-020,ST-020a,"Most furniture is heavy, fixed, or impractical to move",ResponseOption,SingleResponse,SR-ST-020-01,0,1,1,False,30,True
+OPT-ST-021-01,ST-021,ST-021a,Varied seating is provided for multiple students across multiple areas of the space,ResponseOption,SingleResponse,SR-ST-021-01,1,1,1,False,10,True
+OPT-ST-021-02,ST-021,ST-021a,"Limited varied seating is provided (i.e., a single area or only a few students accommodated at a time)",ResponseOption,SingleResponse,SR-ST-021-01,0.5,1,1,False,20,True
+OPT-ST-021-03,ST-021,ST-021a,No varied seating is provided,ResponseOption,SingleResponse,SR-ST-021-01,0,1,1,False,30,True
+OPT-ST-021-04,ST-021,ST-021a,Not Able to Assess,ResponseOption,SingleResponse,SR-ST-021-01,,,1,True,40,True
+OPT-ST-022-01,ST-022,ST-022a,Good - appears relatively new or has minimal wear,ResponseOption,SingleResponse,SR-ST-022-01,1,1,1,False,10,True
+OPT-ST-022-02,ST-022,ST-022a,"Fair - some furniture is noticeably worn or aging, but all is functional",ResponseOption,SingleResponse,SR-ST-022-01,0.5,1,1,False,20,True
+OPT-ST-022-03,ST-022,ST-022a,"Poor - some or all furniture is significantly worn, damaged, or not usable",ResponseOption,SingleResponse,SR-ST-022-01,0,1,1,False,30,True
+OPT-ST-023-01,ST-023,ST-023i,"Resilient flooring (e.g., vinyl, rubber)",ResponseOption,Inventory,INV-ST-023-01,1,,0,False,10,True
+OPT-ST-023-02,ST-023,ST-023i,Terrazzo,ResponseOption,Inventory,INV-ST-023-01,1,,0,False,20,True
+OPT-ST-023-03,ST-023,ST-023i,Polished concrete,ResponseOption,Inventory,INV-ST-023-01,1,,0,False,30,True
+OPT-ST-023-04,ST-023,ST-023i,"Carpet (i.e., not a loose rug)",ResponseOption,Inventory,INV-ST-023-01,1,,0,False,40,True
+OPT-ST-023-05,ST-023,ST-023i,Other (please note),ResponseOption,Inventory,INV-ST-023-01,,,0,False,50,True
+OPT-ST-023-06,ST-023,ST-023i,Not Able to Assess,ResponseOption,Inventory,INV-ST-023-01,,,0,True,60,True
+OPT-ST-024-01,ST-024,ST-024a,Direct access to a collaboration space,ResponseOption,SingleResponse,SR-ST-024-01,1,1,1,False,10,True
+OPT-ST-024-02,ST-024,ST-024a,Visibility into a collaboration space only,ResponseOption,SingleResponse,SR-ST-024-01,0.5,1,1,False,20,True
+OPT-ST-024-03,ST-024,ST-024a,Neither access nor visibility,ResponseOption,SingleResponse,SR-ST-024-01,0,1,1,False,30,True
+OPT-ST-024-04,ST-024,ST-024a,Not Able to Assess,ResponseOption,SingleResponse,SR-ST-024-01,,,1,True,40,True
+OPT-ST-025-01,ST-025,ST-025a,Exterior door within the space,ResponseOption,SingleResponse,SR-ST-025-01,1,1,1,False,10,True
+OPT-ST-025-02,ST-025,ST-025a,Exterior door directly outside the space,ResponseOption,SingleResponse,SR-ST-025-01,0.5,1,1,False,20,True
+OPT-ST-025-03,ST-025,ST-025a,Neither,ResponseOption,SingleResponse,SR-ST-025-01,0,1,1,False,30,True
+OPT-ST-025-04,ST-025,ST-025a,Not Able to Assess,ResponseOption,SingleResponse,SR-ST-025-01,,,1,True,40,True
+OPT-ST-026-01,ST-026,ST-026i,Sink,FieldItem,Inventory,INV-ST-026-ST-026I,,,0,False,10,True
+OPT-ST-026-02,ST-026,ST-026i,Laptop storage or charging cart,FieldItem,Inventory,INV-ST-026-ST-026I,,,0,False,20,True
+OPT-ST-026-03,ST-026,ST-026i,PA speaker,FieldItem,Inventory,INV-ST-026-ST-026I,,,0,False,30,True
+OPT-ST-026-04,ST-026,ST-026i,Wall-mounted VoIP phone,FieldItem,Inventory,INV-ST-026-ST-026I,,,0,False,40,True
+OPT-ST-026-05,ST-026,ST-026i,Synchronous clock,FieldItem,Inventory,INV-ST-026-ST-026I,,,0,False,50,True
+OPT-SL-001-01,SL-001,,Yes,ResponseOption,SingleResponse,SR-SL-001-01,,1,1,False,10,True
+OPT-SL-001-02,SL-001,,No,ResponseOption,SingleResponse,SR-SL-001-01,,1,1,False,20,True
+OPT-SL-001-03,SL-001,,Not Able to Assess,ResponseOption,SingleResponse,SR-SL-001-01,,,1,True,30,True
+OPT-SL-002-01,SL-002,,Yes,ResponseOption,SingleResponse,SR-SL-002-01,1,1,1,False,10,True
+OPT-SL-002-02,SL-002,,No,ResponseOption,SingleResponse,SR-SL-002-01,0,1,1,False,20,True
+OPT-SL-002-03,SL-002,,Not Able to Assess,ResponseOption,SingleResponse,SR-SL-002-01,,,1,True,30,True
+OPT-SL-003-01,SL-003,,Primary light fixtures are dimmable,FieldItem,SingleResponse,SR-SL-003-01,1,1,1,False,10,True
+OPT-SL-003-02,SL-003,,Primary light fixtures are LED,FieldItem,SingleResponse,SR-SL-003-02,1,1,1,False,20,True
+OPT-SL-004-01,SL-004,,"Good - walls are painted in light colors that can enhance daylighting, and accent color is used to reduce monotony",ResponseOption,SingleResponse,SR-SL-004-01,1,1,1,False,10,True
+OPT-SL-004-02,SL-004,,"Fair - walls are painted in light colors that can enhance daylighting, but no accent color is used",ResponseOption,SingleResponse,SR-SL-004-01,0.5,1,1,False,20,True
+OPT-SL-004-03,SL-004,,Poor - walls are painted in dark or monotonous colors,ResponseOption,SingleResponse,SR-SL-004-01,0,1,1,False,30,True
+OPT-SL-004-04,SL-004,,Not Able to Assess,ResponseOption,SingleResponse,SR-SL-004-01,,,1,True,40,True
+OPT-SL-005-01,SL-005,,Yes,ResponseOption,SingleResponse,SR-SL-005-01,1,1,1,False,10,True
+OPT-SL-005-02,SL-005,,No,ResponseOption,SingleResponse,SR-SL-005-01,0,1,1,False,20,True
+OPT-SL-005-03,SL-005,,Not Able to Assess,ResponseOption,SingleResponse,SR-SL-005-01,,,1,True,30,True
+OPT-SL-006-01,SL-006,,"Access to views of the outdoors (e.g., not solely an exterior wall)",FieldItem,SingleResponse,SR-SL-006-01,1,1,1,False,10,True
+OPT-SL-006-02,SL-006,,Only clerestory windows are provided,FieldItem,Inventory,INV-SL-006-02,,,0,False,20,True
+OPT-SL-007-01,SL-007,,Roller shades are provided,ResponseOption,SingleResponse,SR-SL-007-01,1,1,1,False,10,True
+OPT-SL-007-02,SL-007,,Mini-blinds are provided,ResponseOption,SingleResponse,SR-SL-007-01,0,1,1,False,20,True
+OPT-SL-007-03,SL-007,,Other (please note),ResponseOption,SingleResponse,SR-SL-007-01,0,1,1,False,30,True
+OPT-SL-007-04,SL-007,,No window coverings are provided,ResponseOption,SingleResponse,SR-SL-007-01,0,1,1,False,40,True
+OPT-SL-007-05,SL-007,,Not Able to Assess,ResponseOption,SingleResponse,SR-SL-007-01,,,1,True,50,True
+OPT-SL-008-01,SL-008,,Built-in casework is provided,FieldItem,Inventory,INV-SL-008-01,,,0,False,10,True
+OPT-SL-008-02,SL-008,,Counter space is provided,FieldItem,Inventory,INV-SL-008-02,,,0,False,20,True
+OPT-SL-008-03,SL-008,,Ensuite storage closet is provided,FieldItem,Inventory,INV-SL-008-03,,,0,False,30,True
+OPT-SL-008-04,SL-008,,"Furniture-based storage is provided (i.e., shelving or cabinets)",FieldItem,Inventory,INV-SL-008-04,,,0,False,40,True
+OPT-SL-008-05,SL-008,,Some or all storage is lockable,FieldItem,Inventory,INV-SL-008-05,,,0,False,50,True
+OPT-SL-009-01,SL-009,,Good - storage appears sufficient; the space is organized with little visible clutter,ResponseOption,SingleResponse,SR-SL-009-01,1,1,1,False,10,True
+OPT-SL-009-02,SL-009,,Fair - storage appears mostly sufficient; some clutter or overflow is visible,ResponseOption,SingleResponse,SR-SL-009-01,0.5,1,1,False,20,True
+OPT-SL-009-03,SL-009,,Poor - storage appears insufficient; significant clutter or materials without a home,ResponseOption,SingleResponse,SR-SL-009-01,0,1,1,False,30,True
+OPT-SL-009-04,SL-009,,Not Able to Assess,ResponseOption,SingleResponse,SR-SL-009-01,,,1,True,40,True
+OPT-SL-010-01,SL-010,,0,ResponseOption,SingleResponse,SR-SL-010-01,0,1,1,False,10,True
+OPT-SL-010-02,SL-010,,1-2,ResponseOption,SingleResponse,SR-SL-010-01,0.25,1,1,False,20,True
+OPT-SL-010-03,SL-010,,3-4,ResponseOption,SingleResponse,SR-SL-010-01,0.5,1,1,False,30,True
+OPT-SL-010-04,SL-010,,5-7,ResponseOption,SingleResponse,SR-SL-010-01,0.75,1,1,False,40,True
+OPT-SL-010-05,SL-010,,8+,ResponseOption,SingleResponse,SR-SL-010-01,1,1,1,False,50,True
+OPT-SL-011-01,SL-011,,0,ResponseOption,SingleResponse,SR-SL-011-01,0,1,1,False,10,True
+OPT-SL-011-02,SL-011,,1,ResponseOption,SingleResponse,SR-SL-011-01,0.25,1,1,False,20,True
+OPT-SL-011-03,SL-011,,2,ResponseOption,SingleResponse,SR-SL-011-01,0.5,1,1,False,30,True
+OPT-SL-011-04,SL-011,,3,ResponseOption,SingleResponse,SR-SL-011-01,0.75,1,1,False,40,True
+OPT-SL-011-05,SL-011,,4,ResponseOption,SingleResponse,SR-SL-011-01,1,1,1,False,50,True
+OPT-SL-012-01,SL-012,,A thermostat is provided that has adjustable temperature controls,ResponseOption,SingleResponse,SR-SL-012-01,1,1,1,False,10,True
+OPT-SL-012-02,SL-012,,A thermostat is provided that does not have adjustable temperature controls,ResponseOption,SingleResponse,SR-SL-012-01,0.5,1,1,False,20,True
+OPT-SL-012-03,SL-012,,Only a temperature sensor is provided,ResponseOption,SingleResponse,SR-SL-012-01,0,1,1,False,30,True
+OPT-SL-012-04,SL-012,,No thermostat or sensor is present in the space,ResponseOption,SingleResponse,SR-SL-012-01,0,1,1,False,40,True
+OPT-SL-013-01,SL-013,,Yes,ResponseOption,SingleResponse,SR-SL-013-01,1,1,1,False,10,True
+OPT-SL-013-02,SL-013,,No,ResponseOption,SingleResponse,SR-SL-013-01,0,1,1,False,20,True
+OPT-SL-013-03,SL-013,,Not Able to Assess,ResponseOption,SingleResponse,SR-SL-013-01,,,1,True,30,True
+OPT-SL-014-01,SL-014,,Interior window,FieldItem,Inventory,INV-SL-014-01,,,0,False,10,True
+OPT-SL-014-02,SL-014,,Sidelight,FieldItem,Inventory,INV-SL-014-02,,,0,False,20,True
+OPT-SL-014-03,SL-014,,"Door panel (i.e., glass panel in the door)",FieldItem,Inventory,INV-SL-014-03,,,0,False,30,True
+OPT-SL-015-01,SL-015,,Interior windows and doors with glass can be covered with a single movement,FieldItem,SingleResponse,SR-SL-015-01,1,1,1,False,10,True
+OPT-SL-015-02,SL-015,,Exterior windows and doors with glass can be covered with a single movement,FieldItem,SingleResponse,SR-SL-015-02,1,1,1,False,20,True
+OPT-SL-015-03,SL-015,,There is an area large enough for a full class to easily get out of sight to shelter-in-place (without needing to cover windows or doors with glass),FieldItem,SingleResponse,SR-SL-015-03,1,1,1,False,30,True
+OPT-SL-015-04,SL-015,,Interior door hardware is lockable from inside the space with a push button or thumb turn lock,FieldItem,SingleResponse,SR-SL-015-04,1,1,1,False,40,True
+OPT-SL-016-01,SL-016,,Light and sound based multimedia equipment,FieldItem,Inventory,INV-SL-016-01,,,0,False,10,True
+OPT-SL-016-02,SL-016,,Mats,FieldItem,Inventory,INV-SL-016-02,,,0,False,20,True
+OPT-SL-016-03,SL-016,,Foam play equipment,FieldItem,Inventory,INV-SL-016-03,,,0,False,30,True
+OPT-SL-016-04,SL-016,,Sensory swings,FieldItem,Inventory,INV-SL-016-04,,,0,False,40,True
+OPT-SL-016-05,SL-016,,Busy boards,FieldItem,Inventory,INV-SL-016-05,,,0,False,50,True
+OPT-SL-017-01,SL-017,,"Most furniture can be moved by students or a single teacher (e.g., casters, lightweight pieces)",ResponseOption,SingleResponse,SR-SL-017-01,1,1,1,False,10,True
+OPT-SL-017-02,SL-017,,"Some furniture is movable, some is heavy or fixed",ResponseOption,SingleResponse,SR-SL-017-01,0.5,1,1,False,20,True
+OPT-SL-017-03,SL-017,,"Most furniture is heavy, fixed, or impractical to move",ResponseOption,SingleResponse,SR-SL-017-01,0,1,1,False,30,True
+OPT-SL-018-01,SL-018,,Varied seating is provided for multiple students across multiple areas of the space,ResponseOption,SingleResponse,SR-SL-018-01,1,1,1,False,10,True
+OPT-SL-018-02,SL-018,,"Limited varied seating is provided (i.e., a single area or only a few students accommodated at a time)",ResponseOption,SingleResponse,SR-SL-018-01,0.5,1,1,False,20,True
+OPT-SL-018-03,SL-018,,No varied seating is provided,ResponseOption,SingleResponse,SR-SL-018-01,0,1,1,False,30,True
+OPT-SL-018-04,SL-018,,Not Able to Assess,ResponseOption,SingleResponse,SR-SL-018-01,,,1,True,40,True
+OPT-SL-019-01,SL-019,,Good - appears relatively new or has minimal wear,ResponseOption,SingleResponse,SR-SL-019-01,1,1,1,False,10,True
+OPT-SL-019-02,SL-019,,"Fair - some furniture is noticeably worn or aging, but all is functional",ResponseOption,SingleResponse,SR-SL-019-01,0.5,1,1,False,20,True
+OPT-SL-019-03,SL-019,,"Poor - some or all furniture is significantly worn, damaged, or not usable",ResponseOption,SingleResponse,SR-SL-019-01,0,1,1,False,30,True
+OPT-SL-020-01,SL-020,,"Resilient flooring (e.g., vinyl, rubber)",ResponseOption,SingleResponse,SR-SL-020-01,1,1,1,False,10,True
+OPT-SL-020-02,SL-020,,Terrazzo,ResponseOption,SingleResponse,SR-SL-020-01,1,1,1,False,20,True
+OPT-SL-020-03,SL-020,,Polished concrete,ResponseOption,SingleResponse,SR-SL-020-01,1,1,1,False,30,True
+OPT-SL-020-04,SL-020,,"Carpet (i.e., not a loose rug)",ResponseOption,SingleResponse,SR-SL-020-01,1,1,1,False,40,True
+OPT-SL-020-05,SL-020,,Other (please note),ResponseOption,SingleResponse,SR-SL-020-01,0,1,1,False,50,True
+OPT-SL-020-06,SL-020,,Not Able to Assess,ResponseOption,SingleResponse,SR-SL-020-01,0,,1,True,60,True
+OPT-SL-021-01,SL-021,,Exterior door within the space,ResponseOption,SingleResponse,SR-SL-021-01,1,1,1,False,10,True
+OPT-SL-021-02,SL-021,,Exterior door directly outside the space,ResponseOption,SingleResponse,SR-SL-021-01,0.5,1,1,False,20,True
+OPT-SL-021-03,SL-021,,Neither,ResponseOption,SingleResponse,SR-SL-021-01,0,1,1,False,30,True
+OPT-SL-021-04,SL-021,,Not Able to Assess,ResponseOption,SingleResponse,SR-SL-021-01,,,1,True,40,True
+OPT-SL-022-01,SL-022,,Sink,FieldItem,Inventory,INV-SL-022-01,,,0,False,10,True
+OPT-SL-022-02,SL-022,,Floor Drain,FieldItem,Inventory,INV-SL-022-02,,,0,False,20,True
+OPT-SL-023-01,SL-023,,Yes,ResponseOption,SingleResponse,SR-SL-023-01,1,1,1,False,10,True
+OPT-SL-023-02,SL-023,,No,ResponseOption,SingleResponse,SR-SL-023-01,0,1,1,False,20,True
+OPT-SL-023-03,SL-023,,Not Able to Assess,ResponseOption,SingleResponse,SR-SL-023-01,,,1,True,30,True

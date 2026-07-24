@@ -1,0 +1,4 @@
+﻿SpaceTypeID,SurveyID,ParentSpaceTypeID,SpaceTypeName,DisplayOrder,IsActive,Description
+SPT-NEIGHBORHOOD,SRV-NEIGHBORHOOD,,Neighborhood,10,True,Overall learning neighborhood assessment.
+SPT-GROUP-ROOM,SRV-NEIGHBORHOOD,,Group Room,20,True,Small- and large-group room assessment within a learning neighborhood.
+SPT-OPEN-COLLAB,SRV-NEIGHBORHOOD,,Open Collaboration Space,30,True,Open collaboration and shared learning space assessment.

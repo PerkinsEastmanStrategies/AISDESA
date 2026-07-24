@@ -1,0 +1,28 @@
+QuestionID,AssessmentArea,Category,Subcategory,Question,QuestionType,Weight,Required
+ST-001,Studios,Function,Layout,Does the room shape allow for clear sightlines and flexible room configuration options?,YesNo,1,Yes
+ST-002,Studios,Infrastructure,Lighting,Select all that apply (Lighting),MultiSelect (Y/N/DNA/UTA per item),1,Yes
+ST-003,Studios,Environmental Quality,Aesthetics,Which of the following describe the color and finishes in the space?,SingleSelect,1,Yes
+ST-004,Studios,Infrastructure,Daylighting,Are there exterior windows?,YesNo,1,Yes
+ST-005,Studios,Infrastructure,Daylighting,Select all that apply (Exterior Windows),MultiSelect (Y/N/DNA/UTA per item),1,Yes
+ST-006,Studios,Infrastructure,Daylighting,What window coverings are provided on exterior windows?,SingleSelect,1,Yes
+ST-007,Studios,Infrastructure,Storage,Select all that apply (Storage),MultiSelect (Y/N/DNA/UTA per item),1,Yes
+ST-008,Studios,Infrastructure,Storage,How sufficient does the storage appear for the space's program needs?,SingleSelect,1,Yes
+ST-009,Studios,Infrastructure,Display,"How many walls are outfitted to serve as permanent teaching walls (i.e., with permanent whiteboards or writable surfaces)?",SingleSelect,1,Yes
+ST-010,Studios,Infrastructure,Display,How much whiteboard is provided?,SingleSelect,1,Yes
+ST-011,Studios,Infrastructure,Display,Which built-in systems for displaying student work are provided?,MultiSelect (Y/N/DNA/UTA per item),1,Yes
+ST-012,Studios,Infrastructure,Display,How much tack board or tack strip is provided?,SingleSelect,1,Yes
+ST-013,Studios,Infrastructure,Power Sources,"How many general-use outlets are provided? (Count each wall plate as one, regardless of the number of plugs.)",SingleSelect,1,Yes
+ST-014,Studios,Infrastructure,Power Sources,How many walls in the space have general-use outlets?,SingleSelect,1,Yes
+ST-015,Studios,Environmental Quality,Occupant Comfort,Select one (Temperature Control),SingleSelect,1,Yes
+ST-016,Studios,Function,Safety,"Is visibility provided into the space from adjacent interior spaces (i.e., glass exists, even if currently covered)?",YesNo,1,Yes
+ST-017,Studios,Function,Safety,What type of visibility is provided into the space from adjacent interior spaces?,MultiSelect (Y/N/DNA/UTA per item),1,Yes
+ST-018,Studios,Function,Safety,Select all that apply (Safety),MultiSelect (Y/N/DNA/UTA per item),1,Yes
+ST-019,Studios,FF&E,Furniture,Select all that apply (Furniture),MultiSelect (Y/N/DNA/UTA per item),1,Yes
+ST-020,Studios,FF&E,Furniture,How easily can the furniture be rearranged?,SingleSelect,1,Yes
+ST-021,Studios,FF&E,Furniture,"How varied are the seating options for students (i.e., seating beyond standard hard chairs, such as soft or active seating)?",SingleSelect,1,Yes
+ST-022,Studios,FF&E,Furniture,What is the condition of the furniture?,SingleSelect,1,Yes
+ST-023,Studios,FF&E,Flooring,What type of flooring is in the space?,SingleSelect,1,Yes
+ST-024,Studios,Function,Adjacencies,What connection does the space have to another studio?,SingleSelect,1,Yes
+ST-025,Studios,Function,Adjacencies,What access does the space have to a collaboration space?,SingleSelect,1,Yes
+ST-026,Studios,Function,Adjacencies,What access does the space have to the exterior?,SingleSelect,1,Yes
+ST-027,Studios,Infrastructure,General,Select all that apply (General Inventory),MultiSelect (Y/N/DNA/UTA per item),1,Yes

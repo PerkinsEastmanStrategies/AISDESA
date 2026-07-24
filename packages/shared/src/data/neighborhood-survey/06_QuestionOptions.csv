@@ -1,0 +1,151 @@
+OptionID,QuestionID,SourceScoreID,OptionText,OptionRole,ItemScoringMode,ScoreGroupID,OptionScore,MaxPoints,ItemWeight,IsExclusionOption,DisplayOrder,IsActive
+OPT-NH-002-01,NH-002,NH-002a,0,ResponseOption,SingleResponse,SR-NH-002-01,0,1,1,False,10,True
+OPT-NH-002-02,NH-002,NH-002a,1,ResponseOption,SingleResponse,SR-NH-002-01,0.33,1,1,False,20,True
+OPT-NH-002-03,NH-002,NH-002a,2,ResponseOption,SingleResponse,SR-NH-002-01,0.66,1,1,False,30,True
+OPT-NH-002-04,NH-002,NH-002a,3+,ResponseOption,SingleResponse,SR-NH-002-01,1,1,1,False,40,True
+OPT-NH-003-01,NH-003,NH-003a,0,ResponseOption,SingleResponse,SR-NH-003-01,0,1,1,False,10,True
+OPT-NH-003-02,NH-003,NH-003a,1,ResponseOption,SingleResponse,SR-NH-003-01,0.5,1,1,False,20,True
+OPT-NH-003-03,NH-003,NH-003a,2+,ResponseOption,SingleResponse,SR-NH-003-01,1,1,1,False,30,True
+OPT-NH-004-01,NH-004,NH-004a,Yes,ResponseOption,SingleResponse,SR-NH-004-01,1,1,1,False,10,True
+OPT-NH-004-02,NH-004,NH-004a,No,ResponseOption,SingleResponse,SR-NH-004-01,0,1,1,False,20,True
+OPT-NH-004-03,NH-004,NH-004a,Not Able to Assess,ResponseOption,SingleResponse,SR-NH-004-01,,,1,True,30,True
+OPT-NH-005-01,NH-005,NH-005a,Yes,ResponseOption,SingleResponse,SR-NH-005-01,1,1,1,False,10,True
+OPT-NH-005-02,NH-005,NH-005a,No,ResponseOption,SingleResponse,SR-NH-005-01,0,1,1,False,20,True
+OPT-NH-005-03,NH-005,NH-005a,Not Able to Assess,ResponseOption,SingleResponse,SR-NH-005-01,,,1,True,30,True
+OPT-NH-006-01,NH-006,NH-006a,Yes,ResponseOption,SingleResponse,SR-NH-006-01,1,1,1,False,10,True
+OPT-NH-006-02,NH-006,NH-006a,No,ResponseOption,SingleResponse,SR-NH-006-01,0,1,1,False,20,True
+OPT-NH-006-03,NH-006,NH-006a,Not Able to Assess,ResponseOption,SingleResponse,SR-NH-006-01,,,1,True,30,True
+OPT-NH-007-01,NH-007,NH-007a,Yes,ResponseOption,SingleResponse,SR-NH-007-01,1,1,1,False,10,True
+OPT-NH-007-02,NH-007,NH-007a,No,ResponseOption,SingleResponse,SR-NH-007-01,0,1,1,False,20,True
+OPT-NH-007-03,NH-007,NH-007a,Not Able to Assess,ResponseOption,SingleResponse,SR-NH-007-01,,,1,True,30,True
+OPT-NH-008-01,NH-008,NH-008a,0 classrooms are designed as Science labs,ResponseOption,SingleResponse,SR-NH-008-01,0,1,1,False,10,True
+OPT-NH-008-02,NH-008,NH-008a,1 classroom is designed as a Science Lab,ResponseOption,SingleResponse,SR-NH-008-01,0.5,1,1,False,20,True
+OPT-NH-008-03,NH-008,NH-008a,"Yes, two or more rooms are designed as Science labs",ResponseOption,SingleResponse,SR-NH-008-01,1,1,1,False,30,True
+OPT-NH-009-01,NH-009,NH-009a,The neighborhood contains or is directly adjacent to an all-learner restroom,FieldItem,SingleResponse,SR-NH-009-01,1,1,1,False,10,True
+OPT-NH-009-02,NH-009,NH-009b,The neighborhood contains or is directly adjacent to restrooms that are not all-learner restrooms,FieldItem,SingleResponse,SR-NH-009-02,0.5,1,1,False,20,True
+OPT-NH-009-03,NH-009,NH-009c,The neighborhood does not contain or have direct access to restrooms,FieldItem,SingleResponse,SR-NH-009-03,0,1,1,False,30,True
+OPT-NH-009-04,NH-009,NH-009d,Other (please note),FieldItem,Inventory,INV-NH-009-04,,,0,False,40,True
+OPT-NH-010-01,NH-010,NH-010a,Yes,ResponseOption,SingleResponse,SR-NH-010-01,1,1,1,False,10,True
+OPT-NH-010-02,NH-010,NH-010a,No,ResponseOption,SingleResponse,SR-NH-010-01,0,1,1,False,20,True
+OPT-NH-010-03,NH-010,NH-010a,Not Able to Assess,ResponseOption,SingleResponse,SR-NH-010-01,,,1,True,30,True
+OPT-NH-011-01,NH-011,NH-011a,0,ResponseOption,SingleResponse,SR-NH-011-01,0,1,1,False,10,True
+OPT-NH-011-02,NH-011,NH-011a,1,ResponseOption,SingleResponse,SR-NH-011-01,0.5,1,1,False,20,True
+OPT-NH-011-03,NH-011,NH-011a,2+,ResponseOption,SingleResponse,SR-NH-011-01,1,1,1,False,30,True
+OPT-GR-001-01,GR-001,GR-001a,Yes,ResponseOption,SingleResponse,SR-GR-001-01,1,1,1,False,10,True
+OPT-GR-001-02,GR-001,GR-001a,No,ResponseOption,SingleResponse,SR-GR-001-01,0,1,1,False,20,True
+OPT-GR-001-03,GR-001,GR-001a,Does not apply,ResponseOption,SingleResponse,SR-GR-001-01,,,1,True,30,True
+OPT-GR-001-04,GR-001,GR-001a,Not Able to Assess,ResponseOption,SingleResponse,SR-GR-001-01,,,1,True,40,True
+OPT-GR-002-01,GR-002,GR-002a,Yes,ResponseOption,SingleResponse,SR-GR-002-01,1,1,1,False,10,True
+OPT-GR-002-02,GR-002,GR-002a,No,ResponseOption,SingleResponse,SR-GR-002-01,0,1,1,False,20,True
+OPT-GR-002-03,GR-002,GR-002a,Does not apply,ResponseOption,SingleResponse,SR-GR-002-01,,,1,True,30,True
+OPT-GR-002-04,GR-002,GR-002a,Not Able to Assess,ResponseOption,SingleResponse,SR-GR-002-01,,,1,True,40,True
+OPT-GR-003-01,GR-003,GR-003a,Yes,ResponseOption,SingleResponse,SR-GR-003-01,1,1,1,False,10,True
+OPT-GR-003-02,GR-003,GR-003a,No,ResponseOption,SingleResponse,SR-GR-003-01,0,1,1,False,20,True
+OPT-GR-003-03,GR-003,GR-003a,Does not apply,ResponseOption,SingleResponse,SR-GR-003-01,,,1,True,30,True
+OPT-GR-003-04,GR-003,GR-003a,Not Able to Assess,ResponseOption,SingleResponse,SR-GR-003-01,,,1,True,40,True
+OPT-GR-004-01,GR-004,GR-004a,None,ResponseOption,SingleResponse,SR-GR-004-01,0,1,1,False,10,True
+OPT-GR-004-02,GR-004,,<4 linear feet,ResponseOption,SingleResponse,SR-GR-004-01,0.33,1,1,False,20,True
+OPT-GR-004-03,GR-004,GR-004a,4 to <8 linear feet,ResponseOption,SingleResponse,SR-GR-004-01,0.66,1,1,False,30,True
+OPT-GR-004-04,GR-004,,8+ linear feet,ResponseOption,SingleResponse,SR-GR-004-01,1,1,1,False,40,True
+OPT-GR-004-05,GR-004,GR-004a,Not Able to Assess,ResponseOption,SingleResponse,SR-GR-004-01,,,1,True,50,True
+OPT-GR-005-01,GR-005,GR-005a,0,ResponseOption,SingleResponse,SR-GR-005-01,0,1,1,False,10,True
+OPT-GR-005-02,GR-005,GR-005a,1,ResponseOption,SingleResponse,SR-GR-005-01,0.33,1,1,False,20,True
+OPT-GR-005-03,GR-005,GR-005a,2,ResponseOption,SingleResponse,SR-GR-005-01,0.66,1,1,False,30,True
+OPT-GR-005-04,GR-005,GR-005a,3+,ResponseOption,SingleResponse,SR-GR-005-01,1,1,1,False,40,True
+OPT-GR-006-01,GR-006,ST-013a,0,ResponseOption,SingleResponse,SR-GR-006-01,0,1,1,False,10,True
+OPT-GR-006-02,GR-006,ST-013a,1,ResponseOption,SingleResponse,SR-GR-006-01,0.25,1,1,False,20,True
+OPT-GR-006-03,GR-006,ST-013a,2,ResponseOption,SingleResponse,SR-GR-006-01,0.5,1,1,False,30,True
+OPT-GR-006-04,GR-006,ST-013a,3,ResponseOption,SingleResponse,SR-GR-006-01,0.75,1,1,False,40,True
+OPT-GR-006-05,GR-006,ST-013a,4+,ResponseOption,SingleResponse,SR-GR-006-01,1,1,1,False,50,True
+OPT-GR-007-01,GR-007,ST-014a,0,ResponseOption,SingleResponse,SR-GR-007-01,0,1,1,False,10,True
+OPT-GR-007-02,GR-007,ST-014a,1,ResponseOption,SingleResponse,SR-GR-007-01,0.25,1,1,False,20,True
+OPT-GR-007-03,GR-007,ST-014a,2,ResponseOption,SingleResponse,SR-GR-007-01,0.5,1,1,False,30,True
+OPT-GR-007-04,GR-007,ST-014a,3,ResponseOption,SingleResponse,SR-GR-007-01,0.75,1,1,False,40,True
+OPT-GR-007-05,GR-007,ST-014a,4,ResponseOption,SingleResponse,SR-GR-007-01,1,1,1,False,50,True
+OPT-GR-008-01,GR-008,,Yes,ResponseOption,SingleResponse,SR-GR-008-01,1,1,1,False,10,True
+OPT-GR-008-02,GR-008,,No,ResponseOption,SingleResponse,SR-GR-008-01,0,1,1,False,20,True
+OPT-GR-008-03,GR-008,,Not Able to Assess,ResponseOption,SingleResponse,SR-GR-008-01,,,1,True,30,True
+OPT-GR-009-01,GR-009,GR-009a,Interior window,FieldItem,Composite,CMP-GR-009-GR-009A,1,1,1,False,10,True
+OPT-GR-009-02,GR-009,GR-009a,Sidelight,FieldItem,Composite,CMP-GR-009-GR-009A,1,1,1,False,20,True
+OPT-GR-009-03,GR-009,GR-009a,"Door panel (i.e., glass panel in the door)",FieldItem,Composite,CMP-GR-009-GR-009A,0,1,1,False,30,True
+OPT-GR-010-01,GR-010,GR-006i,Individual student desks,FieldItem,Inventory,INV-GR-010-01,,,0,False,10,True
+OPT-GR-010-02,GR-010,GR-006i,Tables that seat multiple students,FieldItem,Inventory,INV-GR-010-02,,,0,False,20,True
+OPT-GR-010-03,GR-010,GR-006i,Height-adjustable student tables,FieldItem,Inventory,INV-GR-010-03,,,0,False,30,True
+OPT-GR-010-04,GR-010,GR-006i,Student standing desks,FieldItem,Inventory,INV-GR-010-04,,,0,False,40,True
+OPT-GR-010-05,GR-010,GR-006i,"Student desks with attached chair (i.e., combo units)",FieldItem,Inventory,INV-GR-010-05,,,0,False,50,True
+OPT-GR-010-06,GR-010,GR-006i,"Hard seating (e.g., standard chairs, stools)",FieldItem,Inventory,INV-GR-010-06,,,0,False,60,True
+OPT-GR-010-07,GR-010,GR-006i,"Active student seating (e.g., wobble stools, rockers)",FieldItem,Inventory,INV-GR-010-07,,,0,False,70,True
+OPT-GR-010-08,GR-010,GR-006i,"Soft seating (e.g., bean bags, floor cushions)",FieldItem,Inventory,INV-GR-010-08,,,0,False,80,True
+OPT-GR-010-09,GR-010,GR-006i,Other (please note),FieldItem,Inventory,INV-GR-010-09,,,0,False,90,True
+OPT-GR-011-01,GR-011,GR-007a,"Most furniture can be moved by students or a single teacher (e.g., casters, lightweight pieces)",ResponseOption,SingleResponse,SR-GR-011-01,1,1,1,False,10,True
+OPT-GR-011-02,GR-011,GR-007a,"Some furniture is movable, some is heavy or fixed",ResponseOption,SingleResponse,SR-GR-011-01,0.5,1,1,False,20,True
+OPT-GR-011-03,GR-011,GR-007a,"Most furniture is heavy, fixed, or impractical to move",ResponseOption,SingleResponse,SR-GR-011-01,0,1,1,False,30,True
+OPT-GR-012-01,GR-012,GR-008a,Good - appears relatively new or has minimal wear,ResponseOption,SingleResponse,SR-GR-012-01,1,1,1,False,10,True
+OPT-GR-012-02,GR-012,GR-008a,"Fair - some furniture is noticeably worn or aging, but all is functional",ResponseOption,SingleResponse,SR-GR-012-01,0.5,1,1,False,20,True
+OPT-GR-012-03,GR-012,GR-008a,"Poor - some or all furniture is significantly worn, damaged, or not usable",ResponseOption,SingleResponse,SR-GR-012-01,0,1,1,False,30,True
+OPT-OC-001-01,OC-001,OC-001i,Built-in casework is provided,FieldItem,Inventory,INV-OC-001-01,,,0,False,10,True
+OPT-OC-001-02,OC-001,OC-001i,Counter space is provided,FieldItem,Inventory,INV-OC-001-02,,,0,False,20,True
+OPT-OC-001-03,OC-001,OC-001i,"Furniture-based storage is provided (i.e., shelving or cabinets)",FieldItem,Inventory,INV-OC-001-03,,,0,False,30,True
+OPT-OC-002-01,OC-002,OC-002a,Good - storage appears sufficient; the space is organized with little visible clutter,ResponseOption,SingleResponse,SR-OC-002-01,1,1,1,False,10,True
+OPT-OC-002-02,OC-002,OC-002a,Fair - storage appears mostly sufficient; some clutter or overflow is visible,ResponseOption,SingleResponse,SR-OC-002-01,0.5,1,1,False,20,True
+OPT-OC-002-03,OC-002,OC-002a,Poor - storage appears insufficient; significant clutter or materials without a home,ResponseOption,SingleResponse,SR-OC-002-01,0,1,1,False,30,True
+OPT-OC-002-04,OC-002,OC-002a,Not Able to Assess,ResponseOption,SingleResponse,SR-OC-002-01,,,1,True,40,True
+OPT-OC-003-01,OC-003,OC-003a,None,ResponseOption,SingleResponse,SR-OC-003-01,0,1,1,False,10,True
+OPT-OC-003-02,OC-003,OC-003a,<4 linear feet,ResponseOption,SingleResponse,SR-OC-003-01,0.25,1,1,False,20,True
+OPT-OC-003-03,OC-003,OC-003a,4 to <8 linear feet,ResponseOption,SingleResponse,SR-OC-003-01,0.5,1,1,False,30,True
+OPT-OC-003-04,OC-003,OC-003a,8 to <12 linear feet,ResponseOption,SingleResponse,SR-OC-003-01,0.75,1,1,False,40,True
+OPT-OC-003-05,OC-003,OC-003a,12+ linear feet,ResponseOption,SingleResponse,SR-OC-003-01,1,1,1,False,50,True
+OPT-OC-003-06,OC-003,OC-003a,Not Able to Assess,ResponseOption,SingleResponse,SR-OC-003-01,,,1,True,60,True
+OPT-OC-004-01,OC-004,OC-003a,None,ResponseOption,SingleResponse,SR-OC-004-01,0,1,1,False,10,True
+OPT-OC-004-02,OC-004,OC-003a,<4 linear feet,ResponseOption,SingleResponse,SR-OC-004-01,0.25,1,1,False,20,True
+OPT-OC-004-03,OC-004,OC-003a,4 to <12 linear feet,ResponseOption,SingleResponse,SR-OC-004-01,0.5,1,1,False,30,True
+OPT-OC-004-04,OC-004,OC-003a,12 to <20 linear feet,ResponseOption,SingleResponse,SR-OC-004-01,0.75,1,1,False,40,True
+OPT-OC-004-05,OC-004,OC-003a,20+ linear feet,ResponseOption,SingleResponse,SR-OC-004-01,1,1,1,False,50,True
+OPT-OC-004-06,OC-004,OC-003a,Not Able to Assess,ResponseOption,SingleResponse,SR-OC-004-01,,,1,True,60,True
+OPT-OC-005-01,OC-005,OC-010a,0,ResponseOption,SingleResponse,SR-OC-005-01,0,1,1,False,10,True
+OPT-OC-005-02,OC-005,OC-010a,1,ResponseOption,SingleResponse,SR-OC-005-01,0.25,1,1,False,20,True
+OPT-OC-005-03,OC-005,OC-010a,2,ResponseOption,SingleResponse,SR-OC-005-01,0.5,1,1,False,30,True
+OPT-OC-005-04,OC-005,OC-010a,3,ResponseOption,SingleResponse,SR-OC-005-01,0.75,1,1,False,40,True
+OPT-OC-005-05,OC-005,OC-010a,4+,ResponseOption,SingleResponse,SR-OC-005-01,1,1,1,False,50,True
+OPT-OC-006-01,OC-006,ST-014a,0,ResponseOption,SingleResponse,SR-OC-006-01,0,1,1,False,10,True
+OPT-OC-006-02,OC-006,ST-014a,1,ResponseOption,SingleResponse,SR-OC-006-01,1,1,1,False,20,True
+OPT-OC-006-03,OC-006,ST-014a,2,ResponseOption,SingleResponse,SR-OC-006-01,1,1,1,False,30,True
+OPT-OC-006-04,OC-006,ST-014a,3,ResponseOption,SingleResponse,SR-OC-006-01,1,1,1,False,40,True
+OPT-OC-006-05,OC-006,ST-014a,4,ResponseOption,SingleResponse,SR-OC-006-01,1,1,1,False,50,True
+OPT-OC-007-01,OC-007,OC-004a,Direct visibility,ResponseOption,SingleResponse,SR-OC-007-01,1,1,1,False,10,True
+OPT-OC-007-02,OC-007,OC-004a,"Partial visibility (i.e., limited or through doorways only)",ResponseOption,SingleResponse,SR-OC-007-01,0.75,1,1,False,20,True
+OPT-OC-007-03,OC-007,OC-004a,No visibility,ResponseOption,SingleResponse,SR-OC-007-01,0.5,1,1,False,30,True
+OPT-OC-007-04,OC-007,OC-004a,Not Able to Assess,ResponseOption,SingleResponse,SR-OC-007-01,0.25,,1,True,40,True
+OPT-OC-008-01,OC-008,OC-005a,100%,ResponseOption,SingleResponse,SR-OC-008-01,1,1,1,False,10,True
+OPT-OC-008-02,OC-008,OC-005a,80-99%,ResponseOption,SingleResponse,SR-OC-008-01,0.8,1,1,False,20,True
+OPT-OC-008-03,OC-008,OC-005a,60-79%,ResponseOption,SingleResponse,SR-OC-008-01,0.6,1,1,False,30,True
+OPT-OC-008-04,OC-008,OC-005a,40-59%,ResponseOption,SingleResponse,SR-OC-008-01,0.4,1,1,False,40,True
+OPT-OC-008-05,OC-008,OC-005a,20-39%,ResponseOption,SingleResponse,SR-OC-008-01,0.2,1,1,False,50,True
+OPT-OC-008-06,OC-008,OC-005a,0-19%,ResponseOption,SingleResponse,SR-OC-008-01,0,1,1,False,60,True
+OPT-OC-009-01,OC-009,OC-006i,Individual student desks,FieldItem,Inventory,INV-OC-009-01,,,0,False,10,True
+OPT-OC-009-02,OC-009,OC-006i,Tables that seat multiple students,FieldItem,Inventory,INV-OC-009-02,,,0,False,20,True
+OPT-OC-009-03,OC-009,OC-006i,Height-adjustable student tables,FieldItem,Inventory,INV-OC-009-03,,,0,False,30,True
+OPT-OC-009-04,OC-009,OC-006i,Student standing desks,FieldItem,Inventory,INV-OC-009-04,,,0,False,40,True
+OPT-OC-009-05,OC-009,OC-006i,"Student desks with attached chair (i.e., combo units)",FieldItem,Inventory,INV-OC-009-05,,,0,False,50,True
+OPT-OC-009-06,OC-009,OC-006i,"Hard seating (e.g., standard chairs, stools)",FieldItem,Inventory,INV-OC-009-06,,,0,False,60,True
+OPT-OC-009-07,OC-009,OC-006i,"Active student seating (e.g., wobble stools, rockers)",FieldItem,Inventory,INV-OC-009-07,,,0,False,70,True
+OPT-OC-009-08,OC-009,OC-006i,"Soft seating (e.g., bean bags, floor cushions)",FieldItem,Inventory,INV-OC-009-08,,,0,False,80,True
+OPT-OC-009-09,OC-009,OC-006i,Other (please note),FieldItem,Inventory,INV-OC-009-09,,,0,False,90,True
+OPT-OC-010-01,OC-010,OC-007a,"Most furniture can be moved by students or a single teacher (e.g., casters, lightweight pieces)",ResponseOption,SingleResponse,SR-OC-010-01,1,1,1,False,10,True
+OPT-OC-010-02,OC-010,OC-007a,"Some furniture is movable, some is heavy or fixed",ResponseOption,SingleResponse,SR-OC-010-01,0.5,1,1,False,20,True
+OPT-OC-010-03,OC-010,OC-007a,"Most furniture is heavy, fixed, or impractical to move",ResponseOption,SingleResponse,SR-OC-010-01,0,1,1,False,30,True
+OPT-OC-011-01,OC-011,ST-021a,Varied seating is provided for multiple students across multiple areas of the space,ResponseOption,SingleResponse,SR-OC-011-01,1,1,1,False,10,True
+OPT-OC-011-02,OC-011,ST-021a,"Limited varied seating is provided (i.e., a single area or only a few students accommodated at a time)",ResponseOption,SingleResponse,SR-OC-011-01,0.5,1,1,False,20,True
+OPT-OC-011-03,OC-011,ST-021a,No varied seating is provided,ResponseOption,SingleResponse,SR-OC-011-01,0,1,1,False,30,True
+OPT-OC-011-04,OC-011,ST-021a,Not Able to Assess,ResponseOption,SingleResponse,SR-OC-011-01,,,1,True,40,True
+OPT-OC-012-01,OC-012,OC-008a,Good - appears relatively new or has minimal wear,ResponseOption,SingleResponse,SR-OC-012-01,1,1,1,False,10,True
+OPT-OC-012-02,OC-012,OC-008a,"Fair - some furniture is noticeably worn or aging, but all is functional",ResponseOption,SingleResponse,SR-OC-012-01,0.5,1,1,False,20,True
+OPT-OC-012-03,OC-012,OC-008a,"Poor - some or all furniture is significantly worn, damaged, or not usable",ResponseOption,SingleResponse,SR-OC-012-01,0,1,1,False,30,True
+OPT-OC-013-01,OC-013,ST-023i,"Resilient flooring (e.g., vinyl, rubber)",ResponseOption,Inventory,INV-OC-013-01,,,0,False,10,True
+OPT-OC-013-02,OC-013,ST-023i,Terrazzo,ResponseOption,Inventory,INV-OC-013-01,,,0,False,20,True
+OPT-OC-013-03,OC-013,ST-023i,Polished concrete,ResponseOption,Inventory,INV-OC-013-01,,,0,False,30,True
+OPT-OC-013-04,OC-013,ST-023i,"Carpet (i.e., not a loose rug)",ResponseOption,Inventory,INV-OC-013-01,,,0,False,40,True
+OPT-OC-013-05,OC-013,ST-023i,Other (please note),ResponseOption,Inventory,INV-OC-013-01,,,0,False,50,True
+OPT-OC-013-06,OC-013,ST-023i,Not Able to Assess,ResponseOption,Inventory,INV-OC-013-01,,,0,True,60,True
+OPT-OC-014-01,OC-014,OC-009a,Water Fountain is provided in the space,FieldItem,Composite,CMP-OC-014-OC-009A,1,1,1,False,10,True
+OPT-OC-014-02,OC-014,OC-009a,Bottle Filler is provided in the space,FieldItem,Composite,CMP-OC-014-OC-009A,1,1,1,False,20,True

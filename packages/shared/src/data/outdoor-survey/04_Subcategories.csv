@@ -1,0 +1,8 @@
+﻿SubcategoryID,CategoryID,ScoreFocusArea,SubcategoryName,SubcategoryWeight,DisplayOrder,IsActive
+SUB-FURNITURE-AND-EQUIPMENT,CAT-AMENITIES,Outdoor,Furniture and Equipment,12,10,True
+SUB-SAFETY-AND-SUPERVISION,CAT-OCCUPANT-EXPERIENCE,Outdoor,Safety and Supervision,12,10,True
+SUB-OCCUPANT-COMFORT,CAT-OCCUPANT-EXPERIENCE,Outdoor,Occupant Comfort,12,10,True
+SUB-ADJACENCY-AND-ACCESS,CAT-FUNCTION,Outdoor,Adjacency and Access,12,10,True
+SUB-AVAILABILITY,CAT-FUNCTION,Outdoor,Availability,12,10,True
+SUB-UTILITIES-AND-TECHNOLOGY,CAT-INFRASTRUCTURE,Outdoor,Utilities and Technology,9,10,True
+SUB-STORAGE,CAT-AMENITIES,Outdoor,Storage,6,10,True

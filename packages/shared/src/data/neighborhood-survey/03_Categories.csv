@@ -1,0 +1,8 @@
+﻿CategoryID,SurveyID,SpaceTypeID,CategoryName,CategoryWeight,DisplayOrder,IsActive,Description
+CAT-NEIGHBORHOOD-ADJACENCIES,SRV-NEIGHBORHOOD,SPT-NEIGHBORHOOD,Adjacencies,1,10,True,Adjacencies category for Neighborhood.
+CAT-NEIGHBORHOOD-INFRASTRUCTURE,SRV-NEIGHBORHOOD,SPT-NEIGHBORHOOD,Infrastructure,1,20,True,Infrastructure category for Neighborhood.
+CAT-GROUP-ROOM-INFRASTRUCTURE,SRV-NEIGHBORHOOD,SPT-GROUP-ROOM,Infrastructure,1,10,True,Infrastructure category for Group Room.
+CAT-GROUP-ROOM-FF-E,SRV-NEIGHBORHOOD,SPT-GROUP-ROOM,FF&E,1,20,True,FF&E category for Group Room.
+CAT-OPEN-COLLAB-INFRASTRUCTURE,SRV-NEIGHBORHOOD,SPT-OPEN-COLLAB,Infrastructure,1,10,True,Infrastructure category for Open Collaboration Space.
+CAT-OPEN-COLLAB-FUNCTION,SRV-NEIGHBORHOOD,SPT-OPEN-COLLAB,Function,1,20,True,Function category for Open Collaboration Space.
+CAT-OPEN-COLLAB-FF-E,SRV-NEIGHBORHOOD,SPT-OPEN-COLLAB,FF&E,1,30,True,FF&E category for Open Collaboration Space.

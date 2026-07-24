@@ -1,0 +1,2 @@
+﻿SpaceTypeID,SurveyID,SurveyFocusArea,ScoreFocusArea,SpaceTypeName,DisplayOrder,IsActive
+SPT-OUTDOOR-SPACES,SRV-OUTDOOR,Outdoor,Outdoor,Outdoor Spaces,10,True

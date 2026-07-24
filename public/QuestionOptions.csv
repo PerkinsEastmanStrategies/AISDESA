@@ -1,0 +1,117 @@
+QuestionID,Option,NormalizedScore,DisplayOrder,ScoreID
+ST-001,Yes,1.0,1,ST-001a
+ST-001,No,0.0,2,ST-001a
+ST-001,Not Able to Assess,,3,ST-001a
+ST-002,Primary light fixtures are dimmable,1.0,1,ST-002a
+ST-002,Primary light fixtures are LED,1.0,2,ST-002b
+ST-003,"Good - walls are painted in light colors that can enhance daylighting, and accent color is used to reduce monotony",1.0,1,ST-003a
+ST-003,"Fair - walls are painted in light colors that can enhance daylighting, but no accent color is used",0.5,2,ST-003a
+ST-003,Poor - walls are painted in dark or monotonous colors,0.0,3,ST-003a
+ST-003,Not Able to Assess,,4,ST-003a
+ST-004,Yes,1.0,1,ST-004a
+ST-004,No,0.0,2,ST-004a
+ST-004,Not Able to Assess,,3,ST-004a
+ST-005,Majority of windows are operable,1.0,1,ST-005a
+ST-005,Access to views of nature,1.0,2,ST-005b
+ST-005,Only clerestory windows are provided,,3,ST-005i
+ST-006,Roller shades are provided,1.0,1,ST-006a
+ST-006,Mini-blinds are provided,0.5,2,ST-006a
+ST-006,Other (please note),0.0,3,ST-006a
+ST-006,No window coverings are provided,0.0,4,ST-006a
+ST-006,Not Able to Assess,,5,ST-006a
+ST-007,Built-in casework is provided,,1,ST-007i
+ST-007,Counter space is provided,,2,ST-007i
+ST-007,Ensuite storage closet is provided,,3,ST-007i
+ST-007,"Furniture-based storage is provided (i.e., shelving or cabinets)",,4,ST-007i
+ST-007,Some or all storage is lockable,,5,ST-007i
+ST-008,Good - storage appears sufficient; the space is organized with little visible clutter,1.0,1,ST-008a
+ST-008,Fair - storage appears mostly sufficient; some clutter or overflow is visible,0.5,2,ST-008a
+ST-008,Poor - storage appears insufficient; significant clutter or materials without a home,0.0,3,ST-008a
+ST-008,Not Able to Assess,,4,ST-008a
+ST-009,Two or more walls have permanent whiteboards or writable surfaces,1.0,1,ST-009a
+ST-009,One wall has a permanent whiteboard or writable surface,0.5,2,ST-009a
+ST-009,No permanent whiteboards or writable surfaces are present,0.0,3,ST-009a
+ST-009,Not Able to Assess,,4,ST-009a
+ST-010,,0.0,1,ST-010a
+ST-010,Less than 6 linear feet,0.25,2,ST-010a
+ST-010,6-12 linear feet,0.5,3,ST-010a
+ST-010,13-20 linear feet,0.75,4,ST-010a
+ST-010,21+ linear feet,1.0,5,ST-010a
+ST-010,Not Able to Assess,,6,ST-010a
+ST-011,Tack strips,,1,ST-011i
+ST-011,Tack boards,,2,ST-011i
+ST-011,Magnetic white board,,3,ST-011i
+ST-012,,0.0,1,ST-012a
+ST-012,Less than 6 linear feet,0.25,2,ST-012a
+ST-012,6-12 linear feet,0.5,3,ST-012a
+ST-012,13-20 linear feet,0.75,4,ST-012a
+ST-012,21+ linear feet,1.0,5,ST-012a
+ST-012,Not Able to Assess,,6,ST-012a
+ST-013,0,0.0,1,ST-013a
+ST-013,1-2,0.25,2,ST-013a
+ST-013,3-4,0.5,3,ST-013a
+ST-013,5-7,0.75,4,ST-013a
+ST-013,8+,1.0,5,ST-013a
+ST-014,0,0.0,1,ST-014a
+ST-014,1,0.33,2,ST-014a
+ST-014,2,0.66,3,ST-014a
+ST-014,3+,1.0,4,ST-014a
+ST-015,A thermostat is provided that has adjustable temperature controls,1.0,1,ST-015a
+ST-015,A thermostat is provided that does not have adjustable temperature controls,0.5,2,ST-015a
+ST-015,Only a temperature sensor is provided,0.0,3,ST-015a
+ST-015,No thermostat or sensor is present in the space,0.0,4,ST-015a
+ST-016,Yes,1.0,1,ST-016a
+ST-016,No,0.0,2,ST-016a
+ST-016,Not Able to Assess,,3,ST-016a
+ST-017,Interior window,,1,ST-017i
+ST-017,Sidelight,,2,ST-017i
+ST-017,"Door panel (i.e., glass panel in the door)",,3,ST-017i
+ST-018,Interior windows and doors with glass can be covered with a single movement,1.0,1,ST-018a
+ST-018,Exterior windows and doors with glass can be covered with a single movement,1.0,2,ST-018b
+ST-018,There is an area large enough for a full class to easily get out of sight to shelter-in-place (without needing to cover windows or doors with glass),1.0,3,ST-018c
+ST-018,Interior door hardware is lockable from inside the space with a push button or thumb turn lock,1.0,4,ST-018d
+ST-019,Individual student desks,,1,ST-019i
+ST-019,Tables that seat multiple students,,2,ST-019i
+ST-019,Height-adjustable student tables,,3,ST-019i
+ST-019,"Student desks with attached chair (i.e., combo units)",,4,ST-019i
+ST-019,"Hard seating (e.g., standard chairs, stools)",,5,ST-019i
+ST-019,"Active seating (e.g., wobble stools, rockers)",,6,ST-019i
+ST-019,"Soft seating (e.g., bean bags, floor cushions)",,7,ST-019i
+ST-019,"One or more mobile writing surfaces (i.e., mobile white boards)",,8,ST-019i
+ST-019,One or more mobile monitors,,9,ST-019i
+ST-019,Teacher desk or workstation,,10,ST-019i
+ST-019,Other (please note),,11,ST-019i
+ST-020,"Most furniture can be moved by students or a single teacher (e.g., casters, lightweight pieces)",1.0,1,ST-020a
+ST-020,"Some furniture is movable, some is heavy or fixed",0.5,2,ST-020a
+ST-020,"Most furniture is heavy, fixed, or impractical to move",0.0,3,ST-020a
+ST-021,Varied seating is provided for multiple students across multiple areas of the space,1.0,1,ST-021a
+ST-021,"Limited varied seating is provided (i.e., a single area or only a few students accommodated at a time)",0.5,2,ST-021a
+ST-021,No varied seating is provided,0.0,3,ST-021a
+ST-021,Not Able to Assess,,4,ST-021a
+ST-022,Good - appears relatively new or has minimal wear,1.0,1,ST-022a
+ST-022,"Fair - some furniture is noticeably worn or aging, but all is functional",0.5,2,ST-022a
+ST-022,"Poor - some or all furniture is significantly worn, damaged, or not usable",0.0,3,ST-022a
+ST-023,Vinyl tile,1.0,1,ST-023a
+ST-023,Rubber-based tile,1.0,2,ST-023a
+ST-023,Sheet product,1.0,3,ST-023a
+ST-023,Polished concrete,1.0,4,ST-023a
+ST-023,Other (please note),1.0,5,ST-023a
+ST-023,"Carpet (i.e., not a loose rug)",0.0,6,ST-023a
+ST-023,Not Able to Assess,,7,ST-023a
+ST-024,Operable partition to another studio,1.0,1,ST-024a
+ST-024,Shared door with another studio,0.5,2,ST-024a
+ST-024,"Jack-and-Jill connection to another studio (i.e., connected through a shared room such as storage or a restroom)",0.5,3,ST-024a
+ST-024,No direct connection to another studio,0.0,4,ST-024a
+ST-024,Not Able to Assess,,5,ST-024a
+ST-025,Direct access to a collaboration space,1.0,1,ST-025a
+ST-025,Visibility into a collaboration space only,0.5,2,ST-025a
+ST-025,Neither access nor visibility,0.0,3,ST-025a
+ST-025,Not Able to Assess,,4,ST-025a
+ST-026,Exterior door within the space,1.0,1,ST-026a
+ST-026,Exterior door directly outside the space,0.5,2,ST-026a
+ST-026,Neither,0.0,3,ST-026a
+ST-026,Not Able to Assess,,4,ST-026a
+ST-027,Sink,,1,ST-027i
+ST-027,Ceiling-mounted projector,,2,ST-027i
+ST-027,Drop-down projection screen,,3,ST-027i
+ST-027,Laptop storage or charging cart,,4,ST-027i

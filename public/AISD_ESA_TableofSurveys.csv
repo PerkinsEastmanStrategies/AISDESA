@@ -1,0 +1,96 @@
+Focus Area (Survey),Space Type,School Level,Required,Notes,Focus Area (Scoring),Space Type Weight,Focus Area Weight
+Arrival/Main Office,Main Entry/Reception,ES,Y,,Arrival/Main Office,12,6
+Arrival/Main Office,Main Admin Suite,ES,Y,,Arrival/Main Office,12,6
+Arrival/Main Office,Community Partners Suite,ES,Y,,Arrival/Main Office,6,6
+Administration,Admin Offices,ES,Y,Assess 2 offices or 3 if there are varying conditions,Admin,9,6
+Administration,Professional Learning Center,ES,Y,Should be assessed per neighborhood,Admin,9,6
+Administration,Mental Wellness and Counseling Suite,ES,Y,,Admin,12,6
+Studios,Early childhood studio,ES,Y,Assess 1 representative room. Include a 2nd room if conditions vary.,Early Childhood,12,12
+Studios,Early childhood special education studio,ES,Y,Assess 1 representative room. Include a 2nd room if conditions vary.,Special Education,12,12
+Studios,Tranditional Studio,ES,Y,Two per neighborhood based on medium sized school,Studio,12,12
+Studios,Sped Flex Studio,ES,Y,Assess 1 representative room. Include a 2nd room if conditions vary.,Special education,12,12
+Studios,Sensory Lab,ES,Y,,Special education,9,12
+Studios,Life Skills Room,ES,N,,Special education,3,12
+Studios,Art,ES,Y,The assessor should review the room that was designed to be an art room,Specials,12,12
+Studios,Music,ES,Y,The assessor should review the room that was designed to be a music room,Specials,12,12
+Studios,Maker Space,ES,Y,The assessor should review the room that was designed to be a maker space,Specials,9,12
+Studios,Science,ES,N,The assessor should review the room that was designed to be a maker space,Specials,3,12
+Neighborhoods,Open Collaboration,ES,Y,Should be assessed per neighborhood,Neighborhood,12,9
+Neighborhoods,Small Group Room,ES,Y,Should be assessed per neighborhood,Neighborhood,9,9
+Neighborhoods,Neighborhood,ES,Y,The assessor should complete for each neighborhood,Neighborhood,12,9
+Athletics and Wellness,Gym,ES,Y,,Athletics and Wellness,12,9
+Shared Spaces,Media Center,ES,Y,,Shared Spaces,12,9
+Shared Spaces,Food Service,ES,Y,,Shared Spaces,12,9
+Shared Spaces,Empower Center,ES,N,,Shared Spaces,3,9
+Outdoor Elements,Outdoor Spaces,ES,Y,,Outdoor Elements,12,9
+Arrival/Main Office,Main Entry/Reception,MS,Y,,Arrival/Main Office,12,6
+Arrival/Main Office,Main Admin Suite,MS,Y,,Arrival/Main Office,12,6
+Arrival/Main Office,Community Partners Suite,MS,Y,,Arrival/Main Office,6,6
+Administration,Admin Offices,MS,Y,Assess 2 offices or 3 if there are varying conditions,Admin,9,6
+Administration,Professional Learning Center,MS,Y,Should be assessed per neighborhood,Admin,9,6
+Administration,Mental Wellness and Counseling Suite,MS,Y,,Admin,12,6
+Studios,Tranditional Studio,MS,Y,Two per neighborhood,Studio,12,12
+Studios,Sped Flex Studio,MS,Y,"1 represnetative room, 2 if conditions vary ",Special Education,12,12
+Studios,Sensory Lab,MS,Y,Assess 1 representative room. Include a 2nd room if conditions vary.,Special Education,9,12
+Studios,Vocational Lab,MS,Y,,Special education,12,12
+Studios,Life Skills Room,MS,Y,,Special education,12,12
+Studios,Science,MS,Y,"Assess representative rooms, more if conditions vary",Specials,12,12
+Studios,Art,MS,Y,"Assess representative rooms, more if conditions vary",Specials,12,12
+Studios,Music,MS,N,,Specials,6,12
+Studios,Maker Space,MS,Y,"Assess representative rooms, more if conditions vary",Specials,12,12
+CTE,CTE,MS,Y,"Assess representative rooms, more if conditions vary",CTE,12,9
+Performing Arts,Theater Arts,MS,Y,Asses 1,Performing Arts,12,9
+Performing Arts,Rehersal Hall,MS,Y,"Assess representative rooms, more if conditions vary",Performing Arts,12,9
+Performing Arts,Black Box,MS,N,,Performing Arts,3,9
+Performing Arts,Auditorium,MS,N,,Performing Arts,3,9
+Performing Arts,Dance,MS,N,,Performing Arts,3,9
+Neighborhoods,Open Collaboration,MS,Y,Should be assessed per neighborhood,Neighborhood,12,9
+Neighborhoods,Small Group Room,MS,Y,Should be assessed per neighborhood,Neighborhood,9,9
+Neighborhoods,Large Group Room,MS,N,Should be assessed per neighborhood,Neighborhood,3,9
+Neighborhoods,Neighborhood,MS,Y,Should be assessed per neighborhood,Neighborhood,12,9
+Athletics and Wellness,Gym,MS,Y,,Athletics and Wellness,12,9
+Athletics and Wellness,Competition Gym,MS,N,,Athletics and Wellness,3,9
+Athletics and Wellness,Locker Room,MS,Y,,Athletics and Wellness,9,9
+Athletics and Wellness,Weight Room,MS,Y,,Athletics and Wellness,9,9
+Athletics and Wellness,Wrestling,MS,N,,Athletics and Wellness,3,9
+Athletics and Wellness,Athletics Wing,MS,N,,Athletics and Wellness,6,9
+Shared Spaces,Media Center,MS,Y,,Shared Spaces,12,9
+Shared Spaces,Food Service,MS,Y,,Shared Spaces,12,9
+Shared Spaces,Empower Center,MS,Y,,Shared Spaces,9,9
+Outdoor Elements,Outdoor Spaces,MS,Y,,Outdoor Elements,12,9
+Outdoor Elements,Outdoor Athletics,MS,Y,,Athletics and Wellness,12,9
+Arrival/Main Office,Main Entry/Reception,HS,Y,,Arrival/Main Office,12,6
+Arrival/Main Office,Main Admin Suite,HS,Y,,Arrival/Main Office,12,6
+Arrival/Main Office,Community Partners Suite,HS,Y,,Arrival/Main Office,6,6
+Administration,Admin Offices,HS,Y,Assess 2 offices or 3 if there are varying conditions,Admin,9,6
+Administration,Professional Learning Center,HS,Y,Per neighborhood,Admin,9,6
+Administration,Mental Wellness and Counseling Suite,HS,Y,,Admin,12,6
+Studios,Tranditional Studio,HS,Y,Two per neighborhood based on medium sized school,Studio,12,12
+Studios,Sped Flex Studio,HS,Y,,Special Education,12,12
+Studios,Sensory Lab,HS,Y,,Special Education,9,12
+Studios,Vocational Lab,HS,Y,,Special education,12,12
+Studios,Life Skills Room,HS,Y,,Special education,12,12
+Studios,Science,HS,Y,"Assess representative rooms, more if conditions vary",Specials,12,12
+Studios,Maker Space,HS,Y,"Assess representative rooms, more if conditions vary",Specials,12,12
+Studios,Art,HS,Y,"Assess representative rooms, more if conditions vary",Specials,12,12
+CTE,CTE,HS,Y,"Assess representative rooms, more if conditions vary",CTE,12,9
+Performing Arts,Rehersal Hall,HS,Y,"Assess representative rooms, more if conditions vary",Performing Arts,12,9
+Performing Arts,Theater Arts,HS,Y,Assess 1 representative room. Include a 2nd room if conditions vary.,Performing Arts,12,9
+Performing Arts,Black Box,HS,Y,,Performing Arts,3,9
+Performing Arts,Auditorium,HS,Y,,Performing Arts,3,9
+Performing Arts,Dance,HS,Y,,Performing Arts,3,9
+Neighborhoods,Open Collaboration,HS,Y,Should be assessed per neighborhood,Neighborhood,12,9
+Neighborhoods,Small Group Room,HS,Y,Should be assessed per neighborhood,Neighborhood,9,9
+Neighborhoods,Large Group Room,HS,Y,Should be assessed per neighborhood,Neighborhood,9,9
+Neighborhoods,Neighborhood,HS,Y,Should be assessed per neighborhood,Neighborhood,12,9
+Athletics and Wellness,Gym,HS,Y,,Athletics and Wellness,12,9
+Athletics and Wellness,Competition Gym,HS,Y,,Athletics and Wellness,9,9
+Athletics and Wellness,Locker Room,HS,Y,,Athletics and Wellness,9,9
+Athletics and Wellness,Weight Room,HS,Y,,Athletics and Wellness,9,9
+Athletics and Wellness,Wrestling,HS,Y,,Athletics and Wellness,6,9
+Athletics and Wellness,Athletics Wing,HS,Y,,Athletics and Wellness,6,9
+Shared Spaces,Media Center,HS,Y,,Shared Spaces,12,9
+Shared Spaces,Food Service,HS,Y,,Shared Spaces,12,9
+Shared Spaces,Empower Center,HS,Y,,Shared Spaces,9,9
+Outdoor,Outdoor Spaces,HS,Y,,Outdoor Elements,12,9
+Outdoor,Outdoor Athletics,HS,Y,,Athletics and Wellness,12,9

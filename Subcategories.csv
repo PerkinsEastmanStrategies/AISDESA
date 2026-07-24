@@ -1,0 +1,14 @@
+Category,Subcategory,SubcategoryWeight
+Infrastructure,Lighting,0.1667
+Infrastructure,Daylighting,0.1667
+Infrastructure,Storage,0.1667
+Infrastructure,Display,0.1667
+Infrastructure,Power Sources,0.1667
+Infrastructure,General,0.1667
+Environmental Quality,Aesthetics,0.5
+Environmental Quality,Occupant Comfort,0.5
+Function,Layout,0.3333
+Function,Safety,0.3333
+Function,Adjacencies,0.3333
+FF&E,Furniture,0.5
+FF&E,Flooring,0.5

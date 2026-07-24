@@ -1,0 +1,5 @@
+﻿CategoryID,ScoreFocusArea,SpaceTypeID,CategoryName,CategoryWeight,DisplayOrder,IsActive
+CAT-AMENITIES,Outdoor,SPT-OUTDOOR-SPACES,Amenities,9,10,True
+CAT-OCCUPANT-EXPERIENCE,Outdoor,SPT-OUTDOOR-SPACES,Occupant Experience,12,10,True
+CAT-FUNCTION,Outdoor,SPT-OUTDOOR-SPACES,Function,12,10,True
+CAT-INFRASTRUCTURE,Outdoor,SPT-OUTDOOR-SPACES,Infrastructure,9,10,True

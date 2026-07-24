@@ -1,0 +1,2 @@
+﻿SurveyID,SurveyName,DisplayName,Description,DisplayOrder,IsActive
+SRV-NEIGHBORHOOD,Neighborhood Survey,Neighborhood Survey,"Neighborhood assessment containing Neighborhood, Group Room, and Open Collaboration Space types.",10,True

@@ -1,0 +1,322 @@
+﻿OptionID,QuestionID,SourceScoreID,ResponseOption,OptionScore,ItemScoringMode,ScoreGroupID,IsExclusionOption,DisplayOrder,IsActive
+OPT-ST-001-01,ST-001,ST-001a,Yes,1,SingleResponse,SR-ST-001-ST-001A,False,10,True
+OPT-ST-001-02,ST-001,ST-001a,No,0,SingleResponse,SR-ST-001-ST-001A,False,20,True
+OPT-ST-001-03,ST-001,ST-001a,Unable to assess (note reason),,SingleResponse,SR-ST-001-ST-001A,True,30,True
+OPT-ST-002-01,ST-002,ST-002a,Primary light fixtures are dimmable,1,SingleResponse,SR-ST-002-ST-002A,False,10,True
+OPT-ST-002-02,ST-002,ST-002b,Primary light fixtures are LED,1,SingleResponse,SR-ST-002-ST-002B,False,20,True
+OPT-ST-003-01,ST-003,ST-003a,"Good - walls are painted in light colors that can enhance daylighting, and accent color is used to reduce monotony",1,SingleResponse,SR-ST-003-ST-003A,False,10,True
+OPT-ST-003-02,ST-003,ST-003a,"Fair - walls are painted in light colors that can enhance daylighting, but no accent color is used",0.5,SingleResponse,SR-ST-003-ST-003A,False,20,True
+OPT-ST-003-03,ST-003,ST-003a,Poor - walls are painted in dark or monotonous colors,0,SingleResponse,SR-ST-003-ST-003A,False,30,True
+OPT-ST-003-04,ST-003,ST-003a,Unable to assess (note reason),,SingleResponse,SR-ST-003-ST-003A,True,40,True
+OPT-ST-004-01,ST-004,ST-004a,Yes,1,SingleResponse,SR-ST-004-ST-004A,False,10,True
+OPT-ST-004-02,ST-004,ST-004a,No,0,SingleResponse,SR-ST-004-ST-004A,False,20,True
+OPT-ST-004-03,ST-004,ST-004a,Unable to assess (note reason),,SingleResponse,SR-ST-004-ST-004A,True,30,True
+OPT-ST-005-01,ST-005,ST-005a,"Access to views of the outdoors (e.g., not solely a view of an exterior wall)",1,SingleResponse,SR-ST-005-ST-005A,False,10,True
+OPT-ST-005-02,ST-005,ST-005i,Only clerestory windows are provided,,Inventory,INV-ST-005-ST-005I,False,20,True
+OPT-ST-006-01,ST-006,ST-006a,Roller shades are provided,1,SingleResponse,SR-ST-006-ST-006A,False,10,True
+OPT-ST-006-02,ST-006,ST-006a,Mini-blinds are provided,0,SingleResponse,SR-ST-006-ST-006A,False,20,True
+OPT-ST-006-03,ST-006,ST-006a,Other (please note),0,SingleResponse,SR-ST-006-ST-006A,False,30,True
+OPT-ST-006-04,ST-006,ST-006a,No window coverings are provided,0,SingleResponse,SR-ST-006-ST-006A,False,40,True
+OPT-ST-006-05,ST-006,ST-006a,Unable to assess (note reason),,SingleResponse,SR-ST-006-ST-006A,True,50,True
+OPT-ST-007-01,ST-007,ST-007i,Built-in casework is provided,,Inventory,INV-ST-007-ST-007I,False,10,True
+OPT-ST-007-02,ST-007,ST-007i,Counter space is provided,,Inventory,INV-ST-007-ST-007I,False,20,True
+OPT-ST-007-03,ST-007,ST-007i,Ensuite storage closet is provided,,Inventory,INV-ST-007-ST-007I,False,30,True
+OPT-ST-007-04,ST-007,ST-007i,"Furniture-based storage is provided (i.e., shelving or cabinets)",,Inventory,INV-ST-007-ST-007I,False,40,True
+OPT-ST-007-05,ST-007,ST-007i,Some or all storage is lockable,,Inventory,INV-ST-007-ST-007I,False,50,True
+OPT-ST-008-01,ST-008,ST-008a,Good - storage appears sufficient; the space is organized with little visible clutter,1,SingleResponse,SR-ST-008-ST-008A,False,10,True
+OPT-ST-008-02,ST-008,ST-008a,Fair - storage appears mostly sufficient; some clutter or overflow is visible,0.5,SingleResponse,SR-ST-008-ST-008A,False,20,True
+OPT-ST-008-03,ST-008,ST-008a,Poor - storage appears insufficient; significant clutter or materials without a home,0,SingleResponse,SR-ST-008-ST-008A,False,30,True
+OPT-ST-008-04,ST-008,ST-008a,Unable to assess (note reason),,SingleResponse,SR-ST-008-ST-008A,True,40,True
+OPT-ST-009-ES-01,ST-009-ES,ST-009a,None,0,SingleResponse,SR-ST-009-ES-ST-009A,False,10,True
+OPT-ST-009-ES-02,ST-009-ES,ST-009a,<4 linear feet,0.25,SingleResponse,SR-ST-009-ES-ST-009A,False,20,True
+OPT-ST-009-ES-03,ST-009-ES,ST-009a,4 to <8 linear feet,0.5,SingleResponse,SR-ST-009-ES-ST-009A,False,30,True
+OPT-ST-009-ES-04,ST-009-ES,ST-009a,8 to <12 linear feet,0.75,SingleResponse,SR-ST-009-ES-ST-009A,False,40,True
+OPT-ST-009-ES-05,ST-009-ES,ST-009a,12+ linear feet,1,SingleResponse,SR-ST-009-ES-ST-009A,False,50,True
+OPT-ST-009-ES-06,ST-009-ES,ST-009a,Unable to assess (note reason),,SingleResponse,SR-ST-009-ES-ST-009A,True,60,True
+OPT-ST-009-MS-HS-01,ST-009-MS-HS,ST-009a,None,0,SingleResponse,SR-ST-009-MS-HS-ST-009A,False,10,True
+OPT-ST-009-MS-HS-02,ST-009-MS-HS,ST-009a,<4 linear feet,0.2,SingleResponse,SR-ST-009-MS-HS-ST-009A,False,20,True
+OPT-ST-009-MS-HS-03,ST-009-MS-HS,ST-009a,4 to <8 linear feet,0.4,SingleResponse,SR-ST-009-MS-HS-ST-009A,False,30,True
+OPT-ST-009-MS-HS-04,ST-009-MS-HS,ST-009a,8 to <12 linear feet,0.6,SingleResponse,SR-ST-009-MS-HS-ST-009A,False,40,True
+OPT-ST-009-MS-HS-05,ST-009-MS-HS,ST-009a,12 to <16 linear feet,0.8,SingleResponse,SR-ST-009-MS-HS-ST-009A,False,50,True
+OPT-ST-009-MS-HS-06,ST-009-MS-HS,ST-009a,16+ linear feet,1,SingleResponse,SR-ST-009-MS-HS-ST-009A,False,60,True
+OPT-ST-009-MS-HS-07,ST-009-MS-HS,ST-009a,Unable to assess (note reason),,SingleResponse,SR-ST-009-MS-HS-ST-009A,True,70,True
+OPT-ST-010-01,ST-010,ST-010i,Tackstrip,,Inventory,INV-ST-010-ST-010I,False,10,True
+OPT-ST-010-02,ST-010,ST-010i,Tackboard,,Inventory,INV-ST-010-ST-010I,False,20,True
+OPT-ST-010-03,ST-010,ST-010i,Tackwall,,Inventory,INV-ST-010-ST-010I,False,30,True
+OPT-ST-010-04,ST-010,ST-010i,Magnetic markerboard,,Inventory,INV-ST-010-ST-010I,False,40,True
+OPT-ST-011-01,ST-011,ST-011a,None,0,SingleResponse,SR-ST-011-ST-011A,False,10,True
+OPT-ST-011-02,ST-011,ST-011a,<4 linear feet,0.33,SingleResponse,SR-ST-011-ST-011A,False,20,True
+OPT-ST-011-03,ST-011,ST-011a,4 to <8 linear feet,0.66,SingleResponse,SR-ST-011-ST-011A,False,30,True
+OPT-ST-011-04,ST-011,ST-011a,8+ linear feet,1,SingleResponse,SR-ST-011-ST-011A,False,40,True
+OPT-ST-011-05,ST-011,ST-011a,Unable to assess (note reason),,SingleResponse,SR-ST-011-ST-011A,True,50,True
+OPT-ST-012-01,ST-012,ST-012a,0,0,SingleResponse,SR-ST-012-ST-012A,False,10,True
+OPT-ST-012-02,ST-012,ST-012a,1-2,0.25,SingleResponse,SR-ST-012-ST-012A,False,20,True
+OPT-ST-012-03,ST-012,ST-012a,3-4,0.5,SingleResponse,SR-ST-012-ST-012A,False,30,True
+OPT-ST-012-04,ST-012,ST-012a,5-7,0.75,SingleResponse,SR-ST-012-ST-012A,False,40,True
+OPT-ST-012-05,ST-012,ST-012a,8+,1,SingleResponse,SR-ST-012-ST-012A,False,50,True
+OPT-ST-013-01,ST-013,ST-013a,0,0,SingleResponse,SR-ST-013-ST-013A,False,10,True
+OPT-ST-013-02,ST-013,ST-013a,1,0.25,SingleResponse,SR-ST-013-ST-013A,False,20,True
+OPT-ST-013-03,ST-013,ST-013a,2,0.5,SingleResponse,SR-ST-013-ST-013A,False,30,True
+OPT-ST-013-04,ST-013,ST-013a,3,0.75,SingleResponse,SR-ST-013-ST-013A,False,40,True
+OPT-ST-013-05,ST-013,ST-013a,4,1,SingleResponse,SR-ST-013-ST-013A,False,50,True
+OPT-ST-014-01,ST-014,ST-014a,0,0,SingleResponse,SR-ST-014-ST-014A,False,10,True
+OPT-ST-014-02,ST-014,ST-014a,1,0.25,SingleResponse,SR-ST-014-ST-014A,False,20,True
+OPT-ST-014-03,ST-014,ST-014a,2,0.5,SingleResponse,SR-ST-014-ST-014A,False,30,True
+OPT-ST-014-04,ST-014,ST-014a,3,0.75,SingleResponse,SR-ST-014-ST-014A,False,40,True
+OPT-ST-014-05,ST-014,ST-014a,4,1,SingleResponse,SR-ST-014-ST-014A,False,50,True
+OPT-ST-015-01,ST-015,ST-015a,A thermostat is provided that has adjustable temperature controls,1,SingleResponse,SR-ST-015-ST-015A,False,10,True
+OPT-ST-015-02,ST-015,ST-015a,A thermostat is provided that does not have adjustable temperature controls,0.5,SingleResponse,SR-ST-015-ST-015A,False,20,True
+OPT-ST-015-03,ST-015,ST-015a,Only a temperature sensor is provided,0,SingleResponse,SR-ST-015-ST-015A,False,30,True
+OPT-ST-015-04,ST-015,ST-015a,No thermostat or sensor is present in the space,0,SingleResponse,SR-ST-015-ST-015A,False,40,True
+OPT-ST-016-01,ST-016,ST-016a,Yes,1,SingleResponse,SR-ST-016-ST-016A,False,10,True
+OPT-ST-016-02,ST-016,ST-016a,No,0,SingleResponse,SR-ST-016-ST-016A,False,20,True
+OPT-ST-016-03,ST-016,ST-016a,Unable to assess (note reason),,SingleResponse,SR-ST-016-ST-016A,True,30,True
+OPT-ST-017-01,ST-017,ST-017i,Interior window,,Inventory,INV-ST-017-ST-017I,False,10,True
+OPT-ST-017-02,ST-017,ST-017i,Sidelight,,Inventory,INV-ST-017-ST-017I,False,20,True
+OPT-ST-017-03,ST-017,ST-017i,"Door panel (i.e., glass panel in the door)",,Inventory,INV-ST-017-ST-017I,False,30,True
+OPT-ST-018-01,ST-018,ST-018a,Interior windows and doors with glass can be covered with a single movement,1,SingleResponse,SR-ST-018-ST-018A,False,10,True
+OPT-ST-018-02,ST-018,ST-018b,Exterior windows and doors with glass can be covered with a single movement,1,SingleResponse,SR-ST-018-ST-018B,False,20,True
+OPT-ST-018-03,ST-018,ST-018c,There is an area large enough for a full class to easily get out of sight to shelter-in-place (without needing to cover windows or doors with glass),1,SingleResponse,SR-ST-018-ST-018C,False,30,True
+OPT-ST-018-04,ST-018,ST-018d,Interior door hardware is lockable from inside the space with a push button or thumb turn lock,1,SingleResponse,SR-ST-018-ST-018D,False,40,True
+OPT-ST-019-01,ST-019,ST-019i,Individual student desks,,Inventory,INV-ST-019-ST-019I,False,10,True
+OPT-ST-019-02,ST-019,ST-019i,Tables that seat multiple students,,Inventory,INV-ST-019-ST-019I,False,20,True
+OPT-ST-019-03,ST-019,ST-019i,Height-adjustable student tables,,Inventory,INV-ST-019-ST-019I,False,30,True
+OPT-ST-019-04,ST-019,ST-019i,Standing-height student worksurfaces,,Inventory,INV-ST-019-ST-019I,False,40,True
+OPT-ST-019-05,ST-019,ST-019i,"Student desks with attached chair (i.e., combo units)",,Inventory,INV-ST-019-ST-019I,False,50,True
+OPT-ST-019-06,ST-019,ST-019i,"Hard seating (e.g., standard chairs, stools)",,Inventory,INV-ST-019-ST-019I,False,60,True
+OPT-ST-019-07,ST-019,ST-019i,"Active seating (e.g., wobble stools, rockers)",,Inventory,INV-ST-019-ST-019I,False,70,True
+OPT-ST-019-08,ST-019,ST-019i,"Soft seating (e.g., bean bags, floor cushions)",,Inventory,INV-ST-019-ST-019I,False,80,True
+OPT-ST-019-09,ST-019,ST-019i,"One or more mobile writing surfaces (i.e., mobile markerboards)",,Inventory,INV-ST-019-ST-019I,False,90,True
+OPT-ST-019-10,ST-019,ST-019i,One or more mobile tackboards,,Inventory,INV-ST-019-ST-019I,False,100,True
+OPT-ST-019-11,ST-019,ST-019i,One or more mobile monitors,,Inventory,INV-ST-019-ST-019I,False,110,True
+OPT-ST-019-12,ST-019,ST-019i,Other (please note),,Inventory,INV-ST-019-ST-019I,False,120,True
+OPT-ST-020-01,ST-020,ST-020a,"Most furniture can be moved by students or a single teacher (e.g., casters, lightweight pieces)",1,SingleResponse,SR-ST-020-ST-020A,False,10,True
+OPT-ST-020-02,ST-020,ST-020a,"Some furniture is movable, some is heavy or fixed",0.5,SingleResponse,SR-ST-020-ST-020A,False,20,True
+OPT-ST-020-03,ST-020,ST-020a,"Most furniture is heavy, fixed, or impractical to move",0,SingleResponse,SR-ST-020-ST-020A,False,30,True
+OPT-ST-021-01,ST-021,ST-021a,Varied seating is provided for multiple students across multiple areas of the space,1,SingleResponse,SR-ST-021-ST-021A,False,10,True
+OPT-ST-021-02,ST-021,ST-021a,"Limited varied seating is provided (i.e., a single area or only a few students accommodated at a time)",0.5,SingleResponse,SR-ST-021-ST-021A,False,20,True
+OPT-ST-021-03,ST-021,ST-021a,No varied seating is provided,0,SingleResponse,SR-ST-021-ST-021A,False,30,True
+OPT-ST-021-04,ST-021,ST-021a,Unable to assess (note reason),,SingleResponse,SR-ST-021-ST-021A,True,40,True
+OPT-ST-022-01,ST-022,ST-022a,Good - appears relatively new or has minimal wear,1,SingleResponse,SR-ST-022-ST-022A,False,10,True
+OPT-ST-022-02,ST-022,ST-022a,"Fair - some furniture is noticeably worn or aging, but all is functional",0.5,SingleResponse,SR-ST-022-ST-022A,False,20,True
+OPT-ST-022-03,ST-022,ST-022a,"Poor - some or all furniture is significantly worn, damaged, or not usable",0,SingleResponse,SR-ST-022-ST-022A,False,30,True
+OPT-ST-023-01,ST-023,ST-023i,"Resilient flooring (e.g., vinyl, rubber)",,Inventory,INV-ST-023-ST-023I,False,10,True
+OPT-ST-023-02,ST-023,ST-023i,Terrazzo,,Inventory,INV-ST-023-ST-023I,False,20,True
+OPT-ST-023-03,ST-023,ST-023i,Polished concrete,,Inventory,INV-ST-023-ST-023I,False,30,True
+OPT-ST-023-04,ST-023,ST-023i,"Carpet (i.e., not a loose rug)",,Inventory,INV-ST-023-ST-023I,False,40,True
+OPT-ST-023-05,ST-023,ST-023i,Other (please note),,Inventory,INV-ST-023-ST-023I,False,50,True
+OPT-ST-023-06,ST-023,ST-023i,Unable to assess (note reason),,Inventory,INV-ST-023-ST-023I,True,60,True
+OPT-ST-024-01,ST-024,ST-024a,Direct access to a collaboration space,1,SingleResponse,SR-ST-024-ST-024A,False,10,True
+OPT-ST-024-02,ST-024,ST-024a,Visibility into a collaboration space only,0.5,SingleResponse,SR-ST-024-ST-024A,False,20,True
+OPT-ST-024-03,ST-024,ST-024a,Neither access nor visibility,0,SingleResponse,SR-ST-024-ST-024A,False,30,True
+OPT-ST-024-04,ST-024,ST-024a,Unable to assess (note reason),,SingleResponse,SR-ST-024-ST-024A,True,40,True
+OPT-ST-025-01,ST-025,ST-025a,Exterior door within the space,1,SingleResponse,SR-ST-025-ST-025A,False,10,True
+OPT-ST-025-02,ST-025,ST-025a,Exterior door directly outside the space,0.5,SingleResponse,SR-ST-025-ST-025A,False,20,True
+OPT-ST-025-03,ST-025,ST-025a,Neither,0,SingleResponse,SR-ST-025-ST-025A,False,30,True
+OPT-ST-025-04,ST-025,ST-025a,Unable to assess (note reason),,SingleResponse,SR-ST-025-ST-025A,True,40,True
+OPT-ST-026-01,ST-026,ST-026i,Sink,,Inventory,INV-ST-026-ST-026I,False,10,True
+OPT-ST-026-02,ST-026,ST-026i,Laptop storage or charging cart,,Inventory,INV-ST-026-ST-026I,False,20,True
+OPT-ST-026-03,ST-026,ST-026i,PA speaker,,Inventory,INV-ST-026-ST-026I,False,30,True
+OPT-OD-001-01,OD-001,OD-001a,Early childhood playground (PreK-K),1,SingleResponse,SR-OD-001-OD-001A,False,10,True
+OPT-OD-001-02,OD-001,OD-001b,Elementary playground (1st-5th),1,SingleResponse,SR-OD-001-OD-001B,False,20,True
+OPT-OD-001-03,OD-001,OD-001c,Buddy bench,1,SingleResponse,SR-OD-001-OD-001C,False,30,True
+OPT-OD-001-04,OD-001,OD-001d,Cushioned play surfacing,1,SingleResponse,SR-OD-001-OD-001D,False,40,True
+OPT-OD-001-05,OD-001,OD-001e,Shade elements,1,SingleResponse,SR-OD-001-OD-001E,False,50,True
+OPT-OD-002-01,OD-002,OD-002a,Artwork,1,SingleResponse,SR-OD-002-OD-002A,False,10,True
+OPT-OD-002-02,OD-002,OD-002b,Dry creek bed,1,SingleResponse,SR-OD-002-OD-002B,False,20,True
+OPT-OD-002-03,OD-002,OD-002c,Educational signage,1,SingleResponse,SR-OD-002-OD-002C,False,30,True
+OPT-OD-002-04,OD-002,OD-002d,Flexible seating,1,SingleResponse,SR-OD-002-OD-002D,False,40,True
+OPT-OD-002-05,OD-002,OD-002e,Fixed seating,1,SingleResponse,SR-OD-002-OD-002E,False,50,True
+OPT-OD-002-06,OD-002,OD-002f,Mulch planting bed,1,SingleResponse,SR-OD-002-OD-002F,False,60,True
+OPT-OD-002-07,OD-002,OD-002g,Nature-based play,1,SingleResponse,SR-OD-002-OD-002G,False,70,True
+OPT-OD-002-08,OD-002,OD-002h,Outdoor music,1,SingleResponse,SR-OD-002-OD-002H,False,80,True
+OPT-OD-002-09,OD-002,OD-002j,Pollinator plantings,1,SingleResponse,SR-OD-002-OD-002J,False,90,True
+OPT-OD-002-10,OD-002,OD-002k,Sensory path,1,SingleResponse,SR-OD-002-OD-002K,False,100,True
+OPT-OD-002-11,OD-002,OD-002l,Storage,1,SingleResponse,SR-OD-002-OD-002L,False,110,True
+OPT-OD-002-12,OD-002,OD-002m,Synthetic turf surfacing,1,SingleResponse,SR-OD-002-OD-002M,False,120,True
+OPT-OD-002-13,OD-002,OD-002n,Worktables,1,SingleResponse,SR-OD-002-OD-002N,False,130,True
+OPT-OD-003-01,OD-003,OD-003a,Yes,1,SingleResponse,SR-OD-003-OD-003A,False,10,True
+OPT-OD-003-02,OD-003,OD-003a,No,0,SingleResponse,SR-OD-003-OD-003A,False,20,True
+OPT-OD-003-03,OD-003,OD-003a,Unable to assess (note reason),,SingleResponse,SR-OD-003-OD-003A,True,30,True
+OPT-OD-004-01,OD-004,OD-004a,Yes,1,SingleResponse,SR-OD-004-OD-004A,False,10,True
+OPT-OD-004-02,OD-004,OD-004a,No,0,SingleResponse,SR-OD-004-OD-004A,False,20,True
+OPT-OD-004-03,OD-004,OD-004a,Unable to assess (note reason),,SingleResponse,SR-OD-004-OD-004A,True,30,True
+OPT-OD-005-01,OD-005,OD-005a,Yes,1,SingleResponse,SR-OD-005-OD-005A,False,10,True
+OPT-OD-005-02,OD-005,OD-005a,No,0,SingleResponse,SR-OD-005-OD-005A,False,20,True
+OPT-OD-005-03,OD-005,OD-005a,Unable to assess (note reason),,SingleResponse,SR-OD-005-OD-005A,True,30,True
+OPT-OD-006-01,OD-006,OD-006i,Slides,,Inventory,INV-OD-006-OD-006I,False,10,True
+OPT-OD-006-02,OD-006,OD-006i,Independent swings,,Inventory,INV-OD-006-OD-006I,False,20,True
+OPT-OD-006-03,OD-006,OD-006i,Ropes and/or climbing structures,,Inventory,INV-OD-006-OD-006I,False,30,True
+OPT-OD-006-04,OD-006,OD-006i,Spinning equipment,,Inventory,INV-OD-006-OD-006I,False,40,True
+OPT-OD-006-05,OD-006,OD-006i,Swaying equipment,,Inventory,INV-OD-006-OD-006I,False,50,True
+OPT-OD-006-06,OD-006,OD-006i,"Musical instrument equipment (e.g., percussion play)",,Inventory,INV-OD-006-OD-006I,False,60,True
+OPT-OD-006-07,OD-006,OD-006i,Balancing and/or jumping equipment,,Inventory,INV-OD-006-OD-006I,False,70,True
+OPT-OD-007-01,OD-007,OD-007a,Grassy hills or landforms,1,SingleResponse,SR-OD-007-OD-007A,False,10,True
+OPT-OD-007-02,OD-007,OD-007b,Rock-climbing or boulder-play elements,1,SingleResponse,SR-OD-007-OD-007B,False,20,True
+OPT-OD-007-03,OD-007,OD-007c,"Logs, stumps, or natural balancing elements",1,SingleResponse,SR-OD-007-OD-007C,False,30,True
+OPT-OD-008-01,OD-008,OD-008a,Basketball hoop(s),1,SingleResponse,SR-OD-008-OD-008A,False,10,True
+OPT-OD-008-02,OD-008,OD-008b,Funnel ball equipment,1,SingleResponse,SR-OD-008-OD-008B,False,20,True
+OPT-OD-008-03,OD-008,OD-008c,Tetherball equipment,1,SingleResponse,SR-OD-008-OD-008C,False,30,True
+OPT-OD-008-04,OD-008,OD-008d,Four-square courts or markings,1,SingleResponse,SR-OD-008-OD-008D,False,40,True
+OPT-OD-008-05,OD-008,OD-008e,Other (please note),,SingleResponse,SR-OD-008-OD-008E,False,50,True
+OPT-OD-009-01,OD-009,OD-009a,Artwork,,SingleResponse,SR-OD-009-OD-009A,False,10,True
+OPT-OD-009-02,OD-009,OD-009b,Buddy bench,,SingleResponse,SR-OD-009-OD-009B,False,20,True
+OPT-OD-009-03,OD-009,OD-009c,Educational signage,,SingleResponse,SR-OD-009-OD-009C,False,30,True
+OPT-OD-009-04,OD-009,OD-009d,Flexible seating,,SingleResponse,SR-OD-009-OD-009D,False,40,True
+OPT-OD-009-05,OD-009,OD-009e,Fixed seating,,SingleResponse,SR-OD-009-OD-009E,False,50,True
+OPT-OD-009-06,OD-009,OD-009f,Shade trees,,SingleResponse,SR-OD-009-OD-009F,False,60,True
+OPT-OD-009-07,OD-009,OD-009g,Storage,,SingleResponse,SR-OD-009-OD-009G,False,70,True
+OPT-OD-009-08,OD-009,OD-009h,Theming,,SingleResponse,SR-OD-009-OD-009H,False,80,True
+OPT-OD-010-01,OD-010,OD-010a,Early childhood playground area,1,SingleResponse,SR-OD-010-OD-010A,False,10,True
+OPT-OD-010-02,OD-010,OD-010b,Elementary playground area,1,SingleResponse,SR-OD-010-OD-010B,False,20,True
+OPT-OD-010-03,OD-010,OD-010c,Hard play area,1,SingleResponse,SR-OD-010-OD-010C,False,30,True
+OPT-OD-011-01,OD-011,OD-011a,Yes,1,SingleResponse,SR-OD-011-OD-011A,False,10,True
+OPT-OD-011-02,OD-011,OD-011a,No,,SingleResponse,SR-OD-011-OD-011A,False,20,True
+OPT-OD-011-03,OD-011,OD-011a,Unable to assess (note reason),,SingleResponse,SR-OD-011-OD-011A,True,30,True
+OPT-OD-012-01,OD-012,OD-012a,Yes,1,SingleResponse,SR-OD-012-OD-012A,False,10,True
+OPT-OD-012-02,OD-012,OD-012b,No,0,SingleResponse,SR-OD-012-OD-012B,False,20,True
+OPT-OD-012-03,OD-012,OD-012c,Unable to assess (note reason),,SingleResponse,SR-OD-012-OD-012C,True,30,True
+OPT-OD-013-01,OD-013,OD-013a,Early childhood playground area,1,SingleResponse,SR-OD-013-OD-013A,False,10,True
+OPT-OD-013-02,OD-013,OD-013b,Elementary playground area,1,SingleResponse,SR-OD-013-OD-013B,False,20,True
+OPT-OD-013-03,OD-013,OD-013c,Hard play area,1,SingleResponse,SR-OD-013-OD-013C,False,30,True
+OPT-OD-013-04,OD-013,OD-013d,Play field,1,SingleResponse,SR-OD-013-OD-013D,False,40,True
+OPT-OD-014-01,OD-014,OD-014a,Hard play area,1,SingleResponse,SR-OD-014-OD-014A,False,10,True
+OPT-OD-014-02,OD-014,OD-014b,Play field,1,SingleResponse,SR-OD-014-OD-014B,False,20,True
+OPT-OD-015-01,OD-015,OD-015a,Good - directly adjacent to the gym or dining commons,1,SingleResponse,SR-OD-015-OD-015A,False,10,True
+OPT-OD-015-02,OD-015,OD-015a,Fair - within approx. 150 feet of the gym or dining commons,0.5,SingleResponse,SR-OD-015-OD-015A,False,20,True
+OPT-OD-015-03,OD-015,OD-015a,Poor - more than approximately 150 feet from both the gym and dining commons,0,SingleResponse,SR-OD-015-OD-015A,False,30,True
+OPT-OD-015-04,OD-015,OD-015a,Unable to assess (note reason),,SingleResponse,SR-OD-015-OD-015A,True,40,True
+OPT-OD-016-01,OD-016,OD-016a,None,0,SingleResponse,SR-OD-016-OD-016A,False,10,True
+OPT-OD-016-02,OD-016,OD-016a,1,0.25,SingleResponse,SR-OD-016-OD-016A,False,20,True
+OPT-OD-016-03,OD-016,OD-016a,2,0.5,SingleResponse,SR-OD-016-OD-016A,False,30,True
+OPT-OD-016-04,OD-016,OD-016a,3,0.75,SingleResponse,SR-OD-016-OD-016A,False,40,True
+OPT-OD-016-05,OD-016,OD-016a,4+,1,SingleResponse,SR-OD-016-OD-016A,False,50,True
+OPT-OD-016-06,OD-016,OD-016a,Unable to assess (note reason),,SingleResponse,SR-OD-016-OD-016A,True,60,True
+OPT-OD-017-01,OD-017,OD-017a,Seating for at least 30 students (incl. seat walls),1,SingleResponse,SR-OD-017-OD-017A,False,10,True
+OPT-OD-017-02,OD-017,OD-017b,Shade elements,1,SingleResponse,SR-OD-017-OD-017B,False,20,True
+OPT-OD-017-03,OD-017,OD-017c,Writable surfaces,1,SingleResponse,SR-OD-017-OD-017C,False,30,True
+OPT-OD-018-01,OD-018,OD-018a,Amphitheater or tiered gathering area,1,SingleResponse,SR-OD-018-OD-018A,False,10,True
+OPT-OD-018-02,OD-018,OD-018b,Artwork,1,SingleResponse,SR-OD-018-OD-018B,False,20,True
+OPT-OD-018-03,OD-018,OD-018c,Dry creek bed,1,SingleResponse,SR-OD-018-OD-018C,False,30,True
+OPT-OD-018-04,OD-018,OD-018d,Educational signage,1,SingleResponse,SR-OD-018-OD-018D,False,40,True
+OPT-OD-018-05,OD-018,OD-018e,Hardscape learning surface,1,SingleResponse,SR-OD-018-OD-018E,False,50,True
+OPT-OD-018-06,OD-018,OD-018f,Learning pond or water feature,1,SingleResponse,SR-OD-018-OD-018F,False,60,True
+OPT-OD-018-07,OD-018,OD-018g,Mulch planting beds,1,SingleResponse,SR-OD-018-OD-018G,False,70,True
+OPT-OD-018-08,OD-018,OD-018h,Natural grass lawn,1,SingleResponse,SR-OD-018-OD-018H,False,80,True
+OPT-OD-018-09,OD-018,OD-018j,Pollinator plantings,1,SingleResponse,SR-OD-018-OD-018J,False,90,True
+OPT-OD-018-10,OD-018,OD-018k,Projection surface,1,SingleResponse,SR-OD-018-OD-018K,False,100,True
+OPT-OD-018-11,OD-018,OD-018l,Sensory path,1,SingleResponse,SR-OD-018-OD-018L,False,110,True
+OPT-OD-018-12,OD-018,OD-018m,Shade trees,1,SingleResponse,SR-OD-018-OD-018M,False,120,True
+OPT-OD-018-13,OD-018,OD-018n,Storage / shed,1,SingleResponse,SR-OD-018-OD-018N,False,130,True
+OPT-OD-018-14,OD-018,OD-018o,Synthetic turf surfacing,1,SingleResponse,SR-OD-018-OD-018O,False,140,True
+OPT-OD-018-15,OD-018,OD-018p,Theming,1,SingleResponse,SR-OD-018-OD-018P,False,150,True
+OPT-OD-018-16,OD-018,OD-018q,Worktables,1,SingleResponse,SR-OD-018-OD-018Q,False,160,True
+OPT-OD-018-17,OD-018,OD-018r,Observation area,1,SingleResponse,SR-OD-018-OD-018R,False,170,True
+OPT-OD-019-01,OD-019,OD-019a,Power outlets,1,SingleResponse,SR-OD-019-OD-019A,False,10,True
+OPT-OD-019-02,OD-019,OD-019b,Wi-Fi access via a nearby wireless access point (WAP),1,SingleResponse,SR-OD-019-OD-019B,False,20,True
+OPT-OD-020-01,OD-020,OD-020a,Yes,1,SingleResponse,SR-OD-020-OD-020A,False,10,True
+OPT-OD-020-02,OD-020,OD-020a,No,0,SingleResponse,SR-OD-020-OD-020A,False,20,True
+OPT-OD-020-03,OD-020,OD-020a,Unable to assess (note reason),,SingleResponse,SR-OD-020-OD-020A,True,30,True
+OPT-OD-021-01,OD-021,OD-021a,Composting bin,,SingleResponse,SR-OD-021-OD-021A,False,10,True
+OPT-OD-021-02,OD-021,OD-021b,Storage / shed,,SingleResponse,SR-OD-021-OD-021B,False,20,True
+OPT-OD-021-03,OD-021,OD-021c,Raised garden beds,,SingleResponse,SR-OD-021-OD-021C,False,30,True
+OPT-OD-021-04,OD-021,OD-021d,Seating (flexible or fixed),,SingleResponse,SR-OD-021-OD-021D,False,40,True
+OPT-OD-022-01,OD-022,OD-022a,Educational signage,1,SingleResponse,SR-OD-022-OD-022A,False,10,True
+OPT-OD-022-02,OD-022,OD-022b,Garden path,1,SingleResponse,SR-OD-022-OD-022B,False,20,True
+OPT-OD-022-03,OD-022,OD-022c,Greenhouse,1,SingleResponse,SR-OD-022-OD-022C,False,30,True
+OPT-OD-022-04,OD-022,OD-022d,Hardscape (concrete or pavers),1,SingleResponse,SR-OD-022-OD-022D,False,40,True
+OPT-OD-022-05,OD-022,OD-022e,Mulch planting beds,1,SingleResponse,SR-OD-022-OD-022E,False,50,True
+OPT-OD-022-06,OD-022,OD-022f,Outdoor sinks,1,SingleResponse,SR-OD-022-OD-022F,False,60,True
+OPT-OD-022-07,OD-022,OD-022g,Pollinator plantings,1,SingleResponse,SR-OD-022-OD-022G,False,70,True
+OPT-OD-022-08,OD-022,OD-022h,Soft walking paths,1,SingleResponse,SR-OD-022-OD-022H,False,80,True
+OPT-OD-022-09,OD-022,OD-022j,Worktables (potting tables),1,SingleResponse,SR-OD-022-OD-022J,False,90,True
+OPT-OD-023-01,OD-023,OD-023a,Yes,1,SingleResponse,SR-OD-023-OD-023A,False,10,True
+OPT-OD-023-02,OD-023,OD-023a,No,0,SingleResponse,SR-OD-023-OD-023A,False,20,True
+OPT-OD-023-03,OD-023,OD-023a,Unable to assess (note reason),,SingleResponse,SR-OD-023-OD-023A,True,30,True
+OPT-OD-024-01,OD-024,OD-024a,Educational signage,1,SingleResponse,SR-OD-024-OD-024A,False,10,True
+OPT-OD-024-02,OD-024,OD-024b,Fixed seating,1,SingleResponse,SR-OD-024-OD-024B,False,20,True
+OPT-OD-024-03,OD-024,OD-024c,Pollinator plantings,1,SingleResponse,SR-OD-024-OD-024C,False,30,True
+OPT-OD-024-04,OD-024,OD-024d,Wildlife habitat,1,SingleResponse,SR-OD-024-OD-024D,False,40,True
+OPT-OD-025-01,OD-025,OD-025a,Flexible seating,1,SingleResponse,SR-OD-025-OD-025A,False,10,True
+OPT-OD-025-02,OD-025,OD-025b,Hardscape,1,SingleResponse,SR-OD-025-OD-025B,False,20,True
+OPT-OD-025-03,OD-025,OD-025c,Garden path,1,SingleResponse,SR-OD-025-OD-025C,False,30,True
+OPT-OD-025-04,OD-025,OD-025d,Learning pond or water feature,1,SingleResponse,SR-OD-025-OD-025D,False,40,True
+OPT-OD-025-05,OD-025,OD-025e,Mulch planting beds,1,SingleResponse,SR-OD-025-OD-025E,False,50,True
+OPT-OD-025-06,OD-025,OD-025f,Sensory path,1,SingleResponse,SR-OD-025-OD-025F,False,60,True
+OPT-OD-025-07,OD-025,OD-025g,Shade elements or understory trees,1,SingleResponse,SR-OD-025-OD-025G,False,70,True
+OPT-OD-025-08,OD-025,OD-025h,Soft walking paths,1,SingleResponse,SR-OD-025-OD-025H,False,80,True
+OPT-OD-025-09,OD-025,OD-025j,Worktables,1,SingleResponse,SR-OD-025-OD-025J,False,90,True
+OPT-OD-026-01,OD-026,OD-026a,Yes,1,SingleResponse,SR-OD-026-OD-026A,False,10,True
+OPT-OD-026-02,OD-026,OD-026a,No,,SingleResponse,SR-OD-026-OD-026A,False,20,True
+OPT-OD-026-03,OD-026,OD-026a,Unable to assess (note reason),,SingleResponse,SR-OD-026-OD-026A,True,30,True
+OPT-OD-027-01,OD-027,OD-027a,Livestock enclosure,1,SingleResponse,SR-OD-027-OD-027A,False,10,True
+OPT-OD-027-02,OD-027,OD-027b,Shade elements,1,Composite,CMP-OD-027-OD-027B,False,20,True
+OPT-OD-027-03,OD-027,OD-027b,Shade trees,1,Composite,CMP-OD-027-OD-027B,False,30,True
+OPT-OD-027-04,OD-027,OD-027c,Storage / shed,1,SingleResponse,SR-OD-027-OD-027C,False,40,True
+OPT-OD-028-01,OD-028,OD-028a,Educational signage,1,SingleResponse,SR-OD-028-OD-028A,False,10,True
+OPT-OD-028-02,OD-028,OD-028b,Flexible seating,1,SingleResponse,SR-OD-028-OD-028B,False,20,True
+OPT-OD-028-03,OD-028,OD-028c,Hardscape,1,SingleResponse,SR-OD-028-OD-028C,False,30,True
+OPT-OD-028-04,OD-028,OD-028d,Outdoor sink,1,SingleResponse,SR-OD-028-OD-028D,False,40,True
+OPT-OD-028-05,OD-028,OD-028e,Paddocks,1,SingleResponse,SR-OD-028-OD-028E,False,50,True
+OPT-OD-028-06,OD-028,OD-028f,Pollinator plantings,1,SingleResponse,SR-OD-028-OD-028F,False,60,True
+OPT-OD-028-07,OD-028,OD-028g,Soft walking paths,1,SingleResponse,SR-OD-028-OD-028G,False,70,True
+OPT-OD-028-08,OD-028,OD-028h,Troughs,1,SingleResponse,SR-OD-028-OD-028H,False,80,True
+OPT-OD-028-09,OD-028,OD-028j,Worktables,1,SingleResponse,SR-OD-028-OD-028J,False,90,True
+OPT-OD-028-10,OD-028,OD-028k,Writable surfaces,1,SingleResponse,SR-OD-028-OD-028K,False,100,True
+OPT-OD-029-01,OD-029,OD-029a,Yes,1,SingleResponse,SR-OD-029-OD-029A,False,10,True
+OPT-OD-029-02,OD-029,OD-029a,No,,SingleResponse,SR-OD-029-OD-029A,False,20,True
+OPT-OD-029-03,OD-029,OD-029a,Unable to assess (note reason),,SingleResponse,SR-OD-029-OD-029A,True,30,True
+OPT-OD-030-01,OD-030,OD-030a,Yes,1,SingleResponse,SR-OD-030-OD-030A,False,10,True
+OPT-OD-030-02,OD-030,OD-030a,No,0,SingleResponse,SR-OD-030-OD-030A,False,20,True
+OPT-OD-030-03,OD-030,OD-030a,Unable to assess (note reason),,SingleResponse,SR-OD-030-OD-030A,True,30,True
+OPT-OD-031-01,OD-031,OD-031a,Hardscape,1,Composite,CMP-OD-031-OD-031A,False,10,True
+OPT-OD-031-02,OD-031,OD-031a,Soft walking path,1,Composite,CMP-OD-031-OD-031A,False,20,True
+OPT-OD-031-03,OD-031,OD-031b,Shade trees,1,SingleResponse,SR-OD-031-OD-031B,False,30,True
+OPT-OD-031-04,OD-031,OD-031c,Wildlife habitat,1,Composite,CMP-OD-031-OD-031C,False,40,True
+OPT-OD-031-05,OD-031,OD-031c,Mulch planting beds,1,Composite,CMP-OD-031-OD-031C,False,50,True
+OPT-OD-031-06,OD-031,OD-031c,Native plantings,1,Composite,CMP-OD-031-OD-031C,False,60,True
+OPT-OD-032-01,OD-032,OD-032a,Dry creek bed,1,SingleResponse,SR-OD-032-OD-032A,False,10,True
+OPT-OD-032-02,OD-032,OD-032b,Educational signage,1,SingleResponse,SR-OD-032-OD-032B,False,20,True
+OPT-OD-032-03,OD-032,OD-032c,Fixed seating,1,SingleResponse,SR-OD-032-OD-032C,False,30,True
+OPT-OD-032-04,OD-032,OD-032d,Nature-based play,1,SingleResponse,SR-OD-032-OD-032D,False,40,True
+OPT-OD-032-05,OD-032,OD-032e,Pollinator plantings,1,SingleResponse,SR-OD-032-OD-032E,False,50,True
+OPT-OD-032-06,OD-032,OD-032f,Observation area,1,SingleResponse,SR-OD-032-OD-032F,False,60,True
+OPT-OD-032-07,OD-032,OD-032g,Sensory path,1,SingleResponse,SR-OD-032-OD-032G,False,70,True
+OPT-OD-033-01,OD-033,OD-033a,Yes,1,SingleResponse,SR-OD-033-OD-033A,False,10,True
+OPT-OD-033-02,OD-033,OD-033a,No,0,SingleResponse,SR-OD-033-OD-033A,False,20,True
+OPT-OD-033-03,OD-033,OD-033a,Unable to assess (note reason),,SingleResponse,SR-OD-033-OD-033A,True,30,True
+OPT-OD-034-01,OD-034,OD-034a,Cisterns,1,SingleResponse,SR-OD-034-OD-034A,False,10,True
+OPT-OD-034-02,OD-034,OD-034b,Rain gardens,1,SingleResponse,SR-OD-034-OD-034B,False,20,True
+OPT-OD-034-03,OD-034,OD-034c,Swales,1,SingleResponse,SR-OD-034-OD-034C,False,30,True
+OPT-OD-034-04,OD-034,OD-034d,Berms,1,SingleResponse,SR-OD-034-OD-034D,False,40,True
+OPT-OD-035-01,OD-035,OD-035a,Dry creek bed,1,SingleResponse,SR-OD-035-OD-035A,False,10,True
+OPT-OD-035-02,OD-035,OD-035b,Educational signage,1,SingleResponse,SR-OD-035-OD-035B,False,20,True
+OPT-OD-035-03,OD-035,OD-035c,Fixed seating,1,SingleResponse,SR-OD-035-OD-035C,False,30,True
+OPT-OD-035-04,OD-035,OD-035d,Pollinator plantings,1,SingleResponse,SR-OD-035-OD-035D,False,40,True
+OPT-OD-035-05,OD-035,OD-035e,Garden path,1,SingleResponse,SR-OD-035-OD-035E,False,50,True
+OPT-OD-035-06,OD-035,OD-035f,Shade trees,1,SingleResponse,SR-OD-035-OD-035F,False,60,True
+OPT-OD-035-07,OD-035,OD-035g,Understory trees,1,SingleResponse,SR-OD-035-OD-035G,False,70,True
+OPT-OD-036-01,OD-036,OD-036a,Yes,1,SingleResponse,SR-OD-036-OD-036A,False,10,True
+OPT-OD-036-02,OD-036,OD-036a,No,0,SingleResponse,SR-OD-036-OD-036A,False,20,True
+OPT-OD-036-03,OD-036,OD-036a,Unable to assess (note reason),,SingleResponse,SR-OD-036-OD-036A,True,30,True
+OPT-OD-037-01,OD-037,OD-037a,Natural grass lawn,1,SingleResponse,SR-OD-037-OD-037A,False,10,True
+OPT-OD-037-02,OD-037,OD-037b,Synthetic turf surfacing,1,SingleResponse,SR-OD-037-OD-037B,False,20,True
+OPT-OD-037-03,OD-037,OD-037c,Other (please note),0,SingleResponse,SR-OD-037-OD-037C,False,30,True
+OPT-OD-038-01,OD-038,OD-038a,Shade trees,1,SingleResponse,SR-OD-038-OD-038A,False,10,True
+OPT-OD-038-02,OD-038,OD-038b,Exercise trail,1,SingleResponse,SR-OD-038-OD-038B,False,20,True
+OPT-OD-038-03,OD-038,OD-038c,Flexible seating,1,Composite,CMP-OD-038-OD-038C,False,30,True
+OPT-OD-038-04,OD-038,OD-038c,"Play structures (e.g., soccer goals)",1,Composite,CMP-OD-038-OD-038C,False,40,True
+OPT-OD-039-01,OD-039,OD-039a,Yes,1,SingleResponse,SR-OD-039-OD-039A,False,10,True
+OPT-OD-039-02,OD-039,OD-039a,No,0,SingleResponse,SR-OD-039-OD-039A,False,20,True
+OPT-OD-039-03,OD-039,OD-039a,Unable to assess (note reason),,SingleResponse,SR-OD-039-OD-039A,True,30,True
+OPT-OD-040-01,OD-040,OD-040a,Early childhood playground area,1,SingleResponse,SR-OD-040-OD-040A,False,10,True
+OPT-OD-040-02,OD-040,OD-040b,Elementary playground area,1,SingleResponse,SR-OD-040-OD-040B,False,20,True
+OPT-OD-040-03,OD-040,OD-040c,Hard play area,1,SingleResponse,SR-OD-040-OD-040C,False,30,True
+OPT-OD-040-04,OD-040,OD-040d,Play field,1,SingleResponse,SR-OD-040-OD-040D,False,40,True
+OPT-OD-040-05,OD-040,OD-040e,Gardens,1,SingleResponse,SR-OD-040-OD-040E,False,50,True
+OPT-OD-040-06,OD-040,OD-040f,Outdoor studios,1,SingleResponse,SR-OD-040-OD-040F,False,60,True
+OPT-OD-040-07,OD-040,OD-040g,Nature trail,1,SingleResponse,SR-OD-040-OD-040G,False,70,True
+OPT-OD-041-01,OD-041,OD-041a,"Good - dedicated, conveniently located storage appears sufficient for current needs",1,SingleResponse,SR-OD-041-OD-041A,False,10,True
+OPT-OD-041-02,OD-041,OD-041a,"Fair - storage is provided but appears undersized, inconvenient, or only partially sufficient",0.5,SingleResponse,SR-OD-041-OD-041A,False,20,True
+OPT-OD-041-03,OD-041,OD-041a,Poor - no dedicated outdoor storage is visible,0,SingleResponse,SR-OD-041-OD-041A,False,30,True
+OPT-OD-041-04,OD-041,OD-041a,Unable to assess (note reason),,SingleResponse,SR-OD-041-OD-041A,True,40,True

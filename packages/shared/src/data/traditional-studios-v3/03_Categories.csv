@@ -1,0 +1,21 @@
+CategoryID,SurveyID,SpaceTypeID,CategoryName,CategoryWeight,DisplayOrder,IsActive,Description
+CAT-TRAD-FUNCTION,SRV-TRAD-STU,SPT-TRAD-STU,Function,1,10,True,Function scoring dimension for the Traditional Studios assessment.
+CAT-TRAD-INFRASTRUCTURE,SRV-TRAD-STU,SPT-TRAD-STU,Infrastructure,1,20,True,Infrastructure scoring dimension for the Traditional Studios assessment.
+CAT-TRAD-ENVIRONMENTAL-QUALIT,SRV-TRAD-STU,SPT-TRAD-STU,Environmental Quality,1,30,True,Environmental Quality scoring dimension for the Traditional Studios assessment.
+CAT-TRAD-FF-E,SRV-TRAD-STU,SPT-TRAD-STU,FF&E,1,40,True,FF&E scoring dimension for the Traditional Studios assessment.
+CAT-SL-FUNCTION,SRV-SENSORY-LAB,SPT-SENSORY-LAB,Function,1,10,True,Function scoring category for the Sensory Lab survey.
+CAT-SL-INFRASTRUCTURE,SRV-SENSORY-LAB,SPT-SENSORY-LAB,Infrastructure,1,20,True,Infrastructure scoring category for the Sensory Lab survey.
+CAT-SL-ENVIRONMENTAL-QUALITY,SRV-SENSORY-LAB,SPT-SENSORY-LAB,Environmental Quality,1,30,True,Environmental Quality scoring category for the Sensory Lab survey.
+CAT-SL-FF-E,SRV-SENSORY-LAB,SPT-SENSORY-LAB,FF&E,1,40,True,FF&E scoring category for the Sensory Lab survey.
+CAT-VL-FUNCTION,SRV-VOC-LAB,SPT-VOC-LAB,Function,1,10,True,Function scoring category for the Vocational Lab survey.
+CAT-VL-INFRASTRUCTURE,SRV-VOC-LAB,SPT-VOC-LAB,Infrastructure,1,20,True,Infrastructure scoring category for the Vocational Lab survey.
+CAT-VL-ENVIRONMENTAL-QUALITY,SRV-VOC-LAB,SPT-VOC-LAB,Environmental Quality,1,30,True,Environmental Quality scoring category for the Vocational Lab survey.
+CAT-VL-FF-E,SRV-VOC-LAB,SPT-VOC-LAB,FF&E,1,40,True,FF&E scoring category for the Vocational Lab survey.
+CAT-LS-FUNCTION,SRV-LIFE-SKILLS,SPT-LIFE-SKILLS,Function,1,10,True,Function scoring category for the Life Skills Room survey.
+CAT-LS-INFRASTRUCTURE,SRV-LIFE-SKILLS,SPT-LIFE-SKILLS,Infrastructure,1,20,True,Infrastructure scoring category for the Life Skills Room survey.
+CAT-LS-ENVIRONMENTAL-QUALITY,SRV-LIFE-SKILLS,SPT-LIFE-SKILLS,Environmental Quality,1,30,True,Environmental Quality scoring category for the Life Skills Room survey.
+CAT-LS-FF-E,SRV-LIFE-SKILLS,SPT-LIFE-SKILLS,FF&E,1,40,True,FF&E scoring category for the Life Skills Room survey.
+CAT-SF-FUNCTION,SRV-SPED-FLEX,SPT-SPED-FLEX,Function,1,10,True,Function scoring category for the SPED Flex Studio survey.
+CAT-SF-INFRASTRUCTURE,SRV-SPED-FLEX,SPT-SPED-FLEX,Infrastructure,1,20,True,Infrastructure scoring category for the SPED Flex Studio survey.
+CAT-SF-ENVIRONMENTAL-QUALITY,SRV-SPED-FLEX,SPT-SPED-FLEX,Environmental Quality,1,30,True,Environmental Quality scoring category for the SPED Flex Studio survey.
+CAT-SF-FF-E,SRV-SPED-FLEX,SPT-SPED-FLEX,FF&E,1,40,True,FF&E scoring category for the SPED Flex Studio survey.
