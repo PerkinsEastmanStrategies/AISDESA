@@ -52,6 +52,7 @@ function roomInfoToParsedPlanRoom(
     building: buildings.get(room.key),
     levelId,
     points: room.points,
+    overlayKind: room.overlayKind,
   }
 }
 

@@ -5,7 +5,7 @@ import { createPortal } from "react-dom"
 import { Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw, X } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
 import { useSelectRoomWithConfirm } from "@/components/use-select-room-with-confirm"
-import { viewBoxString, type ParsedPlanRoom } from "@aisd/shared"
+import { overlayPointsForRoom, viewBoxString, type ParsedPlanRoom } from "@aisd/shared"
 import { getRoomSurveyProgress, ROOM_PROGRESS_FILL } from "@/lib/room-survey-progress"
 import {
   loadRoomNeighborhoodMap,
@@ -1077,7 +1077,7 @@ function RoomOverlay({
   } else if (preWalkColor && preWalkSpaceType) {
     fill = colorWithAlpha(preWalkColor, selected ? 0.62 : 0.42)
   } else if (preWalkActiveSpaceType && !preWalkSpaceType) {
-    fill = selected ? "rgba(37, 99, 235, 0.2)" : "rgba(37, 99, 235, 0.06)"
+    fill = selected ? "rgba(37, 99, 235, 0.2)" : "rgba(255, 255, 255, 0.01)"
   } else if (programTypeColor) {
     fill = colorWithAlpha(programTypeColor, selected ? 0.62 : 0.45)
     if (shaded && progressFill) {
@@ -1094,8 +1094,8 @@ function RoomOverlay({
   } else if (selected) {
     fill = "rgba(37, 99, 235, 0.15)"
   } else {
-    // Slightly visible fill so SVG hit-testing stays reliable on all browsers.
-    fill = interactive ? "rgba(37, 99, 235, 0.06)" : "rgba(37, 99, 235, 0.01)"
+    // Invisible hit target — plan reads as line art until a room is selected or an overlay is on.
+    fill = "rgba(255, 255, 255, 0.01)"
   }
 
   const programTypeStroke =
@@ -1103,7 +1103,17 @@ function RoomOverlay({
 
   const sizeDeviationStroke = sizeDeviationColor
 
-  const stroke = photoGalleryMode
+  const showRoomHighlight =
+    selected ||
+    photoGalleryMode ||
+    colorByAssessmentScore ||
+    !!sizeDeviationColor ||
+    !!(preWalkColor && preWalkSpaceType) ||
+    !!programTypeColor ||
+    !!neighborhoodColor ||
+    shaded
+
+  let stroke = photoGalleryMode
     ? selected
       ? "#2563eb"
       : "rgba(148, 163, 184, 0.45)"
@@ -1121,7 +1131,22 @@ function RoomOverlay({
           ? neighborhoodColor
           : shaded && progressFill
             ? progressFill
-            : "rgba(37, 99, 235, 0.2)"
+            : showRoomHighlight
+              ? "rgba(37, 99, 235, 0.2)"
+              : "transparent"
+
+  const strokeWidth = selected
+    ? 14
+    : colorByAssessmentScore ||
+        preWalkColor ||
+        shaded ||
+        programTypeColor ||
+        neighborhoodColor ||
+        sizeDeviationColor
+      ? 8
+      : showRoomHighlight
+        ? 6
+        : 0
 
   const trySelect = (pointerId: number, x: number, y: number) => {
     const start = tapRef.current
@@ -1157,22 +1182,13 @@ function RoomOverlay({
   return (
     <g className={photoGalleryMode && !hasPhotoMarker ? "pointer-events-none" : "pointer-events-auto"}>
       <polygon
-        points={room.points.map((p) => `${p.x},${p.y}`).join(" ")}
+        points={overlayPointsForRoom(room).map((p) => `${p.x},${p.y}`).join(" ")}
         fill={fill}
+        fillRule="evenodd"
         fillOpacity={fillOpacity}
         stroke={stroke}
         pointerEvents={photoGalleryMode ? "none" : undefined}
-        strokeWidth={
-          selected
-            ? 14
-            : colorByAssessmentScore ||
-                preWalkColor ||
-                shaded ||
-                programTypeColor ||
-                neighborhoodColor
-              ? 8
-              : 6
-        }
+        strokeWidth={strokeWidth}
         style={{
           cursor: readOnly ? "default" : "pointer",
           pointerEvents: photoGalleryMode ? "none" : "all",

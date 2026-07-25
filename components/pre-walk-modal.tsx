@@ -2,15 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { createPortal } from "react-dom"
-import { ChevronDown, ChevronLeft, ChevronRight, Camera, Info, Map as MapIcon, X } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight, Info, Map as MapIcon, X } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
 import SurveyFloorPlan from "@/components/survey-floor-plan"
-import QuestionPhoto from "@/components/question-photo"
 import {
   countMappingsBySpaceType,
   defaultPreWalkSurveyType,
   getPreWalkMapping,
-  getPreWalkSpaceTypePhoto,
   preWalkMappingList,
   preWalkMappingsByRoomForSurvey,
   preWalkSpaceTypeColor,
@@ -20,8 +18,6 @@ import {
   PREWALK_DESIGN_INTENT_TITLE,
   spaceTypeOptionsForPreWalk,
 } from "@/lib/prewalk"
-import { PREWALK_SPACE_TYPE_PHOTO_PROMPT } from "@/lib/photo-privacy"
-import { isSupabasePhotoUrl, type SurveyPhotoUploadContext } from "@/lib/photo-storage"
 import { loadRoomUseMap, roomUseForRoom, type RoomUseMap } from "@/lib/room-neighborhood-lookup"
 import { cn } from "@/lib/utils"
 import { surveyTypeLabel, type SurveyType } from "@aisd/shared"
@@ -38,7 +34,6 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
     state,
     setLevel,
     setPreWalkMapping,
-    setPreWalkSpaceTypePhoto,
     updatePreWalkNotes,
     removePreWalkMapping,
     clearPreWalkMappingsForSurvey,
@@ -97,17 +92,6 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
 
   const mappedCountForSurvey = preWalkMappingList(state.preWalk.mappings, selectedSurveyType).length
   const totalMappedCount = preWalkMappingList(state.preWalk.mappings).length
-  const activeSpaceTypePhoto = activeSpaceType
-    ? getPreWalkSpaceTypePhoto(state.preWalk, selectedSurveyType, activeSpaceType)
-    : undefined
-  const photoUploadBase: Pick<SurveyPhotoUploadContext, "campusId" | "schoolId" | "surveyType"> | null =
-    state.school
-      ? {
-          campusId: state.session?.campusId ?? state.school.campusId,
-          schoolId: state.school.id,
-          surveyType: selectedSurveyType,
-        }
-      : null
   const levelId = state.selectedLevelId ?? state.floorPlan?.defaultLevelId ?? "floor-1"
   const selectedMapping = selectedRoomId
     ? getPreWalkMapping(state.preWalk.mappings, selectedSurveyType, selectedRoomId)
@@ -327,12 +311,12 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
         {/* Survey + space types — floating left panel */}
         <div
           className={cn(
-            "pointer-events-none absolute left-0 top-0 z-20 flex max-h-full flex-col pt-28 transition-transform duration-200",
+            "pointer-events-none absolute left-0 top-0 z-20 flex max-h-full flex-col pt-2 transition-transform duration-200",
             typesPanelOpen ? "translate-x-0" : "-translate-x-[calc(100%-2.5rem)]",
           )}
         >
-          <aside className="pointer-events-auto flex max-h-[calc(100vh-5rem)] w-[min(17rem,calc(100vw-3rem))] flex-col overflow-hidden rounded-r-2xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-sm">
-            <div className="border-b border-slate-100 px-3 py-2.5">
+          <aside className="pointer-events-auto flex max-h-[calc(100%-0.5rem)] w-[min(17rem,calc(100vw-3rem))] flex-col overflow-hidden rounded-r-2xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-sm">
+            <div className="shrink-0 border-b border-slate-100 px-3 py-2.5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">
                 Survey
               </p>
@@ -383,7 +367,7 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
                 </p>
               </div>
             </div>
-            <ul className="flex-1 overflow-y-auto px-2 py-2">
+            <ul className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
               {spaceTypeOptions.map((type) => {
                 const count = mappingCounts.get(type) ?? 0
                 const active = activeSpaceType === type
@@ -406,15 +390,6 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
                         aria-hidden
                       />
                       <span className="min-w-0 flex-1 truncate font-medium">{type}</span>
-                      {getPreWalkSpaceTypePhoto(state.preWalk, selectedSurveyType, type) ? (
-                        <Camera
-                          className={cn(
-                            "h-3.5 w-3.5 shrink-0",
-                            active ? "text-white/90" : "text-emerald-600",
-                          )}
-                          aria-hidden
-                        />
-                      ) : null}
                       <span
                         className={cn(
                           "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold",
@@ -428,49 +403,11 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
                 )
               })}
             </ul>
-            {activeSpaceType && (
-              <div className="border-t border-slate-100 px-3 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                  General space photo
-                </p>
-                <p className="mt-1 text-[11px] leading-snug text-slate-600">
-                  {PREWALK_SPACE_TYPE_PHOTO_PROMPT}
-                </p>
-                <div className="mt-2 [&>button]:w-full">
-                  {isSupabasePhotoUrl(activeSpaceTypePhoto) ? (
-                    <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800 ring-1 ring-emerald-100">
-                      Photo submitted to Supabase for this space type.
-                    </p>
-                  ) : (
-                    <QuestionPhoto
-                      key={`prewalk-photo:${selectedSurveyType}:${activeSpaceType}`}
-                      photos={activeSpaceTypePhoto ? [activeSpaceTypePhoto] : []}
-                      maxPhotos={1}
-                      label="Overview photo"
-                      startExpanded={!activeSpaceTypePhoto}
-                      privacyContextNote={`Add a general photo of ${activeSpaceType}.`}
-                      uploadContext={
-                        photoUploadBase && activeSpaceType
-                          ? {
-                              ...photoUploadBase,
-                              kind: "prewalk-space-type",
-                              spaceType: activeSpaceType,
-                            }
-                          : null
-                      }
-                      onChange={(photos) =>
-                        setPreWalkSpaceTypePhoto(selectedSurveyType, activeSpaceType, photos[0])
-                      }
-                    />
-                  )}
-                </div>
-              </div>
-            )}
           </aside>
           <button
             type="button"
             onClick={() => setTypesPanelOpen((v) => !v)}
-            className="pointer-events-auto absolute -right-8 top-[7.25rem] flex h-8 w-8 items-center justify-center rounded-r-lg border border-l-0 border-slate-200/80 bg-white/95 text-slate-600 shadow-md backdrop-blur-sm"
+            className="pointer-events-auto absolute -right-8 top-3 flex h-8 w-8 items-center justify-center rounded-r-lg border border-l-0 border-slate-200/80 bg-white/95 text-slate-600 shadow-md backdrop-blur-sm"
             aria-label={typesPanelOpen ? "Hide mapping panel" : "Show mapping panel"}
           >
             {typesPanelOpen ? (
@@ -485,14 +422,14 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
         {selectedRoomId && (
           <div
             className={cn(
-              "pointer-events-none absolute right-0 top-0 z-20 flex max-h-full flex-col pt-28 transition-transform duration-200",
+              "pointer-events-none absolute right-0 top-0 z-20 flex max-h-full flex-col pt-2 transition-transform duration-200",
               detailsPanelOpen ? "translate-x-0" : "translate-x-[calc(100%-2.5rem)]",
             )}
           >
             <button
               type="button"
               onClick={() => setDetailsPanelOpen((v) => !v)}
-              className="pointer-events-auto absolute -left-8 top-[7.25rem] flex h-8 w-8 items-center justify-center rounded-l-lg border border-r-0 border-slate-200/80 bg-white/95 text-slate-600 shadow-md backdrop-blur-sm"
+              className="pointer-events-auto absolute -left-8 top-3 flex h-8 w-8 items-center justify-center rounded-l-lg border border-r-0 border-slate-200/80 bg-white/95 text-slate-600 shadow-md backdrop-blur-sm"
               aria-label={detailsPanelOpen ? "Hide room details" : "Show room details"}
             >
               {detailsPanelOpen ? (
@@ -501,7 +438,7 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
                 <ChevronLeft className="h-4 w-4" />
               )}
             </button>
-            <aside className="pointer-events-auto flex max-h-[calc(100vh-5rem)] w-[min(18rem,calc(100vw-3rem))] flex-col overflow-y-auto rounded-l-2xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-sm">
+            <aside className="pointer-events-auto flex max-h-[calc(100%-0.5rem)] w-[min(18rem,calc(100vw-3rem))] flex-col overflow-y-auto rounded-l-2xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-sm">
               <div className="flex items-start justify-between border-b border-slate-100 px-3 py-2.5">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">

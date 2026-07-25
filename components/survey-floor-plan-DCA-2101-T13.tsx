@@ -7,6 +7,7 @@ import { useSelectRoomWithConfirm } from "@/components/use-select-room-with-conf
 import {
   ROOM_CONDITION_FILL,
   conditionFromScore,
+  overlayPointsForRoom,
   viewBoxString,
   type ParsedPlanRoom,
 } from "@aisd/shared"
@@ -417,7 +418,7 @@ function RoomOverlay({
   } else if (selected) {
     fill = "rgba(37, 99, 235, 0.15)"
   } else {
-    fill = "rgba(37, 99, 235, 0.01)"
+    fill = "rgba(255, 255, 255, 0.01)"
   }
 
   const stroke = selected
@@ -426,16 +427,17 @@ function RoomOverlay({
       ? scoreFill
       : neighborhoodColor
         ? neighborhoodColor
-        : "rgba(37, 99, 235, 0.2)"
+        : "transparent"
 
   return (
     <g className="pointer-events-auto">
       <polygon
-        points={room.points.map((p) => `${p.x},${p.y}`).join(" ")}
+        points={overlayPointsForRoom(room).map((p) => `${p.x},${p.y}`).join(" ")}
         fill={fill}
+        fillRule="evenodd"
         fillOpacity={fillOpacity}
         stroke={stroke}
-        strokeWidth={selected ? 14 : assessed || neighborhoodColor ? 8 : 6}
+        strokeWidth={selected ? 14 : assessed || neighborhoodColor ? 8 : 0}
         style={{ cursor: readOnly ? "default" : "pointer", pointerEvents: "all" }}
         onPointerUp={(e) => {
           if (readOnly) return

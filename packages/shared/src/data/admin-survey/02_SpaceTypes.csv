@@ -1,3 +1,10 @@
-﻿SpaceTypeID,SurveyID,ParentSpaceTypeID,SpaceTypeName,DisplayOrder,IsActive,Description
-SPT-COUNSELING-SUITE,SRV-ADMIN,,Counseling Suite,20,True,Counseling Suite space assessed through the Admin Survey.
-SPT-ADMIN-OFFICE,SRV-ADMIN,,Admin Office,10,True,Admin Office space assessed through the Admin Survey.
+﻿SpaceTypeID,SurveyID,SurveyFocusArea,ScoreFocusArea,SpaceTypeName,DisplayOrder,IsActive
+SPT-TRADITIONAL-STUDIO,SRV-STUDIOS,Studios,Studios,Traditional Studio,10,True
+SPT-MAKER-SPACE,SRV-STUDIOS,Studios,Studios,Maker Space,20,True
+SPT-OUTDOOR-SPACES,SRV-OUTDOOR,Outdoor,Outdoor,Outdoor Spaces,30,True
+SPT-ADMIN-OFFICES,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Admin Offices,40,True
+SPT-COMMUNITY-PARTNERS-SUITE,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Community Partners Suite,50,True
+SPT-MENTAL-WELLNESS-AND-COUNSELING-S,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Mental Wellness and Counseling Suite,60,True
+SPT-PROFESSIONAL-LEARNING-CENTER,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Professional Learning Center,70,True
+SPT-MAIN-ENTRY-RECEPTION,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Main Entry/Reception,80,True
+SPT-MAIN-ADMIN-SUITE,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Main Admin Suite,90,True

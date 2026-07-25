@@ -30,6 +30,11 @@ import {
   LIFE_SKILLS_QUESTIONS,
   LIFE_SKILLS_RUBRIC_VERSION,
   LIFE_SKILLS_SUBCATEGORIES,
+  MAKER_SPACE_CATEGORIES,
+  MAKER_SPACE_QUESTION_OPTIONS,
+  MAKER_SPACE_QUESTIONS,
+  MAKER_SPACE_RUBRIC_VERSION,
+  MAKER_SPACE_SUBCATEGORIES,
   SENSORY_LAB_CATEGORIES,
   SENSORY_LAB_QUESTION_OPTIONS,
   SENSORY_LAB_QUESTIONS,
@@ -62,6 +67,11 @@ import {
   COUNSELING_SUITE_QUESTIONS,
   COUNSELING_SUITE_RUBRIC_VERSION,
   COUNSELING_SUITE_SUBCATEGORIES,
+  PLC_CATEGORIES,
+  PLC_QUESTION_OPTIONS,
+  PLC_QUESTIONS,
+  PLC_RUBRIC_VERSION,
+  PLC_SUBCATEGORIES,
 } from "../data/admin-rubric"
 import {
   COMMUNITY_PARTNER_CATEGORIES,
@@ -69,16 +79,16 @@ import {
   COMMUNITY_PARTNER_QUESTIONS,
   COMMUNITY_PARTNER_RUBRIC_VERSION,
   COMMUNITY_PARTNER_SUBCATEGORIES,
+  MAIN_ADMIN_SUITE_CATEGORIES,
+  MAIN_ADMIN_SUITE_QUESTION_OPTIONS,
+  MAIN_ADMIN_SUITE_QUESTIONS,
+  MAIN_ADMIN_SUITE_RUBRIC_VERSION,
+  MAIN_ADMIN_SUITE_SUBCATEGORIES,
   MAIN_OFFICE_CATEGORIES,
   MAIN_OFFICE_QUESTION_OPTIONS,
   MAIN_OFFICE_QUESTIONS,
   MAIN_OFFICE_RUBRIC_VERSION,
   MAIN_OFFICE_SUBCATEGORIES,
-  PLC_CATEGORIES,
-  PLC_QUESTION_OPTIONS,
-  PLC_QUESTIONS,
-  PLC_RUBRIC_VERSION,
-  PLC_SUBCATEGORIES,
 } from "../data/arrival-admin-rubric"
 import {
   GROUP_ROOM_CATEGORIES,
@@ -108,6 +118,7 @@ import { ensureNotAbleToAssessOptions } from "../data/not-able-to-assess"
 
 export {
   TRADITIONAL_STUDIOS_RUBRIC_VERSION,
+  MAKER_SPACE_RUBRIC_VERSION,
   OUTDOOR_SPACES_RUBRIC_VERSION,
   SENSORY_LAB_RUBRIC_VERSION,
   VOCATIONAL_LAB_RUBRIC_VERSION,
@@ -116,6 +127,7 @@ export {
   ADMIN_OFFICE_RUBRIC_VERSION,
   COUNSELING_SUITE_RUBRIC_VERSION,
   MAIN_OFFICE_RUBRIC_VERSION,
+  MAIN_ADMIN_SUITE_RUBRIC_VERSION,
   COMMUNITY_PARTNER_RUBRIC_VERSION,
   PLC_RUBRIC_VERSION,
   NEIGHBORHOOD_SPACE_RUBRIC_VERSION,
@@ -145,6 +157,14 @@ const TRADITIONAL_STUDIOS_RUBRIC: SurveyRubric = {
   subcategories: TRADITIONAL_STUDIO_SUBCATEGORIES,
   questions: TRADITIONAL_STUDIO_QUESTIONS as SurveyRubric["questions"],
   options: TRADITIONAL_STUDIO_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const MAKER_SPACE_RUBRIC: SurveyRubric = {
+  assessmentArea: "Studios",
+  categories: MAKER_SPACE_CATEGORIES,
+  subcategories: MAKER_SPACE_SUBCATEGORIES,
+  questions: MAKER_SPACE_QUESTIONS as SurveyRubric["questions"],
+  options: MAKER_SPACE_QUESTION_OPTIONS as SurveyRubric["options"],
 }
 
 const SENSORY_LAB_RUBRIC: SurveyRubric = {
@@ -217,6 +237,14 @@ const MAIN_OFFICE_RUBRIC: SurveyRubric = {
   subcategories: MAIN_OFFICE_SUBCATEGORIES,
   questions: MAIN_OFFICE_QUESTIONS as SurveyRubric["questions"],
   options: MAIN_OFFICE_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const MAIN_ADMIN_SUITE_RUBRIC: SurveyRubric = {
+  assessmentArea: "Arrival/Main Office",
+  categories: MAIN_ADMIN_SUITE_CATEGORIES,
+  subcategories: MAIN_ADMIN_SUITE_SUBCATEGORIES,
+  questions: MAIN_ADMIN_SUITE_QUESTIONS as SurveyRubric["questions"],
+  options: MAIN_ADMIN_SUITE_QUESTION_OPTIONS as SurveyRubric["options"],
 }
 
 const COMMUNITY_PARTNER_RUBRIC: SurveyRubric = {
@@ -447,7 +475,8 @@ export function getRoomSurveyRubric(
       (schoolClass === "ELEM" ? "K" : schoolClass === "MID" ? "MS" : schoolClass === "HIGH" ? "HS" : null)
     rubric = filterNeighborhoodRubricByGrade(base, neighborhoodGrade)
   } else if (effectiveType === "arrival") {
-    if (roomType === "Main Office" || roomType === "Main Admin Suite") rubric = MAIN_OFFICE_RUBRIC
+    if (roomType === "Main Office") rubric = MAIN_OFFICE_RUBRIC
+    else if (roomType === "Main Admin Suite") rubric = MAIN_ADMIN_SUITE_RUBRIC
     else if (roomType === "Community Partner Suite") rubric = COMMUNITY_PARTNER_RUBRIC
     else return null
   } else if (effectiveType === "administration") {
@@ -482,12 +511,13 @@ export function getRoomSurveyRubric(
     rubric = filterRubricBySchoolLevel(LIFE_SKILLS_RUBRIC, schoolClass)
   } else if (roomType === "Sped flex studio") {
     rubric = filterRubricBySchoolLevel(SPED_FLEX_RUBRIC, schoolClass)
+  } else if (roomType === "Maker space") {
+    rubric = filterRubricBySchoolLevel(MAKER_SPACE_RUBRIC, schoolClass)
   } else if (
     roomType === "Early childhood studio" ||
     roomType === "Early childhood special education studio" ||
     roomType === "Art" ||
     roomType === "Music" ||
-    roomType === "Maker space" ||
     roomType === "Science"
   ) {
     rubric = filterRubricBySchoolLevel(TRADITIONAL_STUDIOS_RUBRIC, schoolClass)
@@ -665,7 +695,10 @@ export function isAdminSpaceType(value: string): value is AdminSpaceType {
   return (ADMIN_SPACE_TYPE_OPTIONS as readonly string[]).includes(value)
 }
 
-export const ARRIVAL_SPACE_TYPE_OPTIONS = ["Main Office", "Community Partner Suite"] as const
+export const ARRIVAL_SPACE_TYPE_OPTIONS = [
+  "Main Admin Suite",
+  "Community Partner Suite",
+] as const
 
 export type ArrivalSpaceType = (typeof ARRIVAL_SPACE_TYPE_OPTIONS)[number]
 
@@ -714,6 +747,7 @@ export function isCampusScopedSurveyType(surveyType: SurveyType): boolean {
 export function usesPackageStudioRubric(roomType: string | null | undefined): boolean {
   return (
     roomType === "Traditional studio" ||
+    roomType === "Maker space" ||
     roomType === "Sensory Lab" ||
     roomType === "Vocational Lab" ||
     roomType === "Vocational lab" ||
@@ -733,7 +767,10 @@ export function usesPackageAdminRubric(roomType: string | null | undefined): boo
 
 /** Arrival space types that use dedicated CSV package rubrics. */
 export function usesPackageArrivalRubric(roomType: string | null | undefined): boolean {
-  return roomType === "Main Office" || roomType === "Community Partner Suite"
+  return (
+    roomType === "Main Admin Suite" ||
+    roomType === "Community Partner Suite"
+  )
 }
 
 /** Neighborhood space types that use dedicated CSV package rubrics. */

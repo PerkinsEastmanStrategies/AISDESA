@@ -18,13 +18,13 @@ function resolveWorkspaceRoot() {
 }
 
 const workspaceRoot = resolveWorkspaceRoot()
-const csvDir = path.join(workspaceRoot, "packages", "shared", "src", "data", "outdoor-survey")
+const csvDir = path.join(workspaceRoot, "packages", "shared", "src", "data", "studios-outdoor")
 const outPath = path.join(workspaceRoot, "packages", "shared", "src", "data", "outdoor-rubric.ts")
 
 const PACKAGE = {
   spaceTypeId: "SPT-OUTDOOR-SPACES",
   versionConst: "OUTDOOR_SPACES_RUBRIC_VERSION",
-  version: 1,
+  version: 2,
   prefix: "OUTDOOR_SPACES",
   label: "Outdoor Spaces",
   assessmentArea: "Outdoor",
@@ -171,7 +171,7 @@ const options = allOptions
 let file = `import type { EsaCategory, EsaQuestion, EsaQuestionOption, EsaSubcategory } from "../types/survey"
 
 /** Outdoor Spaces rubric — regenerate via scripts/generate-outdoor-rubric.mjs
- *  Source CSVs: packages/shared/src/data/outdoor-survey
+ *  Source CSVs: packages/shared/src/data/studios-outdoor
  */
 
 export const ${pkg.versionConst} = ${pkg.version} as const

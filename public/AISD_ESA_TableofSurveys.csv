@@ -1,5 +1,4 @@
 Focus Area (Survey),Space Type,School Level,Required,Notes,Focus Area (Scoring),Space Type Weight,Focus Area Weight
-Arrival/Main Office,Main Entry/Reception,ES,Y,,Arrival/Main Office,12,6
 Arrival/Main Office,Main Admin Suite,ES,Y,,Arrival/Main Office,12,6
 Arrival/Main Office,Community Partners Suite,ES,Y,,Arrival/Main Office,6,6
 Administration,Admin Offices,ES,Y,Assess 2 offices or 3 if there are varying conditions,Admin,9,6
@@ -23,7 +22,6 @@ Shared Spaces,Media Center,ES,Y,,Shared Spaces,12,9
 Shared Spaces,Food Service,ES,Y,,Shared Spaces,12,9
 Shared Spaces,Empower Center,ES,N,,Shared Spaces,3,9
 Outdoor Elements,Outdoor Spaces,ES,Y,,Outdoor Elements,12,9
-Arrival/Main Office,Main Entry/Reception,MS,Y,,Arrival/Main Office,12,6
 Arrival/Main Office,Main Admin Suite,MS,Y,,Arrival/Main Office,12,6
 Arrival/Main Office,Community Partners Suite,MS,Y,,Arrival/Main Office,6,6
 Administration,Admin Offices,MS,Y,Assess 2 offices or 3 if there are varying conditions,Admin,9,6
@@ -59,7 +57,6 @@ Shared Spaces,Food Service,MS,Y,,Shared Spaces,12,9
 Shared Spaces,Empower Center,MS,Y,,Shared Spaces,9,9
 Outdoor Elements,Outdoor Spaces,MS,Y,,Outdoor Elements,12,9
 Outdoor Elements,Outdoor Athletics,MS,Y,,Athletics and Wellness,12,9
-Arrival/Main Office,Main Entry/Reception,HS,Y,,Arrival/Main Office,12,6
 Arrival/Main Office,Main Admin Suite,HS,Y,,Arrival/Main Office,12,6
 Arrival/Main Office,Community Partners Suite,HS,Y,,Arrival/Main Office,6,6
 Administration,Admin Offices,HS,Y,Assess 2 offices or 3 if there are varying conditions,Admin,9,6

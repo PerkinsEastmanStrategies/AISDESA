@@ -1,4 +1,10 @@
-﻿SpaceTypeID,SurveyID,ParentSpaceTypeID,SpaceTypeName,DisplayOrder,IsActive,Description
-SPT-MAIN-OFFICE,SRV-ARRIVAL-MAIN-ENTRY,,Main Office,10,True,Main Office assessed through Arrival and Main Entry Survey.
-SPT-COMMUNITY-PARTNER,SRV-ARRIVAL-MAIN-ENTRY,,Community Partner Suite,20,True,Community Partner Suite assessed through Arrival and Main Entry Survey.
-SPT-PLC,SRV-ADMIN,,Professional Learning Center,10,True,Professional Learning Center assessed through Administration Survey.
+﻿SpaceTypeID,SurveyID,SurveyFocusArea,ScoreFocusArea,SpaceTypeName,DisplayOrder,IsActive
+SPT-TRADITIONAL-STUDIO,SRV-STUDIOS,Studios,Studios,Traditional Studio,10,True
+SPT-MAKER-SPACE,SRV-STUDIOS,Studios,Studios,Maker Space,20,True
+SPT-OUTDOOR-SPACES,SRV-OUTDOOR,Outdoor,Outdoor,Outdoor Spaces,30,True
+SPT-ADMIN-OFFICES,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Admin Offices,40,True
+SPT-COMMUNITY-PARTNERS-SUITE,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Community Partners Suite,50,True
+SPT-MENTAL-WELLNESS-AND-COUNSELING-S,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Mental Wellness and Counseling Suite,60,True
+SPT-PROFESSIONAL-LEARNING-CENTER,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Professional Learning Center,70,True
+SPT-MAIN-ENTRY-RECEPTION,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Main Entry/Reception,80,True
+SPT-MAIN-ADMIN-SUITE,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Main Admin Suite,90,True

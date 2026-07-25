@@ -87,6 +87,28 @@ export interface ParsedPlanRoom {
   areaSqft?: number
   levelId: string
   points: Pt[]
+  /** Whether overlay points trace a room boundary or a label-centered hotspot fallback. */
+  overlayKind?: "boundary" | "hotspot"
+}
+
+/** Polygon vertices for rendering room overlays; recenters hotspot fallbacks on the label. */
+export function overlayPointsForRoom(room: Pick<ParsedPlanRoom, "x" | "y" | "points" | "overlayKind">): Pt[] {
+  if (room.overlayKind === "hotspot" && room.points.length >= 3) {
+    const xs = room.points.map((p) => p.x)
+    const ys = room.points.map((p) => p.y)
+    const half = Math.max(
+      (Math.max(...xs) - Math.min(...xs)) / 2,
+      (Math.max(...ys) - Math.min(...ys)) / 2,
+      1
+    )
+    return [
+      { x: room.x - half, y: room.y - half },
+      { x: room.x + half, y: room.y - half },
+      { x: room.x + half, y: room.y + half },
+      { x: room.x - half, y: room.y + half },
+    ]
+  }
+  return room.points
 }
 
 function roomDisplayName(id: string): string {

@@ -410,7 +410,7 @@ export function isAdminSpaceType(value: string): value is AdminSpaceType {
   return (ADMIN_SPACE_TYPE_OPTIONS as readonly string[]).includes(value)
 }
 
-export const ARRIVAL_SPACE_TYPE_OPTIONS = ["Main Office", "Community Partner Suite"] as const
+export const ARRIVAL_SPACE_TYPE_OPTIONS = ["Community Partner Suite"] as const
 
 export type ArrivalSpaceType = (typeof ARRIVAL_SPACE_TYPE_OPTIONS)[number]
 
@@ -446,7 +446,7 @@ export function usesPackageAdminRubric(roomType: string | null | undefined): boo
 
 /** Arrival space types that use dedicated CSV package rubrics. */
 export function usesPackageArrivalRubric(roomType: string | null | undefined): boolean {
-  return roomType === "Main Office" || roomType === "Community Partner Suite"
+  return roomType === "Community Partner Suite"
 }
 
 /** Neighborhood space types that use dedicated CSV package rubrics. */

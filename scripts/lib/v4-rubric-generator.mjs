@@ -1,61 +1,4 @@
-import fs from "fs"
-import path from "path"
-import { fileURLToPath } from "url"
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-function resolveWorkspaceRoot() {
-  const fromEnv = process.env.AISD_WS
-  if (fromEnv && fs.existsSync(fromEnv)) return fromEnv
-  const marker = path.join(__dirname, "aisd-ws-path.txt")
-  if (fs.existsSync(marker)) {
-    const p = fs.readFileSync(marker, "utf8").trim()
-    if (fs.existsSync(p)) return p
-  }
-  const candidate = path.resolve(__dirname, "..")
-  if (fs.existsSync(path.join(candidate, "packages", "shared"))) return candidate
-  throw new Error("Could not resolve workspace root")
-}
-
-const workspaceRoot = resolveWorkspaceRoot()
-const csvDir = path.join(workspaceRoot, "packages", "shared", "src", "data", "studios-outdoor")
-const outPath = path.join(
-  workspaceRoot,
-  "packages",
-  "shared",
-  "src",
-  "data",
-  "arrival-admin-rubric.ts",
-)
-
-const PACKAGES = [
-  {
-    spaceTypeId: "SPT-MAIN-ENTRY-RECEPTION",
-    assessmentArea: "Arrival/Main Office",
-    versionConst: "MAIN_OFFICE_RUBRIC_VERSION",
-    version: 2,
-    prefix: "MAIN_OFFICE",
-    label: "Main Entry/Reception",
-  },
-  {
-    spaceTypeId: "SPT-MAIN-ADMIN-SUITE",
-    assessmentArea: "Arrival/Main Office",
-    versionConst: "MAIN_ADMIN_SUITE_RUBRIC_VERSION",
-    version: 1,
-    prefix: "MAIN_ADMIN_SUITE",
-    label: "Main Admin Suite",
-  },
-  {
-    spaceTypeId: "SPT-COMMUNITY-PARTNERS-SUITE",
-    assessmentArea: "Arrival/Main Office",
-    versionConst: "COMMUNITY_PARTNER_RUBRIC_VERSION",
-    version: 2,
-    prefix: "COMMUNITY_PARTNER",
-    label: "Community Partners Suite",
-  },
-]
-
-function parseCsv(text) {
+export function parseCsv(text) {
   const rows = []
   let row = []
   let field = ""
@@ -95,7 +38,7 @@ function parseCsv(text) {
   return rows
 }
 
-function rowsToObjects(rows) {
+export function rowsToObjects(rows) {
   const [header, ...body] = rows
   return body.map((r) => {
     const o = {}
@@ -104,16 +47,11 @@ function rowsToObjects(rows) {
   })
 }
 
-function readTable(name) {
-  const text = fs.readFileSync(path.join(csvDir, name), "utf8").replace(/^\uFEFF/, "")
-  return rowsToObjects(parseCsv(text))
-}
-
-function esc(s) {
+export function esc(s) {
   return JSON.stringify(s ?? "")
 }
 
-function normalizeQuestionType(raw) {
+export function normalizeQuestionType(raw) {
   if (raw === "YesNo") return "YesNoNA"
   if (raw === "MultiSelect") return "MultiSelect"
   if (raw === "SingleSelect") return "SingleSelect"
@@ -121,25 +59,25 @@ function normalizeQuestionType(raw) {
   return raw
 }
 
-function isTrue(v) {
+export function isTrue(v) {
   return String(v).trim().toLowerCase() === "true"
 }
 
-function numOrNull(v) {
+export function numOrNull(v) {
   const s = String(v ?? "").trim()
   if (s === "") return null
   const n = Number(s)
   return Number.isFinite(n) ? n : null
 }
 
-function parseWeight(v) {
+export function parseWeight(v) {
   const s = String(v ?? "").trim()
   if (s === "") return 0
   const n = Number(s)
   return Number.isFinite(n) ? n : 0
 }
 
-function resolveScoreId(o) {
+export function resolveScoreId(o) {
   const source = String(o.SourceScoreID ?? "").trim()
   if (source) return source
   const group = String(o.ScoreGroupID ?? "").trim()
@@ -147,7 +85,7 @@ function resolveScoreId(o) {
   return String(o.OptionID ?? "").trim() || `${o.QuestionID}-opt`
 }
 
-function resolveOptionScore(o, isExclusion) {
+export function resolveOptionScore(o, isExclusion) {
   const explicit = numOrNull(o.OptionScore)
   if (isExclusion && explicit === null) return null
   if (explicit !== null) return explicit
@@ -158,15 +96,13 @@ function resolveOptionScore(o, isExclusion) {
   return null
 }
 
-const allCategories = readTable("03_Categories.csv")
-const allSubcategories = readTable("04_Subcategories.csv")
-const allQuestions = readTable("05_Questions.csv")
-const allOptions = readTable("06_QuestionOptions.csv")
+export function emitV4Package(pkg, bundle) {
+  const { categories: allCategories, subcategories: allSubcategories, questions: allQuestions, options: allOptions } =
+    bundle
+  const catById = new Map(allCategories.map((c) => [c.CategoryID, c]))
+  const subById = new Map(allSubcategories.map((s) => [s.SubcategoryID, s]))
+  const assessmentArea = pkg.assessmentArea ?? "Arrival/Administration"
 
-const catById = new Map(allCategories.map((c) => [c.CategoryID, c]))
-const subById = new Map(allSubcategories.map((s) => [s.SubcategoryID, s]))
-
-function emitPackage(pkg) {
   const categories = allCategories
     .filter((c) => c.SpaceTypeID === pkg.spaceTypeId)
     .sort((a, b) => Number(a.DisplayOrder) - Number(b.DisplayOrder))
@@ -199,7 +135,7 @@ export const ${pkg.prefix}_CATEGORIES: EsaCategory[] = [
 `
 
   for (const c of categories) {
-    out += `  { assessmentArea: ${esc(pkg.assessmentArea)}, category: ${esc(c.CategoryName)}, categoryWeight: ${parseWeight(c.CategoryWeight)} },\n`
+    out += `  { assessmentArea: ${esc(assessmentArea)}, category: ${esc(c.CategoryName)}, categoryWeight: ${parseWeight(c.CategoryWeight)} },\n`
   }
 
   out += `]
@@ -232,7 +168,7 @@ export const ${pkg.prefix}_QUESTIONS: (EsaQuestion & {
     const context = String(q.Context ?? "").trim()
     out += `  {
     questionId: ${esc(q.QuestionID)},
-    assessmentArea: ${esc(pkg.assessmentArea)},
+    assessmentArea: ${esc(assessmentArea)},
     category: ${esc(cat.CategoryName)},
     subcategory: ${esc(sub.SubcategoryName)},
     question: ${esc(q.QuestionText)},
@@ -265,15 +201,7 @@ export const ${pkg.prefix}_QUESTION_OPTIONS: (EsaQuestionOption & {
 
     const isExclusion = isTrue(o.IsExclusionOption)
     const optionScore = resolveOptionScore(o, isExclusion)
-    const maxPoints = numOrNull(o.MaxPoints)
-    let normalizedScore = null
-    if (!isExclusion && optionScore !== null) {
-      if (maxPoints !== null && maxPoints > 0) normalizedScore = optionScore / maxPoints
-      else normalizedScore = optionScore
-    }
-
-    const itemWeightRaw = String(o.ItemWeight ?? "").trim()
-    const itemWeight = itemWeightRaw === "" ? 1 : Number(itemWeightRaw)
+    const normalizedScore = isExclusion || optionScore === null ? null : optionScore
     const scoreId = resolveScoreId(o)
 
     kept += 1
@@ -286,8 +214,8 @@ export const ${pkg.prefix}_QUESTION_OPTIONS: (EsaQuestionOption & {
     itemScoringMode: ${esc(o.ItemScoringMode)} as any,
     scoreGroupId: ${esc(o.ScoreGroupID)},
     optionScore: ${optionScore === null ? "null" : optionScore},
-    maxPoints: ${maxPoints === null ? "null" : maxPoints},
-    itemWeight: ${Number.isFinite(itemWeight) ? itemWeight : 1},
+    maxPoints: null,
+    itemWeight: 1,
     isExclusionOption: ${isExclusion},
   } as EsaQuestionOption & Record<string, unknown>,
 `
@@ -307,27 +235,4 @@ export const ${pkg.prefix}_QUESTION_OPTIONS: (EsaQuestionOption & {
       questionIds: questions.map((q) => q.QuestionID),
     },
   }
-}
-
-let file = `import type { EsaCategory, EsaQuestion, EsaQuestionOption, EsaSubcategory } from "../types/survey"
-
-/** Arrival/Main Entry + Administration (PLC) rubrics — regenerate via scripts/generate-arrival-admin-rubric.mjs
- *  Source CSVs: packages/shared/src/data/studios-outdoor (v4 CSV)
- */
-`
-
-const allStats = []
-for (const pkg of PACKAGES) {
-  const { out, stats } = emitPackage(pkg)
-  file += `\n${out}`
-  allStats.push(stats)
-}
-
-fs.writeFileSync(outPath, file)
-console.log(`Wrote ${outPath}`)
-for (const s of allStats) {
-  console.log(
-    `${s.label}: questions=${s.questions} options=${s.options} categories=${s.categories} subcategories=${s.subcategories}`,
-  )
-  console.log(`  questionIds=${s.questionIds.join(",")}`)
 }

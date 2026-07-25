@@ -112,7 +112,7 @@ function demoRoomType(surveyType: SurveyType): string {
     case "administration":
       return "Admin Office"
     case "arrival":
-      return "Main Office"
+      return "Main Admin Suite"
     case "neighborhoods":
       return "Neighborhood"
     default:

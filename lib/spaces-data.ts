@@ -46,6 +46,8 @@ export interface RoomInfo {
   points: { x: number; y: number }[];
   /** Human-readable label (e.g. "Gym", "Library") parsed from the SVG text labels, if available */
   label?: string;
+  /** Whether overlay points trace a room boundary or a label-centered hotspot fallback. */
+  overlayKind?: "boundary" | "hotspot";
 }
 
 /**
@@ -182,6 +184,7 @@ function extractCafmLabelHotspotRooms(svgRoot: SVGSVGElement): RoomInfo[] {
       y: label.y,
       points: syntheticLabelHitPolygon(label.x, label.y, halfSize),
       label: label.kind === "tag" ? label.text : undefined,
+      overlayKind: "hotspot",
       priority,
     });
   }
@@ -207,14 +210,17 @@ function extractCafmRooms(svgRoot: SVGSVGElement): RoomInfo[] {
     return extractCafmLabelHotspotRooms(svgRoot);
   }
 
+  const allLabels = getCafmLabels(svgRoot);
+  const hotspotHalf = estimateLabelHotspotHalfSize(allLabels, svgRoot);
+
   const shapes = Array.from(
     cafmSpace.querySelectorAll("path, rect, polygon, polyline")
   ) as SVGGraphicsElement[];
 
   const shapeInfos: ParsedShape[] = shapes
     .map((el) => {
-      const points = getGraphicsPolygonPoints(el);
-      const bbox = el.getBBox();
+      const points = getShapePointsInRootSpace(el, svgRoot);
+      const bbox = bboxFromPoints(points);
       if (points.length === 0 || bbox.width <= 0 || bbox.height <= 0) return null;
       return {
         element: el,
@@ -247,11 +253,19 @@ function extractCafmRooms(svgRoot: SVGSVGElement): RoomInfo[] {
       if (!resolved || seen.has(resolved.key)) continue;
 
       seen.add(resolved.key);
+      const overlay = normalizeCafmOverlayPoints(
+        region.points,
+        region.bbox,
+        resolved.x,
+        resolved.y,
+        hotspotHalf
+      );
       rooms.push({
         key: resolved.key,
         x: resolved.x,
         y: resolved.y,
-        points: region.points,
+        points: overlay.points,
+        overlayKind: overlay.overlayKind,
       });
     }
 
@@ -261,7 +275,6 @@ function extractCafmRooms(svgRoot: SVGSVGElement): RoomInfo[] {
     return rooms;
   }
 
-  const allLabels = getCafmLabels(svgRoot);
   const labelCandidates = allLabels.filter((label) => label.kind === "room");
   const tagLabels = allLabels.filter((label) => label.kind === "tag");
 
@@ -279,11 +292,19 @@ function extractCafmRooms(svgRoot: SVGSVGElement): RoomInfo[] {
 
     const shape = matchingShapes[0];
     const existing = roomsByKey.get(label.key);
+    const overlay = normalizeCafmOverlayPoints(
+      shape.points,
+      shape.bbox,
+      label.x,
+      label.y,
+      hotspotHalf
+    );
     const candidate: RoomInfo = {
       key: label.key,
       x: label.x,
       y: label.y,
-      points: shape.points,
+      points: overlay.points,
+      overlayKind: overlay.overlayKind,
     };
 
     if (!existing || polygonBBoxArea(existing.points) > shape.area) {
@@ -304,11 +325,19 @@ function extractCafmRooms(svgRoot: SVGSVGElement): RoomInfo[] {
 
     if (!nearestShape) continue;
 
+    const overlay = normalizeCafmOverlayPoints(
+      nearestShape.points,
+      nearestShape.bbox,
+      label.x,
+      label.y,
+      hotspotHalf
+    );
     roomsByKey.set(label.key, {
       key: label.key,
       x: label.x,
       y: label.y,
-      points: nearestShape.points,
+      points: overlay.points,
+      overlayKind: overlay.overlayKind,
     });
   }
 
@@ -323,11 +352,19 @@ function extractCafmRooms(svgRoot: SVGSVGElement): RoomInfo[] {
 
     if (matchingShapes.length === 0) continue;
 
+    const overlay = normalizeCafmOverlayPoints(
+      matchingShapes[0].points,
+      matchingShapes[0].bbox,
+      tagLabel.x,
+      tagLabel.y,
+      hotspotHalf
+    );
     rooms.push({
       key: tagLabel.key,
       x: tagLabel.x,
       y: tagLabel.y,
-      points: matchingShapes[0].points,
+      points: overlay.points,
+      overlayKind: overlay.overlayKind,
     });
   }
 
@@ -1000,6 +1037,8 @@ function extractGenericSvgRooms(svgRoot: SVGSVGElement): RoomInfo[] {
     }));
   }
 
+  const hotspotHalf = estimateLabelHotspotHalfSize(labels, svgRoot);
+
   const roomsByKey = new Map<string, RoomInfo>();
 
   for (const label of labels) {
@@ -1036,11 +1075,19 @@ function extractGenericSvgRooms(svgRoot: SVGSVGElement): RoomInfo[] {
 
     if (!nearestShape) continue;
 
+    const overlay = normalizeCafmOverlayPoints(
+      nearestShape.points,
+      nearestShape.bbox,
+      label.x,
+      label.y,
+      hotspotHalf
+    );
     roomsByKey.set(label.key, {
       key: label.key,
       x: label.x,
       y: label.y,
-      points: nearestShape.points,
+      points: overlay.points,
+      overlayKind: overlay.overlayKind,
     });
   }
 
@@ -1232,6 +1279,7 @@ function findRoomInCafmRegions(
   y: number
 ): RoomInfo | null {
   const regions = getCafmSpaceRegions(svgRoot);
+  const hotspotHalf = estimateLabelHotspotHalfSize(getCafmLabels(svgRoot), svgRoot);
   const hits = regions
     .filter((region) => regionContainsPoint(region, x, y))
     .sort((a, b) => a.area - b.area);
@@ -1239,11 +1287,19 @@ function findRoomInCafmRegions(
   for (const region of hits) {
     const resolved = resolveRegionLabels(region.labels, x, y);
     if (resolved) {
+      const overlay = normalizeCafmOverlayPoints(
+        region.points,
+        region.bbox,
+        resolved.x,
+        resolved.y,
+        hotspotHalf
+      );
       return {
         key: resolved.key,
         x: resolved.x,
         y: resolved.y,
-        points: region.points,
+        points: overlay.points,
+        overlayKind: overlay.overlayKind,
       };
     }
   }
@@ -1689,6 +1745,12 @@ function getGraphicsPolygonPoints(el: SVGGraphicsElement): { x: number; y: numbe
   }
 
   if (el instanceof SVGPathElement) {
+    const d = el.getAttribute("d");
+    if (d) {
+      const parsed = parseSimpleMlPathPoints(d);
+      if (parsed && parsed.length >= 3) return parsed;
+    }
+
     const length = el.getTotalLength();
     if (!Number.isFinite(length) || length <= 0) {
       return bboxToPolygon(el.getBBox());
@@ -1703,6 +1765,136 @@ function getGraphicsPolygonPoints(el: SVGGraphicsElement): { x: number; y: numbe
   }
 
   return bboxToPolygon(el.getBBox());
+}
+
+/** CAFM exports often use M/L/Z wall loops; parse exact vertices before path sampling. */
+function parseSimpleMlPathPoints(d: string): { x: number; y: number }[] | null {
+  const trimmed = d.trim();
+  if (!/^M/i.test(trimmed)) return null;
+  if (/[HVCSQTAhvcsqta]/.test(trimmed)) return null;
+
+  const numbers = trimmed.match(/[-+]?[\d.e]+/g);
+  if (!numbers || numbers.length < 6) return null;
+
+  const points: { x: number; y: number }[] = [];
+  for (let i = 0; i + 1 < numbers.length; i += 2) {
+    const x = Number(numbers[i]);
+    const y = Number(numbers[i + 1]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    points.push({ x, y });
+  }
+
+  if (points.length >= 2) {
+    const first = points[0];
+    const last = points[points.length - 1];
+    if (distanceSquared(first.x, first.y, last.x, last.y) < 0.01) {
+      points.pop();
+    }
+  }
+
+  return points.length >= 3 ? points : null;
+}
+
+function crossProduct(
+  origin: { x: number; y: number },
+  a: { x: number; y: number },
+  b: { x: number; y: number }
+): number {
+  return (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x);
+}
+
+function onSegment(
+  p: { x: number; y: number },
+  q: { x: number; y: number },
+  r: { x: number; y: number }
+): boolean {
+  return (
+    q.x <= Math.max(p.x, r.x) + 0.001 &&
+    q.x >= Math.min(p.x, r.x) - 0.001 &&
+    q.y <= Math.max(p.y, r.y) + 0.001 &&
+    q.y >= Math.min(p.y, r.y) - 0.001
+  );
+}
+
+function segmentsIntersect(
+  p1: { x: number; y: number },
+  p2: { x: number; y: number },
+  p3: { x: number; y: number },
+  p4: { x: number; y: number }
+): boolean {
+  const d1 = crossProduct(p3, p4, p1);
+  const d2 = crossProduct(p3, p4, p2);
+  const d3 = crossProduct(p1, p2, p3);
+  const d4 = crossProduct(p1, p2, p4);
+
+  if (
+    ((d1 > 0.001 && d2 < -0.001) || (d1 < -0.001 && d2 > 0.001)) &&
+    ((d3 > 0.001 && d4 < -0.001) || (d3 < -0.001 && d4 > 0.001))
+  ) {
+    return true;
+  }
+
+  if (Math.abs(d1) <= 0.001 && onSegment(p3, p1, p4)) return true;
+  if (Math.abs(d2) <= 0.001 && onSegment(p3, p2, p4)) return true;
+  if (Math.abs(d3) <= 0.001 && onSegment(p1, p3, p2)) return true;
+  if (Math.abs(d4) <= 0.001 && onSegment(p1, p4, p2)) return true;
+  return false;
+}
+
+function isPolygonSelfIntersecting(points: { x: number; y: number }[]): boolean {
+  const n = points.length;
+  if (n < 4) return false;
+
+  for (let i = 0; i < n; i++) {
+    const a1 = points[i];
+    const a2 = points[(i + 1) % n];
+    for (let j = i + 2; j < n; j++) {
+      if (i === 0 && j === n - 1) continue;
+      const b1 = points[j];
+      const b2 = points[(j + 1) % n];
+      if (segmentsIntersect(a1, a2, b1, b2)) return true;
+    }
+  }
+
+  return false;
+}
+
+function polygonShoelaceArea(points: { x: number; y: number }[]): number {
+  let area = 0;
+  for (let i = 0; i < points.length; i++) {
+    const j = (i + 1) % points.length;
+    area += points[i].x * points[j].y - points[j].x * points[i].y;
+  }
+  return Math.abs(area / 2);
+}
+
+function isDegenerateCafmBoundary(
+  points: { x: number; y: number }[],
+  bbox: DOMRect
+): boolean {
+  if (points.length < 3 || bbox.width <= 0 || bbox.height <= 0) return true;
+
+  const bboxArea = bbox.width * bbox.height;
+  const polyArea = polygonShoelaceArea(points);
+  // Wall loops that retrace can have much larger shoelace area than their bbox.
+  return polyArea > bboxArea * 2.5;
+}
+
+/** Room overlays should match CAFM even-odd fills; fall back to label hotspot for degenerate wall loops. */
+function normalizeCafmOverlayPoints(
+  points: { x: number; y: number }[],
+  bbox: DOMRect,
+  labelX: number,
+  labelY: number,
+  hotspotHalf: number
+): { points: { x: number; y: number }[]; overlayKind: "boundary" | "hotspot" } {
+  if (isDegenerateCafmBoundary(points, bbox)) {
+    return {
+      points: syntheticLabelHitPolygon(labelX, labelY, hotspotHalf),
+      overlayKind: "hotspot",
+    };
+  }
+  return { points, overlayKind: "boundary" };
 }
 
 function bboxToPolygon(bbox: DOMRect): { x: number; y: number }[] {

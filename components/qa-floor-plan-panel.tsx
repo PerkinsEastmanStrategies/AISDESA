@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Maximize2, Minimize2, RotateCcw, ZoomIn, ZoomOut } from "lucide-react"
 import type { AisdSchoolOption, ParsedPlanRoom } from "@aisd/shared"
-import { viewBoxString } from "@aisd/shared"
+import { overlayPointsForRoom, viewBoxString } from "@aisd/shared"
 import type { AssessedRoomRecord, CampusScoringSnapshot } from "@/lib/campus-scoring-tree"
 import { loadFloorPlanForSchool } from "@/lib/floor-plan-loader"
 import {
@@ -80,8 +80,8 @@ function QaRoomOverlay({
     fill = "rgba(37, 99, 235, 0.15)"
     stroke = "#2563eb"
   } else {
-    fill = "rgba(148, 163, 184, 0.08)"
-    stroke = "rgba(148, 163, 184, 0.25)"
+    fill = "rgba(255, 255, 255, 0.01)"
+    stroke = "transparent"
   }
 
   const trySelect = (pointerId: number, x: number, y: number) => {
@@ -95,11 +95,12 @@ function QaRoomOverlay({
   return (
     <g className="pointer-events-auto">
       <polygon
-        points={room.points.map((p) => `${p.x},${p.y}`).join(" ")}
+        points={overlayPointsForRoom(room).map((p) => `${p.x},${p.y}`).join(" ")}
         fill={fill}
+        fillRule="evenodd"
         fillOpacity={fillOpacity}
         stroke={stroke}
-        strokeWidth={selected ? 14 : hasScore || neighborhoodColor ? 8 : 6}
+        strokeWidth={selected ? 14 : hasScore || neighborhoodColor ? 8 : 0}
         style={{ cursor: "pointer", pointerEvents: "all", touchAction: "manipulation" }}
         onPointerDown={(e) => {
           if (e.pointerType === "mouse" && e.button !== 0) return

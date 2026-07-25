@@ -1,3 +1,4 @@
 ﻿SurveyID,SurveyName,SurveyFocusArea,Description,DisplayOrder,IsActive
-SRV-STUDIOS,Studios Survey,Studios,Field assessment survey for the Studios focus area.,10,True
-SRV-OUTDOOR,Outdoor Survey,Outdoor,Field assessment survey for the Outdoor focus area.,20,True
+SRV-STUDIOS,Studios Survey,Studios,Field assessment survey for Studios.,10,True
+SRV-OUTDOOR,Outdoor Survey,Outdoor,Field assessment survey for Outdoor.,20,True
+SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration Survey,Arrival/Administration,Field assessment survey for Arrival/Administration.,30,True

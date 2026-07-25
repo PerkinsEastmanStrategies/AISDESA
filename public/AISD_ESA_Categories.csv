@@ -1,6 +1,5 @@
 Focus Area,Space Type,School Level,Required,Focus Area (Scoring),Space Type Weight,Focus Area Weight,Score Code
 On Survey tool: Category to navigate to surveys,Survey taken,,Is this survey required at the given school level?,Back end scoring: The focus area the survey rolls into,Back end scoring: Weighting of each space type within the focus area,Back end scoring: Weighting of each focus areas within the Site Score,
-Arrival/Administration,Main Entry/Reception,ES,Y,Arrival/Administration,12,6,ME
 Arrival/Administration,Main Admin Suite,ES,Y,Arrival/Administration,12,6,MA
 Arrival/Administration,Community Partners Suite,ES,Y,Arrival/Administration,6,6,CP
 Arrival/Administration,Admin Offices,ES,Y,Arrival/Administration,9,6,AD
@@ -24,7 +23,6 @@ Shared Spaces,Media Center,ES,Y,Shared Spaces,12,9,MC
 Shared Spaces,Food Service,ES,Y,Shared Spaces,12,9,FS
 Shared Spaces,Empower Center,ES,N,Shared Spaces,3,9,EC
 Outdoor Elements,Outdoor Spaces,ES,Y,Outdoor Elements,12,9,OS
-Arrival/Administration,Main Entry/Reception,MS,Y,Arrival/Administration,12,6,ME
 Arrival/Administration,Main Admin Suite,MS,Y,Arrival/Administration,12,6,MA
 Arrival/Administration,Community Partners Suite,MS,Y,Arrival/Administration,6,6,CP
 Arrival/Administration,Admin Offices,MS,Y,Arrival/Administration,9,6,AD
@@ -61,7 +59,6 @@ Shared Spaces,Food Service,MS,Y,Shared Spaces,12,9,FS
 Shared Spaces,Empower Center,MS,Y,Shared Spaces,9,9,EC
 Outdoor Elements,Outdoor Spaces,MS,Y,Outdoor Elements,12,9,OS
 Outdoor Elements,Outdoor Athletics,MS,Y,Athletics and Wellness,12,9,OA
-Arrival/Administration,Main Entry/Reception,HS,Y,Arrival/Administration,12,6,ME
 Arrival/Administration,Main Admin Suite,HS,Y,Arrival/Administration,12,6,MA
 Arrival/Administration,Community Partners Suite,HS,Y,Arrival/Administration,6,6,CP
 Arrival/Administration,Admin Offices,HS,Y,Arrival/Administration,9,6,AD
