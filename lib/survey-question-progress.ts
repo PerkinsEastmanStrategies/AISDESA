@@ -15,7 +15,7 @@ export function computeRoomQuestionProgress(
 ): RoomQuestionProgress {
   const responseMap = new Map(responses.map((r) => [r.questionId, r]))
   const applicable = questions.filter(
-    (q) => !isSkippedDependentQuestion(q.questionId, responses),
+    (q) => !isSkippedDependentQuestion(q.questionId, responses, questions),
   )
   const answered = applicable.filter((q) =>
     isQuestionFullyAnswered(q, responseMap.get(q.questionId)),

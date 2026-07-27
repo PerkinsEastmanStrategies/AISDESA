@@ -164,7 +164,7 @@ export default function QuestionForm() {
   }, [flaggedQuestionIds, roomId])
 
   const pendingIds = currentRoomSession
-    ? effectiveCloseOutPendingQuestionIds(currentRoomSession)
+    ? effectiveCloseOutPendingQuestionIds(currentRoomSession, state.school?.schoolClass)
     : []
   const questions = useMemo(() => {
     if (!rubric) return []
@@ -312,7 +312,7 @@ export default function QuestionForm() {
       <div className="min-w-0 space-y-3.5">
         {questions.map((q, index) => {
           const response = responses.get(q.questionId)
-          const skipped = isSkippedDependentQuestion(q.questionId, roomResponses)
+          const skipped = isSkippedDependentQuestion(q.questionId, roomResponses, rubric.questions)
           const autoAnswered = isAutoAnsweredQuestion(q.questionId, roomResponses)
           const locked = skipped || autoAnswered
           const displayIndex =
@@ -343,7 +343,7 @@ export default function QuestionForm() {
               autoAnswered={autoAnswered}
               highlighted={flaggedSet.has(q.questionId)}
               showContext={showContext}
-              disabledReason={dependentQuestionDisabledReason(q.questionId, roomResponses)}
+              disabledReason={dependentQuestionDisabledReason(q.questionId, roomResponses, rubric.questions)}
               onChange={(value) =>
                 updateResponse(q.questionId, {
                   value: canonicalizeResponseValues(value) ?? value,

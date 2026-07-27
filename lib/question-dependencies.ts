@@ -1,4 +1,13 @@
-import type { RoomQuestionResponse } from "@aisd/shared"
+import type { EsaQuestion, RoomQuestionResponse } from "@aisd/shared"
+
+/** When answered "No", all following questions in the rubric are skipped. */
+export const SPACE_TYPE_PRESENT_QUESTION = "Is this space type present at the school?"
+
+export function isSpaceTypePresentQuestion(
+  question: Pick<EsaQuestion, "question">,
+): boolean {
+  return question.question.trim() === SPACE_TYPE_PRESENT_QUESTION
+}
 
 /** Parent → dependent skip rules (answer "No" clears / skips dependents). */
 const DEPENDENCY_RULES: ReadonlyArray<{
@@ -52,6 +61,31 @@ function isParentAnsweredNo(parentId: string, responses: RoomQuestionResponse[])
   return responseValue(parent) === "No"
 }
 
+function questionIdsAfterParent(
+  parentId: string,
+  questions: readonly EsaQuestion[],
+): readonly string[] {
+  const parentIndex = questions.findIndex((q) => q.questionId === parentId)
+  if (parentIndex < 0) return []
+  return questions.slice(parentIndex + 1).map((q) => q.questionId)
+}
+
+function isSkippedAfterSpaceTypePresentNo(
+  questionId: string,
+  responses: RoomQuestionResponse[],
+  questions?: readonly EsaQuestion[],
+): boolean {
+  if (!questions?.length) return false
+  for (const question of questions) {
+    if (!isSpaceTypePresentQuestion(question)) continue
+    if (!isParentAnsweredNo(question.questionId, responses)) continue
+    if ((questionIdsAfterParent(question.questionId, questions) as readonly string[]).includes(questionId)) {
+      return true
+    }
+  }
+  return false
+}
+
 export function isExteriorWindowsNo(responses: RoomQuestionResponse[]): boolean {
   return isParentAnsweredNo(EXTERIOR_WINDOWS_QUESTION_ID, responses)
 }
@@ -63,7 +97,9 @@ export function isInteriorVisibilityNo(responses: RoomQuestionResponse[]): boole
 export function isSkippedDependentQuestion(
   questionId: string,
   responses: RoomQuestionResponse[],
+  questions?: readonly EsaQuestion[],
 ): boolean {
+  if (isSkippedAfterSpaceTypePresentNo(questionId, responses, questions)) return true
   for (const rule of DEPENDENCY_RULES) {
     if (!(rule.dependentIds as readonly string[]).includes(questionId)) continue
     if (isParentAnsweredNo(rule.parentId, responses)) return true
@@ -87,14 +123,19 @@ export function isAutoAnsweredQuestion(
 export function dependentQuestionDisabledReason(
   questionId: string,
   responses: RoomQuestionResponse[],
+  questions?: readonly EsaQuestion[],
 ): string | undefined {
+  if (isSkippedAfterSpaceTypePresentNo(questionId, responses, questions)) {
+    return "Skipped — this space type is not present at the school."
+  }
+
   for (const rule of AUTO_ANSWER_RULES) {
     if (rule.dependentId !== questionId) continue
     const parent = responses.find((r) => r.questionId === rule.parentId)
     if (responseValue(parent) === rule.parentValue) return rule.reason
   }
 
-  if (!isSkippedDependentQuestion(questionId, responses)) return undefined
+  if (!isSkippedDependentQuestion(questionId, responses, questions)) return undefined
 
   if (
     questionId === "ST-005" ||
@@ -121,6 +162,7 @@ export function isExteriorWindowsDependentQuestion(questionId: string): boolean 
 export function applyQuestionDependencies(
   existing: RoomQuestionResponse[],
   incoming: RoomQuestionResponse,
+  questions?: readonly EsaQuestion[],
 ): RoomQuestionResponse[] {
   const map = new Map(existing.map((r) => [r.questionId, r]))
   map.set(incoming.questionId, incoming)
@@ -131,6 +173,15 @@ export function applyQuestionDependencies(
       if (incoming.questionId !== rule.parentId) continue
       for (const id of rule.dependentIds) {
         map.delete(id)
+      }
+    }
+
+    if (questions?.length) {
+      const incomingQuestion = questions.find((q) => q.questionId === incoming.questionId)
+      if (incomingQuestion && isSpaceTypePresentQuestion(incomingQuestion)) {
+        for (const id of questionIdsAfterParent(incoming.questionId, questions)) {
+          map.delete(id)
+        }
       }
     }
   }

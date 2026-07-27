@@ -6,7 +6,7 @@ import { useSurvey } from "@/lib/survey-store"
 import QuestionComment from "@/components/question-comment"
 import QuestionPhoto from "@/components/question-photo"
 import { getRoomSurveyRubric, isMultiSelectQuestionType, canonicalizeResponseValues, isOptionValueSelected, type EsaQuestion, type EsaQuestionOption, type RoomQuestionResponse } from "@aisd/shared"
-import { isSkippedDependentQuestion } from "@/lib/question-dependencies"
+import { dependentQuestionDisabledReason, isSkippedDependentQuestion } from "@/lib/question-dependencies"
 import { mergeResponsePhotoFields, normalizeResponsePhotos } from "@/lib/response-photos"
 import { effectiveCloseOutPendingQuestionIds } from "@/lib/closeout"
 import { isQuestionAnswered, isQuestionFullyAnswered, responseRequiresUnableToAssessNote } from "@/lib/survey-validation"
@@ -117,7 +117,7 @@ export default function QuestionForm() {
   const responses = new Map(currentRoomSession?.responses.map((r) => [r.questionId, r]) ?? [])
   const roomResponses = currentRoomSession?.responses ?? []
   const pendingIds = currentRoomSession
-    ? effectiveCloseOutPendingQuestionIds(currentRoomSession)
+    ? effectiveCloseOutPendingQuestionIds(currentRoomSession, state.school?.schoolClass)
     : []
   const questions =
     state.surveyType === "closeout"
@@ -162,7 +162,7 @@ export default function QuestionForm() {
       <div className="min-w-0 space-y-3.5">
         {questions.map((q, index) => {
           const response = responses.get(q.questionId)
-          const autoFilled = isSkippedDependentQuestion(q.questionId, roomResponses)
+          const autoFilled = isSkippedDependentQuestion(q.questionId, roomResponses, rubric.questions)
           const displayIndex =
             state.surveyType === "closeout"
               ? rubric.questions.findIndex((item) => item.questionId === q.questionId) + 1
@@ -179,13 +179,7 @@ export default function QuestionForm() {
               photos={normalizeResponsePhotos(response)}
               disabled={autoFilled}
               highlighted={flaggedSet.has(q.questionId)}
-              disabledReason={
-                autoFilled
-                  ? q.questionId === "ST-005" || q.questionId === "ST-006"
-                    ? "Skipped — no exterior windows in this space."
-                    : "Skipped — no interior visibility into this space."
-                  : undefined
-              }
+              disabledReason={dependentQuestionDisabledReason(q.questionId, roomResponses, rubric.questions)}
               onChange={(value) =>
                 updateResponse(q.questionId, {
                   value: canonicalizeResponseValues(value) ?? value,

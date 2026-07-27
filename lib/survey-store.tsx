@@ -1237,13 +1237,17 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       if (!state.session) return state
       const existing = state.session.rooms[action.roomId]
       const base = ensureRoomSession(state, action.roomId, existing)
-      const responses = applyQuestionDependencies(base.responses, action.response)
       const rubric = getRoomSurveyRubric(
         state.surveyType,
         base.roomType,
         base.gradeType,
         state.school?.schoolClass,
         base.sourceSurveyType,
+      )
+      const responses = applyQuestionDependencies(
+        base.responses,
+        action.response,
+        rubric?.questions,
       )
       let nextRoom: RoomSurveySession = { ...base, responses }
       if (state.surveyType === "closeout" && rubric) {

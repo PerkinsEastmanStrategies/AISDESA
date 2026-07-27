@@ -27,9 +27,21 @@ export function countIncompleteItems(validation: SubmitValidationResult): {
 }
 
 /** Pending Close Out questions that still need an answer (excludes auto-skipped). */
-export function effectiveCloseOutPendingQuestionIds(room: RoomSurveySession): string[] {
+export function effectiveCloseOutPendingQuestionIds(
+  room: RoomSurveySession,
+  schoolClass?: string | null,
+): string[] {
+  const rubric = room.sourceSurveyType
+    ? getRoomSurveyRubric(
+        "closeout",
+        room.roomType,
+        room.gradeType,
+        schoolClass,
+        room.sourceSurveyType,
+      )
+    : null
   return (room.pendingQuestionIds ?? []).filter(
-    (id) => !isSkippedDependentQuestion(id, room.responses),
+    (id) => !isSkippedDependentQuestion(id, room.responses, rubric?.questions),
   )
 }
 

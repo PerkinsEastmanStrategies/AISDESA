@@ -132,7 +132,7 @@ function fillDemoResponses(
 
   const responses: RoomQuestionResponse[] = []
   for (const question of rubric.questions) {
-    if (isSkippedDependentQuestion(question.questionId, responses)) continue
+    if (isSkippedDependentQuestion(question.questionId, responses, rubric.questions)) continue
 
     const options = rubric.options
       .filter((option) => option.questionId === question.questionId && !option.isExclusionOption)

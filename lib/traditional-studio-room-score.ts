@@ -39,7 +39,7 @@ export function scoreRoomSessionWithMetadata(
 ): RoomScoreResult {
   const weights = mergeRubricWeights(rubric, weightOverrides)
   const skippedQuestionIds = rubric.questions
-    .filter((q) => isSkippedDependentQuestion(q.questionId, roomSession.responses))
+    .filter((q) => isSkippedDependentQuestion(q.questionId, roomSession.responses, rubric.questions))
     .map((q) => q.questionId)
 
   let result = scoreRoom(

@@ -71,7 +71,7 @@ export function validateRoomSession(
 
     questions.forEach((q, index) => {
       if (!pending.has(q.questionId)) return
-      if (isSkippedDependentQuestion(q.questionId, roomSession.responses)) return
+      if (isSkippedDependentQuestion(q.questionId, roomSession.responses, questions)) return
       const response = responseMap.get(q.questionId)
       if (!isQuestionFullyAnswered(q, response)) {
         missingQuestionIds.push(q.questionId)
@@ -110,7 +110,7 @@ export function validateRoomSession(
 
   questions.forEach((q, index) => {
     if (!q.required) return
-    if (isSkippedDependentQuestion(q.questionId, roomSession.responses)) return
+    if (isSkippedDependentQuestion(q.questionId, roomSession.responses, questions)) return
     if (deferred.has(q.questionId)) return
 
     const response = responseMap.get(q.questionId)
