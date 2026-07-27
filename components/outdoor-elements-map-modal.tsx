@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Crosshair, LocateFixed, MapPin, X } from "lucide-react"
+import type { Feature, FeatureCollection } from "geojson"
 import type { AisdSchoolOption } from "@aisd/shared"
 import {
   loadOutdoorAssetsGeoJSON,
@@ -31,7 +32,7 @@ const USER_DOT_LAYER = "user-location-dot"
 const USER_PINS_SOURCE_ID = "user-outdoor-pins"
 const USER_PINS_LAYER = "user-outdoor-pins-layer"
 
-function emptyFeatureCollection(): GeoJSON.FeatureCollection {
+function emptyFeatureCollection(): FeatureCollection {
   return { type: "FeatureCollection", features: [] }
 }
 
@@ -39,7 +40,7 @@ function userLocationCollection(
   lng: number,
   lat: number,
   accuracyMeters: number,
-): GeoJSON.FeatureCollection {
+): FeatureCollection {
   return {
     type: "FeatureCollection",
     features: [
@@ -131,7 +132,7 @@ export default function OutdoorElementsMapModal({
   }, [userCoords])
 
   const fitToAssetsAndSchool = useCallback(
-    (assets: GeoJSON.FeatureCollection) => {
+    (assets: FeatureCollection) => {
       const map = mapRef.current
       const mapboxgl = mapboxRef.current
       if (!map || !mapboxgl) return
@@ -337,7 +338,7 @@ export default function OutdoorElementsMapModal({
           },
         })
 
-        const showAssetPopup = (event: import("mapbox-gl").MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
+        const showAssetPopup = (event: import("mapbox-gl").MapMouseEvent & { features?: Feature[] }) => {
           const feature = event.features?.[0]
           if (!feature) return
           popupRef.current

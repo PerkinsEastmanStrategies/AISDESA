@@ -1,23 +1,24 @@
+import type { Feature, FeatureCollection } from "geojson"
 import type { AisdSchoolOption } from "@aisd/shared"
 import { schoolNamesMatch } from "@/lib/room-neighborhood-lookup"
 
 export const OUTDOOR_ASSETS_GEOJSON_PATH =
   process.env.NEXT_PUBLIC_OUTDOOR_ASSETS_GEOJSON_URL ?? "/data/outdoor-assets.geojson"
 
-let loadPromise: Promise<GeoJSON.FeatureCollection> | null = null
+let loadPromise: Promise<FeatureCollection> | null = null
 
 export function resetOutdoorAssetsCache(): void {
   loadPromise = null
 }
 
-export async function loadOutdoorAssetsGeoJSON(): Promise<GeoJSON.FeatureCollection> {
+export async function loadOutdoorAssetsGeoJSON(): Promise<FeatureCollection> {
   if (!loadPromise) {
     loadPromise = (async () => {
       const response = await fetch(OUTDOOR_ASSETS_GEOJSON_PATH, { cache: "no-store" })
       if (!response.ok) {
         throw new Error(`Failed to load outdoor assets (${response.status})`)
       }
-      const data = (await response.json()) as GeoJSON.FeatureCollection
+      const data = (await response.json()) as FeatureCollection
       if (data.type !== "FeatureCollection" || !Array.isArray(data.features)) {
         throw new Error("Outdoor assets GeoJSON must be a FeatureCollection")
       }
@@ -42,7 +43,7 @@ function normalizeCampusId(value: unknown): string {
 }
 
 function outdoorAssetMatchesSchool(
-  feature: GeoJSON.Feature,
+  feature: Feature,
   school: Pick<AisdSchoolOption, "id" | "name" | "campusId" | "displayName">,
 ): boolean {
   const props = (feature.properties ?? {}) as Record<string, unknown>
@@ -74,16 +75,16 @@ function outdoorAssetMatchesSchool(
 }
 
 export function outdoorAssetsForSchool(
-  collection: GeoJSON.FeatureCollection,
+  collection: FeatureCollection,
   school: Pick<AisdSchoolOption, "id" | "name" | "campusId" | "displayName">,
-): GeoJSON.FeatureCollection {
+): FeatureCollection {
   return {
     type: "FeatureCollection",
     features: collection.features.filter((feature) => outdoorAssetMatchesSchool(feature, school)),
   }
 }
 
-export function outdoorAssetLabel(feature: GeoJSON.Feature): string {
+export function outdoorAssetLabel(feature: Feature): string {
   const props = (feature.properties ?? {}) as Record<string, unknown>
   const name = propertyString(props, ["name", "NAME", "asset_name", "assetName", "label", "title"])
   const type = propertyString(props, ["asset_type", "assetType", "type", "TYPE", "category"])

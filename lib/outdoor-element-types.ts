@@ -1,3 +1,4 @@
+import type { FeatureCollection } from "geojson"
 import type { OutdoorElementPin } from "@aisd/shared"
 
 export interface OutdoorElementTypeOption {
@@ -101,7 +102,7 @@ export function removeOutdoorElementPin(
 
 export function outdoorElementPinsToGeoJSON(
   pins: OutdoorElementPin[],
-): GeoJSON.FeatureCollection {
+): FeatureCollection {
   return {
     type: "FeatureCollection",
     features: pins.map((pin) => ({
