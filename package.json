@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/generate-table-of-surveys.mjs && node scripts/generate-studio-rubric.mjs && node scripts/generate-traditional-studio-rubric.mjs && node scripts/generate-outdoor-rubric.mjs && node scripts/generate-admin-rubric.mjs && node scripts/generate-arrival-admin-rubric.mjs && node scripts/generate-neighborhood-rubric.mjs && next dev --webpack -p 3002",
+    "dev:server": "next dev --webpack -p 3002",
     "build": "node scripts/generate-table-of-surveys.mjs && node scripts/generate-studio-rubric.mjs && node scripts/generate-traditional-studio-rubric.mjs && node scripts/generate-outdoor-rubric.mjs && node scripts/generate-admin-rubric.mjs && node scripts/generate-arrival-admin-rubric.mjs && node scripts/generate-neighborhood-rubric.mjs && next build",
     "generate:table-of-surveys": "node scripts/generate-table-of-surveys.mjs",
     "generate:admin": "node scripts/generate-admin-rubric.mjs",

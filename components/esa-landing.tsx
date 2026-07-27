@@ -19,7 +19,7 @@ import type { AisdSchoolOption } from "@aisd/shared"
 type OnboardingStep = "home" | "reminders" | "school"
 
 export default function EsaLanding() {
-  const { setView, setSchool, schools, schoolsLoading } = useSurvey()
+  const { setView, setSchool, schools, schoolsLoading, schoolsLoadError, reloadSchools } = useSurvey()
   const [step, setStep] = useState<OnboardingStep>("home")
   const [pendingSchool, setPendingSchool] = useState<AisdSchoolOption | null>(null)
   const [schoolQuery, setSchoolQuery] = useState("")
@@ -160,7 +160,9 @@ export default function EsaLanding() {
                 <p className="truncate text-xs text-[var(--color-muted-foreground)]">
                   {schoolsLoading
                     ? "Loading campuses…"
-                    : `${schools.length} campuses available`}
+                    : schoolsLoadError
+                      ? "School list unavailable"
+                      : `${schools.length} campuses available`}
                 </p>
               </div>
               <button
@@ -205,9 +207,22 @@ export default function EsaLanding() {
                 </li>
               ) : filteredSchools.length === 0 ? (
                 <li className="px-3 py-8 text-center text-sm text-[var(--color-muted-foreground)]">
-                  {schoolQuery.trim()
-                    ? `No schools match “${schoolQuery.trim()}”`
-                    : "No schools available"}
+                  {schoolsLoadError ? (
+                    <div className="space-y-3">
+                      <p>{schoolsLoadError}</p>
+                      <button
+                        type="button"
+                        onClick={reloadSchools}
+                        className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white active:opacity-90"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  ) : schoolQuery.trim() ? (
+                    `No schools match “${schoolQuery.trim()}”`
+                  ) : (
+                    "No schools available"
+                  )}
                 </li>
               ) : (
                 filteredSchools.map((school) => {

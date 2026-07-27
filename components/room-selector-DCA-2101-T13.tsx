@@ -325,8 +325,8 @@ export default function RoomSelector({
   const handleSelectStudioType = (roomType: string) => {
     setPendingStudioType(roomType || null)
     setStudioTypePickerOpen(false)
-    if (roomType === "Traditional studio") {
-      setTraditionalGuidanceOpen(true)
+    if (roomType) {
+      setSpaceTypeGuidanceOpen(true)
     }
   }
 

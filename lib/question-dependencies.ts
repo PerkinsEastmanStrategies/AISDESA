@@ -9,6 +9,22 @@ export function isSpaceTypePresentQuestion(
   return question.question.trim() === SPACE_TYPE_PRESENT_QUESTION
 }
 
+export function isDedicatedSpaceAvailabilityQuestion(
+  question: Pick<EsaQuestion, "question">,
+): boolean {
+  return question.question.trim().startsWith("Is there a dedicated")
+}
+
+/** When answered "No", all following questions in the rubric are skipped. */
+export function skipsAllRemainingQuestionsOnNo(
+  question: Pick<EsaQuestion, "question">,
+): boolean {
+  return (
+    isSpaceTypePresentQuestion(question) ||
+    isDedicatedSpaceAvailabilityQuestion(question)
+  )
+}
+
 /** Parent → dependent skip rules (answer "No" clears / skips dependents). */
 const DEPENDENCY_RULES: ReadonlyArray<{
   parentId: string
@@ -70,14 +86,14 @@ function questionIdsAfterParent(
   return questions.slice(parentIndex + 1).map((q) => q.questionId)
 }
 
-function isSkippedAfterSpaceTypePresentNo(
+function isSkippedAfterAvailabilityNo(
   questionId: string,
   responses: RoomQuestionResponse[],
   questions?: readonly EsaQuestion[],
 ): boolean {
   if (!questions?.length) return false
   for (const question of questions) {
-    if (!isSpaceTypePresentQuestion(question)) continue
+    if (!skipsAllRemainingQuestionsOnNo(question)) continue
     if (!isParentAnsweredNo(question.questionId, responses)) continue
     if ((questionIdsAfterParent(question.questionId, questions) as readonly string[]).includes(questionId)) {
       return true
@@ -99,7 +115,7 @@ export function isSkippedDependentQuestion(
   responses: RoomQuestionResponse[],
   questions?: readonly EsaQuestion[],
 ): boolean {
-  if (isSkippedAfterSpaceTypePresentNo(questionId, responses, questions)) return true
+  if (isSkippedAfterAvailabilityNo(questionId, responses, questions)) return true
   for (const rule of DEPENDENCY_RULES) {
     if (!(rule.dependentIds as readonly string[]).includes(questionId)) continue
     if (isParentAnsweredNo(rule.parentId, responses)) return true
@@ -120,13 +136,33 @@ export function isAutoAnsweredQuestion(
   return false
 }
 
+function availabilitySkipDisabledReason(
+  questionId: string,
+  responses: RoomQuestionResponse[],
+  questions: readonly EsaQuestion[],
+): string | undefined {
+  for (const question of questions) {
+    if (!skipsAllRemainingQuestionsOnNo(question)) continue
+    if (!isParentAnsweredNo(question.questionId, responses)) continue
+    if (!(questionIdsAfterParent(question.questionId, questions) as readonly string[]).includes(questionId)) {
+      continue
+    }
+    if (isDedicatedSpaceAvailabilityQuestion(question)) {
+      return "Skipped — this dedicated space is not present at the school."
+    }
+    return "Skipped — this space type is not present at the school."
+  }
+  return undefined
+}
+
 export function dependentQuestionDisabledReason(
   questionId: string,
   responses: RoomQuestionResponse[],
   questions?: readonly EsaQuestion[],
 ): string | undefined {
-  if (isSkippedAfterSpaceTypePresentNo(questionId, responses, questions)) {
-    return "Skipped — this space type is not present at the school."
+  if (questions?.length) {
+    const availabilityReason = availabilitySkipDisabledReason(questionId, responses, questions)
+    if (availabilityReason) return availabilityReason
   }
 
   for (const rule of AUTO_ANSWER_RULES) {
@@ -178,7 +214,7 @@ export function applyQuestionDependencies(
 
     if (questions?.length) {
       const incomingQuestion = questions.find((q) => q.questionId === incoming.questionId)
-      if (incomingQuestion && isSpaceTypePresentQuestion(incomingQuestion)) {
+      if (incomingQuestion && skipsAllRemainingQuestionsOnNo(incomingQuestion)) {
         for (const id of questionIdsAfterParent(incoming.questionId, questions)) {
           map.delete(id)
         }

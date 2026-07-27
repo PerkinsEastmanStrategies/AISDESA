@@ -13,7 +13,6 @@ import {
 } from "react"
 import type {
   AisdSchoolOption,
-  AisdSchoolsGeoJSON,
   AssessorInfo,
   FloorPlanRoom,
   ParsedPlanRoom,
@@ -44,7 +43,6 @@ import {
   isSecondaryGrade,
   OUTDOOR_SURVEY_ROOM_ID,
   outdoorSurveyRoomDisplayName,
-  parseAisdSchools,
   subcategoryOverrideKey,
   toFloorPlanRoom,
   isClassroomRoom,
@@ -78,7 +76,7 @@ import { getSurveyTypeInfo, type SurveyTypeInfo } from "@/lib/survey-status"
 import { SURVEY_TYPES } from "@aisd/shared"
 import { validateSurveyBeforeDeferral, type SubmitValidationResult } from "@/lib/survey-validation"
 import { loadFloorPlanForSchool } from "@/lib/floor-plan-loader"
-import { loadFloorPlanManifest, schoolHasFloorPlan } from "@/lib/floor-plan-manifest"
+import { loadAisdSchoolOptions } from "@/lib/load-aisd-schools"
 import {
   deferIncompleteToCloseOut,
   roomNeedsCloseOut,
@@ -1425,6 +1423,8 @@ interface SurveyContextValue {
   submission: SurveySubmission | null
   schools: AisdSchoolOption[]
   schoolsLoading: boolean
+  schoolsLoadError: string | null
+  reloadSchools: () => void
   lastSavedAt: string | null
   setSurveyType: (t: SurveyType, options?: { pendingStudioType?: string | null }) => void
   setSchool: (s: AisdSchoolOption | null) => void
@@ -1524,6 +1524,9 @@ function buildScoredRoomEntries(state: SurveyState): ScoredRoomEntry[] {
 export function SurveyProvider({ children }: { children: ReactNode }) {
   const [schools, setSchools] = useState<AisdSchoolOption[]>([])
   const [schoolsLoading, setSchoolsLoading] = useState(true)
+  const [schoolsLoadError, setSchoolsLoadError] = useState<string | null>(null)
+  const [schoolsReloadNonce, setSchoolsReloadNonce] = useState(0)
+  const reloadSchools = useCallback(() => setSchoolsReloadNonce((n) => n + 1), [])
   const [state, dispatch] = useReducer(reducer, {
     surveyType: "studios",
     school: null,
@@ -1554,19 +1557,18 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false
     setSchoolsLoading(true)
+    setSchoolsLoadError(null)
 
-    Promise.all([
-      fetch("/data/aisd-schools.geojson").then((r) => r.json()) as Promise<AisdSchoolsGeoJSON>,
-      loadFloorPlanManifest(),
-    ])
-      .then(([data, manifest]) => {
+    loadAisdSchoolOptions()
+      .then((options) => {
         if (cancelled) return
-        setSchools(
-          parseAisdSchools(data).map((school) => ({
-            ...school,
-            hasFloorPlan: schoolHasFloorPlan(school, manifest),
-          })),
-        )
+        setSchools(options)
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return
+        console.error("Failed to load AISD schools", error)
+        setSchools([])
+        setSchoolsLoadError("Couldn't load the school list. Check your connection and try again.")
       })
       .finally(() => {
         if (!cancelled) setSchoolsLoading(false)
@@ -1575,7 +1577,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [schoolsReloadNonce])
 
   // Restore on reload after schools are ready (correct school identity is required for floor plans).
   // Keep !hydrated so the landing page never flashes while waiting.
@@ -2108,6 +2110,8 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         submission: state.submission,
         schools,
         schoolsLoading,
+        schoolsLoadError,
+        reloadSchools,
         lastSavedAt: state.lastSavedAt,
         setSurveyType,
         setSchool,
