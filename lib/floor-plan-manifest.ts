@@ -34,6 +34,8 @@ export interface FloorPlanManifestRow {
   schoolLevel: string
   classCode: string
   campusId: string
+  /** Assessor-facing label from the live Google Sheet `UpdatedName` column. */
+  updatedName?: string
   floors: Partial<Record<FloorLevelId, string>>
 }
 
@@ -89,6 +91,7 @@ function parseManifestCsv(csvText: string): FloorPlanManifestRow[] {
   const schoolLevelIndex = headers.indexOf("school_level")
   const classCodeIndex = headers.indexOf("class_code")
   const campusIdIndex = headers.indexOf("campus_id")
+  const updatedNameIndex = headers.indexOf("UpdatedName")
   const floorColumnIndexes = FLOOR_LEVELS.map((level) => ({
     id: level.id,
     index: headers.indexOf(level.column),
@@ -108,11 +111,15 @@ function parseManifestCsv(csvText: string): FloorPlanManifestRow[] {
       if (filename) floors[id] = filename
     }
 
+    const updatedName =
+      updatedNameIndex === -1 ? undefined : cells[updatedNameIndex]?.trim() || undefined
+
     rows.push({
       schoolName,
       schoolLevel: schoolLevelIndex === -1 ? "" : cells[schoolLevelIndex]?.trim() ?? "",
       classCode: classCodeIndex === -1 ? "" : cells[classCodeIndex]?.trim() ?? "",
       campusId: campusIdIndex === -1 ? "" : cells[campusIdIndex]?.trim() ?? "",
+      updatedName,
       floors,
     })
   }
@@ -178,8 +185,34 @@ export function getManifestRowForAisdSchool(
   const normalizedName = school.name.toUpperCase().replace(/\s+/g, " ").trim()
   return manifest.find((row) => {
     const rowName = row.schoolName.toUpperCase().replace(/\s+/g, " ").trim()
-    return rowName === normalizedName || row.campusId === school.campusId
+    return (
+      rowName === normalizedName ||
+      (!!row.campusId && row.campusId === school.campusId)
+    )
   })
+}
+
+/** Prefer live sheet `UpdatedName` for school picker labels; fall back to geojson name. */
+export function displayNameForSchoolFromManifest(
+  school: AisdSchoolOption,
+  manifest: FloorPlanManifestRow[],
+): string {
+  const updatedName = getManifestRowForAisdSchool(manifest, school)?.updatedName?.trim()
+  return updatedName || school.displayName
+}
+
+export function schoolsWithManifestDisplayNames(
+  schools: AisdSchoolOption[],
+  manifest: FloorPlanManifestRow[],
+): AisdSchoolOption[] {
+  return schools
+    .map((school) => ({
+      ...school,
+      displayName: displayNameForSchoolFromManifest(school, manifest),
+    }))
+    .sort((a, b) =>
+      a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" }),
+    )
 }
 
 export function rowHasFloorPlans(row: FloorPlanManifestRow): boolean {

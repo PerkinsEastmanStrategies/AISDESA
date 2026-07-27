@@ -1,5 +1,9 @@
 import { parseAisdSchools, type AisdSchoolOption, type AisdSchoolsGeoJSON } from "@aisd/shared"
-import { loadFloorPlanManifest, schoolHasFloorPlan } from "@/lib/floor-plan-manifest"
+import {
+  loadFloorPlanManifest,
+  schoolHasFloorPlan,
+  schoolsWithManifestDisplayNames,
+} from "@/lib/floor-plan-manifest"
 
 /** Load campus list from bundled geojson; floor-plan flags from manifest when available. */
 export async function loadAisdSchoolOptions(): Promise<AisdSchoolOption[]> {
@@ -20,8 +24,9 @@ export async function loadAisdSchoolOptions(): Promise<AisdSchoolOption[]> {
     manifest = []
   }
 
-  return parseAisdSchools(data).map((school) => ({
+  const parsed = parseAisdSchools(data).map((school) => ({
     ...school,
     hasFloorPlan: schoolHasFloorPlan(school, manifest),
   }))
+  return schoolsWithManifestDisplayNames(parsed, manifest)
 }
