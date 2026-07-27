@@ -195,8 +195,8 @@ export default function OutdoorElementsMapModal({
 
     ;(async () => {
       try {
-        const mapboxModule = await import("mapbox-gl/dist/mapbox-gl-csp.js")
-        const mapboxgl = mapboxModule.default as MapboxModule["default"]
+        const mapboxModule = await import("mapbox-gl")
+        const mapboxgl = mapboxModule.default
         mapboxgl.workerUrl = "/mapbox-gl-csp-worker.js"
 
         if (cancelled || !mapContainerRef.current) return
