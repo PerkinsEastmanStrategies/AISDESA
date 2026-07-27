@@ -25,6 +25,7 @@ import type {
   SurveySubmission,
   SurveyType,
   PreWalkState,
+  OutdoorElementPin,
 } from "@aisd/shared"
 import {
   aggregateCampusScores,
@@ -67,6 +68,10 @@ import {
 } from "@/lib/survey-persistence"
 import { runFieldDataResetIfNeeded } from "@/lib/clear-field-survey-data"
 import { applyQuestionDependencies, isSkippedDependentQuestion } from "@/lib/question-dependencies"
+import {
+  placeOutdoorElementPin as mergeOutdoorElementPin,
+  removeOutdoorElementPin as dropOutdoorElementPin,
+} from "@/lib/outdoor-element-types"
 import {
   assessorFromSession,
   assessorSessionFields,
@@ -165,6 +170,8 @@ type Action =
   | { type: "REGISTER_ASSESSOR"; surveyType: SurveyType; name: string; email: string }
   | { type: "CLEAR_ASSESSOR"; surveyType: SurveyType }
   | { type: "SET_SUBMIT_VALIDATION"; validation: SubmitValidationResult }
+  | { type: "PLACE_OUTDOOR_ELEMENT_PIN"; elementType: string; lng: number; lat: number }
+  | { type: "REMOVE_OUTDOOR_ELEMENT_PIN"; pinId: string }
   | { type: "CLEAR_SUBMIT_VALIDATION" }
   | {
       type: "APPLY_CLOSEOUT_DEFERRAL"
@@ -1398,6 +1405,39 @@ function reducer(state: SurveyState, action: Action): SurveyState {
     }
     case "SET_SUBMIT_VALIDATION":
       return { ...state, submitValidation: action.validation }
+    case "PLACE_OUTDOOR_ELEMENT_PIN": {
+      if (!state.session || state.surveyType !== "outdoor") return state
+      const now = new Date().toISOString()
+      const pins = mergeOutdoorElementPin(
+        state.session.outdoorElementPins ?? [],
+        action.elementType,
+        action.lng,
+        action.lat,
+      )
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          outdoorElementPins: pins,
+          updatedAt: now,
+        },
+      }
+    }
+    case "REMOVE_OUTDOOR_ELEMENT_PIN": {
+      if (!state.session || state.surveyType !== "outdoor") return state
+      const now = new Date().toISOString()
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          outdoorElementPins: dropOutdoorElementPin(
+            state.session.outdoorElementPins ?? [],
+            action.pinId,
+          ),
+          updatedAt: now,
+        },
+      }
+    }
     case "CLEAR_SUBMIT_VALIDATION":
       return { ...state, submitValidation: null }
     case "APPLY_CLOSEOUT_DEFERRAL": {
@@ -1480,6 +1520,9 @@ interface SurveyContextValue {
   surveyTypeInfos: Record<SurveyType, SurveyTypeInfo>
   flaggedQuestionIds: string[]
   submitValidation: SubmitValidationResult | null
+  outdoorElementPins: OutdoorElementPin[]
+  placeOutdoorElementPin: (elementType: string, lng: number, lat: number) => void
+  removeOutdoorElementPin: (pinId: string) => void
 }
 
 const SurveyContext = createContext<SurveyContextValue | null>(null)
@@ -2046,6 +2089,16 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const resetSurvey = useCallback(() => dispatch({ type: "RESET_SURVEY" }), [])
   const dismissResumeBanner = useCallback(() => dispatch({ type: "DISMISS_RESUME_BANNER" }), [])
 
+  const placeOutdoorElementPin = useCallback(
+    (elementType: string, lng: number, lat: number) =>
+      dispatch({ type: "PLACE_OUTDOOR_ELEMENT_PIN", elementType, lng, lat }),
+    [],
+  )
+  const removeOutdoorElementPin = useCallback(
+    (pinId: string) => dispatch({ type: "REMOVE_OUTDOOR_ELEMENT_PIN", pinId }),
+    [],
+  )
+
   const setCategoryWeight = useCallback((category: string, weight: number | null) => {
     dispatch({ type: "SET_WEIGHT_OVERRIDE", level: "category", key: category, weight })
   }, [])
@@ -2161,6 +2214,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         surveyTypeInfos,
         flaggedQuestionIds,
         submitValidation: state.submitValidation,
+        outdoorElementPins: state.session?.outdoorElementPins ?? [],
+        placeOutdoorElementPin,
+        removeOutdoorElementPin,
       }}
     >
       {children}

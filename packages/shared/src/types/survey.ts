@@ -114,6 +114,15 @@ export interface AssessorInfo {
   registeredAt: string
 }
 
+/** Assessor-placed pin for an outdoor element on the campus map. */
+export interface OutdoorElementPin {
+  id: string
+  elementType: string
+  lng: number
+  lat: number
+  placedAt: string
+}
+
 export interface RoomSurveySession {
   roomId: string
   roomNumber: string
@@ -185,6 +194,8 @@ export interface SurveySession {
   campusId: string
   building: string
   rooms: Record<string, RoomSurveySession>
+  /** Outdoor Elements survey: campus map pins keyed by element type. */
+  outdoorElementPins?: OutdoorElementPin[]
   assessorName?: string
   assessorEmail?: string
   assessorRegisteredAt?: string

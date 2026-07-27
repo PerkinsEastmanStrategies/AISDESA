@@ -7,7 +7,9 @@ import QuestionForm from "@/components/question-form"
 import SurveyActionBar from "@/components/survey-action-bar"
 import { PreWalkBanner } from "@/components/pre-walk-launcher"
 import TraditionalStudioCopyReviewModal from "@/components/traditional-studio-copy-review-modal"
+import OutdoorElementsMapModal from "@/components/outdoor-elements-map-modal"
 import { resolveRoomNeighborhoodForCopy } from "@/lib/traditional-studio-copy"
+import { Map } from "lucide-react"
 
 function roomDisplayName(
   roomId: string,
@@ -22,6 +24,7 @@ function roomDisplayName(
 export default function StudioSurvey() {
   const { state, currentRoomSession } = useSurvey()
   const [showFloorPlan, setShowFloorPlan] = useState(false)
+  const [outdoorMapOpen, setOutdoorMapOpen] = useState(false)
   const [copyReviewModalOpen, setCopyReviewModalOpen] = useState(false)
   const prevCopyPendingRef = useRef(false)
 
@@ -57,6 +60,7 @@ export default function StudioSurvey() {
   // Never carry an open floor plan picker across school, module, or space-type changes.
   useEffect(() => {
     setShowFloorPlan(false)
+    setOutdoorMapOpen(false)
   }, [state.school?.id, state.surveyType, state.pendingStudioType])
 
   if (!state.school) {
@@ -99,16 +103,31 @@ export default function StudioSurvey() {
         />
       )}
 
-      {isOutdoor && (
-        <div className="border-b border-slate-200/80 bg-white px-3 py-3 shadow-[0_1px_3px_rgba(15,23,42,0.03)]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400">
-            Assessment scope
-          </p>
-          <p className="mt-1 text-sm font-medium text-slate-900">Campus outdoor elements</p>
-          <p className="mt-1 text-xs text-slate-500">
-            Score playground, outdoor studios, gardens, and other campus-wide outdoor features for this school.
-          </p>
-        </div>
+      {isOutdoor && state.school && (
+        <>
+          <OutdoorElementsMapModal
+            open={outdoorMapOpen}
+            school={state.school}
+            onClose={() => setOutdoorMapOpen(false)}
+          />
+          <div className="border-b border-slate-200/80 bg-white px-3 py-3 shadow-[0_1px_3px_rgba(15,23,42,0.03)]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400">
+              Assessment scope
+            </p>
+            <p className="mt-1 text-sm font-medium text-slate-900">Campus outdoor elements</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Score playground, outdoor studios, gardens, and other campus-wide outdoor features for this school.
+            </p>
+            <button
+              type="button"
+              onClick={() => setOutdoorMapOpen(true)}
+              className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-800 active:bg-slate-100 sm:w-auto"
+            >
+              <Map className="h-4 w-4" />
+              View outdoor map
+            </button>
+          </div>
+        </>
       )}
 
       {showQuestions ? (

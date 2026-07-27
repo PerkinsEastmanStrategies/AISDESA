@@ -10,13 +10,16 @@
     "generate:admin": "node scripts/generate-admin-rubric.mjs",
     "generate:arrival-admin": "node scripts/generate-arrival-admin-rubric.mjs",
     "generate:neighborhood": "node scripts/generate-neighborhood-rubric.mjs",
+    "postinstall": "node scripts/copy-mapbox-worker.mjs",
     "start": "next start -p 3002",
     "lint": "eslint ."
   },
   "dependencies": {
     "@aisd/shared": "file:./packages/shared",
+    "@types/mapbox-gl": "^3.4.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.454.0",
+    "mapbox-gl": "^3.27.0",
     "next": "16.2.6",
     "react": "^19",
     "react-dom": "^19",
