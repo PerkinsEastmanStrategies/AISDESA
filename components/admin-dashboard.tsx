@@ -30,6 +30,8 @@ import { seedAdminEsDemos } from "@/lib/seed-admin-es-demos"
 import { seedAllisonEsFinalizedDemo } from "@/lib/seed-allison-es-demo"
 import { seedDavisEsQaDemo } from "@/lib/seed-davis-es-demo"
 import { clearAllFieldSurveyDataExceptDemos } from "@/lib/clear-field-survey-data"
+import { pullAllRemoteDraftsClient } from "@/lib/survey-remote-sync"
+import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
 import QaSchoolReviewModal from "@/components/qa-school-review-modal"
 import { ScoreBadge, ScoreBar } from "@/components/score-display"
 import { SURVEY_TYPES, surveyTypeLabel, type SurveyType } from "@aisd/shared"
@@ -443,6 +445,9 @@ export default function AdminDashboard() {
   const { setView, schools } = useSurvey()
   const [tab, setTab] = useState<"overview" | "schools" | "compare">("schools")
   const [records, setRecords] = useState<AdminSurveyRecord[]>([])
+  const [remoteDrafts, setRemoteDrafts] = useState<PersistedSurveyDraft[] | null>(null)
+  const [remoteDraftsConfigured, setRemoteDraftsConfigured] = useState(false)
+  const [remoteLoading, setRemoteLoading] = useState(false)
   const [query, setQuery] = useState("")
   const [schoolQuery, setSchoolQuery] = useState("")
   const [surveyFilter, setSurveyFilter] = useState<SurveyType | "all">("all")
@@ -458,14 +463,41 @@ export default function AdminDashboard() {
     return map
   }, [schools])
 
-  const refresh = useCallback(() => {
-    setRecords(buildAdminSurveyRecords(schoolClassById))
-    setRefreshedAt(new Date())
+  const refresh = useCallback(async () => {
+    setRemoteLoading(true)
+    try {
+      const remote = await pullAllRemoteDraftsClient()
+      if (remote.configured) {
+        setRemoteDraftsConfigured(true)
+        setRemoteDrafts(remote.drafts)
+        setRecords(buildAdminSurveyRecords(schoolClassById, remote.drafts))
+      } else {
+        setRemoteDraftsConfigured(false)
+        setRemoteDrafts(null)
+        setRecords(buildAdminSurveyRecords(schoolClassById))
+      }
+    } finally {
+      setRemoteLoading(false)
+      setRefreshedAt(new Date())
+    }
   }, [schoolClassById])
 
+  const draftsBySchool = useMemo(() => {
+    if (!remoteDraftsConfigured || !remoteDrafts) return undefined
+    const map = new Map<string, PersistedSurveyDraft[]>()
+    for (const draft of remoteDrafts) {
+      const list = map.get(draft.schoolId) ?? []
+      list.push(draft)
+      map.set(draft.schoolId, list)
+    }
+    return map
+  }, [remoteDraftsConfigured, remoteDrafts])
+
   useEffect(() => {
-    refresh()
-    const onFocus = () => refresh()
+    void refresh()
+    const onFocus = () => {
+      void refresh()
+    }
     window.addEventListener("focus", onFocus)
     return () => window.removeEventListener("focus", onFocus)
   }, [refresh])
@@ -473,8 +505,8 @@ export default function AdminDashboard() {
   const stats = useMemo(() => summarizeAdminRecords(records), [records])
 
   const schoolSummaries = useMemo(
-    () => buildAdminSchoolSummaries(records, schoolClassById, schools),
-    [records, schoolClassById, schools],
+    () => buildAdminSchoolSummaries(records, schoolClassById, schools, draftsBySchool),
+    [records, schoolClassById, schools, draftsBySchool],
   )
 
   const filteredSchools = useMemo(() => {
@@ -1528,11 +1560,12 @@ export default function AdminDashboard() {
           schoolDisplayName={schoolNameLookup.get(qaSchool.schoolId) || qaSchool.schoolName}
           schools={schools}
           schoolClassById={schoolClassById}
+          schoolDrafts={draftsBySchool?.get(qaSchool.schoolId)}
           onClose={closeQaReview}
           onFinalized={() => {
             closeQaReview()
             setSchoolStatusFilter("finalized")
-            refresh()
+            void refresh()
           }}
         />
       ) : null}

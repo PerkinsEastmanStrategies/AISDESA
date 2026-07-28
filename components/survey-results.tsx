@@ -40,6 +40,7 @@ export default function SurveyResults() {
     schools,
     resultsInitialTab,
     clearResultsInitialTab,
+    scoringDrafts,
   } = useSurvey()
   const [tab, setTab] = useState<ResultsTab>("campus")
   const [roomQuery, setRoomQuery] = useState("")
@@ -68,6 +69,7 @@ export default function SurveyResults() {
       schoolName: state.school.displayName,
       campusId: state.school.campusId,
       schoolClass: state.school.schoolClass,
+      drafts: scoringDrafts,
       liveSurveyType: state.surveyType,
       liveSession: state.session,
       liveRoomScoreDetails: state.roomScoreDetails,
@@ -79,6 +81,7 @@ export default function SurveyResults() {
     })
   }, [
     state.school,
+    scoringDrafts,
     state.surveyType,
     state.session,
     state.roomScoreDetails,

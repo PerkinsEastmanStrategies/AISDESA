@@ -57,16 +57,20 @@ function roomInSubmittedDraft(
 export function findSubmittedRoomAssessment(
   schoolId: string,
   roomId: string,
+  drafts?: PersistedSurveyDraft[],
 ): SubmittedRoomAssessment | null {
-  for (const draft of loadDraftsForSchool(schoolId)) {
+  for (const draft of drafts ?? loadDraftsForSchool(schoolId)) {
     const match = roomInSubmittedDraft(draft, roomId)
     if (match) return match
   }
   return null
 }
 
-export function schoolHasAnySubmission(schoolId: string): boolean {
-  return loadDraftsForSchool(schoolId).some(draftWasSubmitted)
+export function schoolHasAnySubmission(
+  schoolId: string,
+  drafts?: PersistedSurveyDraft[],
+): boolean {
+  return (drafts ?? loadDraftsForSchool(schoolId)).some(draftWasSubmitted)
 }
 
 export function buildSchoolCampusSnapshot(input: {
@@ -74,6 +78,7 @@ export function buildSchoolCampusSnapshot(input: {
   schoolName: string
   campusId: string
   schoolClass?: string | null
+  drafts?: PersistedSurveyDraft[]
   liveSurveyType?: SurveyType
   liveSession?: SurveySession | null
   liveRoomScoreDetails?: Record<string, RoomScoreResult>
@@ -91,7 +96,8 @@ export function schoolScoredRoomCount(input: Parameters<typeof buildSchoolCampus
 }
 
 export function schoolHasResults(input: Parameters<typeof buildSchoolCampusSnapshot>[0]): boolean {
-  if (schoolHasAnySubmission(input.schoolId)) return true
+  const drafts = input.drafts
+  if (schoolHasAnySubmission(input.schoolId, drafts)) return true
   const snapshot = buildSchoolCampusSnapshot(input)
   return snapshot.allRooms.some(
     (room) => room.overallScore !== null || room.answeredCount > 0,

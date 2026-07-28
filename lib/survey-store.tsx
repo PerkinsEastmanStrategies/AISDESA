@@ -103,13 +103,15 @@ import {
   withPendingUpdatedForResponse,
 } from "@/lib/closeout"
 import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
-import { EMPTY_PREWALK, getPreWalkMapping, migratePreWalkState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypePhotoKey, shouldPromptPreWalkOnSchoolSelect } from "@/lib/prewalk"
+import { EMPTY_PREWALK, getPreWalkMappingForSurveyModule, migratePreWalkState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypeForRoom, preWalkSpaceTypePhotoKey, shouldPromptPreWalkOnSchoolSelect } from "@/lib/prewalk"
 import { applyTraditionalStudioCopyToRoom, getTraditionalStudioCopyOffer } from "@/lib/traditional-studio-copy"
 import { scoreRoomSessionWithMetadata } from "@/lib/traditional-studio-room-score"
 import {
   fetchRemoteSurveyStatusClient,
   flushSurveySyncQueue,
+  isBrowserOnline,
   pullRemoteDraftClient,
+  pullRemoteDraftsForSchoolClient,
   pushSurveyDraftClient,
   queueSurveySync,
 } from "@/lib/survey-remote-sync"
@@ -274,11 +276,12 @@ function resolveRoomType(
     return "Outdoor Spaces"
   }
 
-  const preWalkType = getPreWalkMapping(
+  const preWalkType = preWalkSpaceTypeForRoom(
     state.preWalk.mappings,
-    state.surveyType,
     roomId,
-  )?.spaceType
+    state.surveyType,
+    state.school?.schoolClass,
+  )
   const canApplyPreWalk =
     !!preWalkType &&
     isPendingSpaceType(preWalkType) &&
@@ -461,7 +464,12 @@ function ensureRoomSession(
 
   const planRoom = state.allRooms.find((r) => r.id === roomId)
   const lookupNeighborhood = lookupNeighborhoodFromPlan(planRoom)
-  const preWalkMapping = getPreWalkMapping(state.preWalk.mappings, state.surveyType, roomId)
+  const preWalkMapping = getPreWalkMappingForSurveyModule(
+    state.preWalk.mappings,
+    state.surveyType,
+    roomId,
+    state.school?.schoolClass,
+  )
   const roomType = resolveRoomType(state, roomId, existing)
 
   if (existing) {
@@ -1748,6 +1756,11 @@ interface SurveyContextValue {
   closeRemoteConflict: () => void
   loadRemoteSurveyDraft: () => Promise<boolean>
   pendingSyncCount: number
+  remoteSchoolDrafts: PersistedSurveyDraft[] | null
+  remoteDraftsConfigured: boolean
+  remoteSchoolDraftsLoading: boolean
+  refreshRemoteSchoolDrafts: () => Promise<void>
+  scoringDrafts: PersistedSurveyDraft[] | undefined
   schoolHasResults: boolean
   schoolScoredRoomCount: number
   findSubmittedRoomAssessment: (roomId: string) => SubmittedRoomAssessment | null
@@ -1808,6 +1821,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const [remoteConflictOpen, setRemoteConflictOpen] = useState(false)
   const [remoteConflict, setRemoteConflict] = useState<RemoteSurveyStatus | null>(null)
   const [pendingSyncCount, setPendingSyncCount] = useState(0)
+  const [remoteSchoolDrafts, setRemoteSchoolDrafts] = useState<PersistedSurveyDraft[] | null>(null)
+  const [remoteDraftsConfigured, setRemoteDraftsConfigured] = useState(false)
+  const [remoteSchoolDraftsLoading, setRemoteSchoolDraftsLoading] = useState(false)
   const [resultsInitialTab, setResultsInitialTab] = useState<
     "campus" | "room" | "neighborhood" | "compare" | "photos" | null
   >(null)
@@ -1996,6 +2012,42 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     })
   }, [state.hydrated, state.school?.id, state.surveyType, state.assessorByType])
 
+  const refreshRemoteSchoolDrafts = useCallback(async () => {
+    if (!state.school || !isBrowserOnline()) {
+      setRemoteSchoolDrafts(null)
+      setRemoteDraftsConfigured(false)
+      return
+    }
+
+    setRemoteSchoolDraftsLoading(true)
+    try {
+      const result = await pullRemoteDraftsForSchoolClient(state.school.id)
+      if (result.configured) {
+        setRemoteDraftsConfigured(true)
+        setRemoteSchoolDrafts(result.drafts)
+      } else {
+        setRemoteDraftsConfigured(false)
+        setRemoteSchoolDrafts(null)
+      }
+    } finally {
+      setRemoteSchoolDraftsLoading(false)
+    }
+  }, [state.school])
+
+  useEffect(() => {
+    if (!state.school) {
+      setRemoteSchoolDrafts(null)
+      setRemoteDraftsConfigured(false)
+      return
+    }
+    void refreshRemoteSchoolDrafts()
+  }, [state.school?.id, refreshRemoteSchoolDrafts])
+
+  useEffect(() => {
+    if (state.view !== "results" || !state.school) return
+    void refreshRemoteSchoolDrafts()
+  }, [state.view, state.school?.id, refreshRemoteSchoolDrafts])
+
   // Debounced cloud sync when online (localStorage remains primary for offline).
   useEffect(() => {
     if (!state.hydrated || !state.school || !state.session || !state.lastSavedAt) return
@@ -2018,6 +2070,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       }).then(async (result) => {
         if (result === "pushed" && writeSnapshot && draft.lastSubmission) {
           lastSyncedSubmissionRef.current = draft.lastSubmission.submittedAt
+        }
+        if (result === "pushed") {
+          await refreshRemoteSchoolDrafts()
         }
         if (result === "skipped_remote_newer") {
           const remote = await pullRemoteDraftClient({ schoolId: school.id, surveyType })
@@ -2044,6 +2099,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     state.surveyType,
     state.lastSavedAt,
     state.submission,
+    refreshRemoteSchoolDrafts,
   ])
 
   useEffect(() => {
@@ -2206,6 +2262,14 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
   const surveyedRooms = useMemo(() => buildScoredRoomEntries(state), [state])
 
+  const scoringDrafts = useMemo(() => {
+    if (remoteDraftsConfigured && remoteSchoolDrafts !== null) {
+      return remoteSchoolDrafts
+    }
+    if (!state.school) return undefined
+    return loadDraftsForSchool(state.school.id)
+  }, [remoteDraftsConfigured, remoteSchoolDrafts, state.school?.id])
+
   const campusSnapshotInput = useMemo(
     () =>
       state.school
@@ -2214,6 +2278,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
             schoolName: state.school.displayName,
             campusId: state.school.campusId,
             schoolClass: state.school.schoolClass,
+            drafts: scoringDrafts,
             liveSurveyType: state.surveyType,
             liveSession: state.session,
             liveRoomScoreDetails: state.roomScoreDetails,
@@ -2226,6 +2291,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         : null,
     [
       state.school,
+      scoringDrafts,
       state.surveyType,
       state.session,
       state.roomScoreDetails,
@@ -2245,8 +2311,10 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
   const findSubmittedRoomAssessmentForSchool = useCallback(
     (roomId: string) =>
-      state.school ? findSubmittedRoomAssessment(state.school.id, roomId) : null,
-    [state.school],
+      state.school
+        ? findSubmittedRoomAssessment(state.school.id, roomId, scoringDrafts)
+        : null,
+    [state.school, scoringDrafts],
   )
 
   const currentRoomSession =
@@ -2759,6 +2827,11 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         closeRemoteConflict,
         loadRemoteSurveyDraft,
         pendingSyncCount,
+        remoteSchoolDrafts,
+        remoteDraftsConfigured,
+        remoteSchoolDraftsLoading,
+        refreshRemoteSchoolDrafts,
+        scoringDrafts,
         schoolHasResults: schoolHasResultsFlag,
         schoolScoredRoomCount: schoolScoredRoomCountValue,
         findSubmittedRoomAssessment: findSubmittedRoomAssessmentForSchool,

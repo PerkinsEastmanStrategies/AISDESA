@@ -77,6 +77,58 @@ export async function fetchRemoteSurveyStatusClient(input: {
   }
 }
 
+export async function pullRemoteDraftsForSchoolClient(schoolId: string): Promise<{
+  configured: boolean
+  drafts: PersistedSurveyDraft[]
+}> {
+  if (!isBrowserOnline()) {
+    return { configured: false, drafts: [] }
+  }
+
+  const params = new URLSearchParams({ schoolId })
+
+  try {
+    const response = await fetch(`/api/survey/school-drafts?${params.toString()}`, {
+      cache: "no-store",
+    })
+    if (!response.ok) return { configured: false, drafts: [] }
+    const payload = (await response.json()) as {
+      configured?: boolean
+      drafts?: PersistedSurveyDraft[]
+    }
+    return {
+      configured: !!payload.configured,
+      drafts: payload.drafts ?? [],
+    }
+  } catch {
+    return { configured: false, drafts: [] }
+  }
+}
+
+export async function pullAllRemoteDraftsClient(): Promise<{
+  configured: boolean
+  drafts: PersistedSurveyDraft[]
+}> {
+  if (!isBrowserOnline()) {
+    return { configured: false, drafts: [] }
+  }
+
+  try {
+    const response = await fetch("/api/survey/school-drafts", { cache: "no-store" })
+    if (!response.ok) return { configured: false, drafts: [] }
+    const payload = (await response.json()) as {
+      configured?: boolean
+      drafts?: PersistedSurveyDraft[]
+    }
+    return {
+      configured: !!payload.configured,
+      drafts: payload.drafts ?? [],
+    }
+  } catch {
+    return { configured: false, drafts: [] }
+  }
+}
+
 export async function pullRemoteDraftClient(input: {
   schoolId: string
   surveyType: SurveyType

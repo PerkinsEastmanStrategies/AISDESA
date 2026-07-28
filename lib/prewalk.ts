@@ -5,6 +5,7 @@ import {
   surveyModuleUsesSpaceTypePicker,
   surveyNavTypesForSchool,
   surveyTypesForSchool,
+  surveyTypesInSameNavGroup,
 } from "@aisd/shared"
 
 export const EMPTY_PREWALK: PreWalkState = { mappings: {}, spaceTypePhotos: {} }
@@ -177,6 +178,38 @@ export function getPreWalkMapping(
   return mappings[preWalkMappingKey(surveyType, roomId)]
 }
 
+/**
+ * Resolve a pre-walk mapping for the active survey module, including sibling modules
+ * in the same nav group (e.g. Community Partner mapped under Arrival while surveying Administration).
+ */
+export function getPreWalkMappingForSurveyModule(
+  mappings: Record<string, PreWalkRoomMapping>,
+  surveyType: SurveyType,
+  roomId: string,
+  schoolClass?: string | null,
+): PreWalkRoomMapping | undefined {
+  const direct = getPreWalkMapping(mappings, surveyType, roomId)
+  if (
+    direct?.spaceType?.trim() &&
+    isSpaceTypeForSurveyModule(surveyType, direct.spaceType, schoolClass)
+  ) {
+    return direct
+  }
+
+  for (const moduleType of surveyTypesInSameNavGroup(surveyType, schoolClass)) {
+    if (moduleType === surveyType) continue
+    const sibling = getPreWalkMapping(mappings, moduleType, roomId)
+    if (
+      sibling?.spaceType?.trim() &&
+      isSpaceTypeForSurveyModule(surveyType, sibling.spaceType, schoolClass)
+    ) {
+      return sibling
+    }
+  }
+
+  return undefined
+}
+
 export function preWalkMappingsByRoomForSurvey(
   mappings: Record<string, PreWalkRoomMapping>,
   surveyType: SurveyType,
@@ -223,17 +256,28 @@ export function preWalkMappingList(
 export function hasPreWalkMappings(
   mappings: Record<string, PreWalkRoomMapping>,
   surveyType?: SurveyType,
+  schoolClass?: string | null,
 ): boolean {
-  return preWalkMappingList(mappings, surveyType).length > 0
+  if (!surveyType) return preWalkMappingList(mappings).length > 0
+
+  const moduleTypes = new Set(surveyTypesInSameNavGroup(surveyType, schoolClass))
+  return Object.values(mappings).some(
+    (mapping) =>
+      !!mapping.spaceType?.trim() &&
+      moduleTypes.has(mapping.surveyType) &&
+      isSpaceTypeForSurveyModule(surveyType, mapping.spaceType, schoolClass),
+  )
 }
 
 export function preWalkSpaceTypeForRoom(
   mappings: Record<string, PreWalkRoomMapping>,
   roomId: string | null | undefined,
   surveyType: SurveyType,
+  schoolClass?: string | null,
 ): string | null {
   if (!roomId) return null
-  const spaceType = getPreWalkMapping(mappings, surveyType, roomId)?.spaceType?.trim()
+  const mapping = getPreWalkMappingForSurveyModule(mappings, surveyType, roomId, schoolClass)
+  const spaceType = mapping?.spaceType?.trim()
   return spaceType || null
 }
 
@@ -303,7 +347,7 @@ export function effectiveSpaceTypeForSelection(args: {
     return pendingStudioType
   }
   const preWalkType = selectedRoomId
-    ? preWalkSpaceTypeForRoom(preWalkMappings, selectedRoomId, surveyType)
+    ? preWalkSpaceTypeForRoom(preWalkMappings, selectedRoomId, surveyType, schoolClass)
     : null
   if (preWalkType && isSpaceTypeForSurveyModule(surveyType, preWalkType, schoolClass)) {
     return preWalkType
@@ -324,7 +368,7 @@ export function canSelectRoomForSurvey(args: {
   const { roomId, preWalkMappings, schoolClass, surveyType, ...rest } = args
   if (!surveyUsesSpaceTypePicker(surveyType, schoolClass)) return true
 
-  const mappedType = preWalkSpaceTypeForRoom(preWalkMappings, roomId, surveyType)
+  const mappedType = preWalkSpaceTypeForRoom(preWalkMappings, roomId, surveyType, schoolClass)
   const spaceType = effectiveSpaceTypeForSelection({
     ...rest,
     surveyType,

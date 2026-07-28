@@ -87,10 +87,11 @@ function resolveAssessor(draft: PersistedSurveyDraft): {
 
 export function buildAdminSurveyRecords(
   schoolClassById?: Map<string, string>,
+  drafts?: PersistedSurveyDraft[],
 ): AdminSurveyRecord[] {
-  const drafts = listAllDrafts().filter(draftHasProgress)
+  const sourceDrafts = (drafts ?? listAllDrafts()).filter(draftHasProgress)
 
-  return drafts.map((draft) => {
+  return sourceDrafts.map((draft) => {
     const submission = draft.lastSubmission
     const campus = submission?.campus
     const info = getSurveyTypeInfo(draft.surveyType, draft.schoolId, {}, {
@@ -142,6 +143,7 @@ export function buildAdminSchoolSummaries(
   records: AdminSurveyRecord[],
   schoolClassById: Map<string, string>,
   schools: AisdSchoolOption[],
+  draftsBySchool?: Map<string, PersistedSurveyDraft[]>,
 ): AdminSchoolSummary[] {
   const recordsByKey = new Map<string, AdminSurveyRecord>()
   for (const record of records) {
@@ -160,7 +162,9 @@ export function buildAdminSchoolSummaries(
       const schoolClass = schoolClassById.get(school.id) ?? school.schoolClass ?? null
       const required = requiredSurveyTypes(schoolClass)
       const qa = getQaFinalization(school.id)
-      const closeOutDraft = loadDraft(school.id, "closeout")
+      const closeOutDraft =
+        draftsBySchool?.get(school.id)?.find((draft) => draft.surveyType === "closeout") ??
+        loadDraft(school.id, "closeout")
       const campusSubmittedAt =
         closeOutDraft?.session.campusSubmittedAt ??
         closeOutDraft?.lastSubmission?.session.campusSubmittedAt ??
@@ -197,6 +201,7 @@ export function buildAdminSchoolSummaries(
           schoolName: school.name,
           campusId: school.campusId ?? "",
           schoolClass,
+          drafts: draftsBySchool?.get(school.id),
         })
         overallScore = snapshot.campusOverallScore
       }

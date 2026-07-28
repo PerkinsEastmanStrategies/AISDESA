@@ -497,35 +497,81 @@ export async function pushSurveyDraft(input: {
   return { updatedAt: draft.savedAt, action: "pushed" }
 }
 
-export async function pullSurveyDraft(input: {
-  schoolId: string
-  surveyType: SurveyType
-}): Promise<PersistedSurveyDraft | null> {
-  if (!isSupabaseServerConfigured()) return null
+type DbSubmissionSnapshot = {
+  survey_session_id: string
+  submitted_at: string
+  session_json: SurveySession
+  campus_json: SurveySubmission["campus"]
+  floor_plan_rooms: SurveySubmission["floorPlanRooms"]
+}
 
-  const sessions = await supabaseRestSelect<DbSurveySession>(
-    "esa_survey_sessions",
-    `school_id=eq.${encodeURIComponent(input.schoolId)}&survey_type=eq.${encodeURIComponent(input.surveyType)}&select=*`,
-  )
-  const sessionRow = sessions[0]
-  if (!sessionRow) return null
+function restInFilter(column: string, values: string[]): string {
+  if (values.length === 0) return `${column}=eq.__none__`
+  return `${column}=in.(${values.map((v) => encodeURIComponent(v)).join(",")})`
+}
 
-  const sessionId = sessionRow.id
-  const [roomRows, responseRows, pinRows] = await Promise.all([
-    supabaseRestSelect<DbSurveyRoom>(
-      "esa_survey_rooms",
-      `survey_session_id=eq.${encodeURIComponent(sessionId)}&select=*`,
+async function loadSchoolSharedDraftData(schoolId: string): Promise<{
+  preWalk: PreWalkState
+  manualRooms: ParsedPlanRoom[]
+}> {
+  const [prewalkStateRows, prewalkMappingRows, manualRoomRows] = await Promise.all([
+    supabaseRestSelect<{ completed_at: string | null; skipped_at: string | null }>(
+      "esa_prewalk_state",
+      `school_id=eq.${encodeURIComponent(schoolId)}&select=completed_at,skipped_at`,
     ),
-    supabaseRestSelect<DbQuestionResponse>(
-      "esa_question_responses",
-      `survey_session_id=eq.${encodeURIComponent(sessionId)}&select=*`,
+    supabaseRestSelect<DbPrewalkMapping>(
+      "esa_prewalk_mappings",
+      `school_id=eq.${encodeURIComponent(schoolId)}&select=*`,
     ),
-    supabaseRestSelect<DbOutdoorPin>(
-      "esa_outdoor_pins",
-      `survey_session_id=eq.${encodeURIComponent(sessionId)}&select=*`,
+    supabaseRestSelect<DbManualRoom>(
+      "esa_manual_rooms",
+      `school_id=eq.${encodeURIComponent(schoolId)}&select=*`,
     ),
   ])
 
+  const mappings: PreWalkState["mappings"] = {}
+  for (const row of prewalkMappingRows) {
+    mappings[`${row.survey_type}::${row.room_id}`] = {
+      roomId: row.room_id,
+      surveyType: row.survey_type,
+      spaceType: row.space_type,
+      note1: row.note1 ?? undefined,
+      note2: row.note2 ?? undefined,
+      mappedAt: row.mapped_at ?? undefined,
+    }
+  }
+
+  const preWalk: PreWalkState = {
+    mappings,
+    completedAt: prewalkStateRows[0]?.completed_at ?? null,
+    skippedAt: prewalkStateRows[0]?.skipped_at ?? null,
+  }
+
+  const manualRooms: ParsedPlanRoom[] = manualRoomRows.map((room) => ({
+    id: room.room_id,
+    name: room.name,
+    x: room.x,
+    y: room.y,
+    area: room.area,
+    building: room.building ?? undefined,
+    neighborhood: room.neighborhood ?? undefined,
+    areaSqft: room.area_sqft ?? undefined,
+    levelId: room.level_id,
+    points: (room.points as ParsedPlanRoom["points"]) ?? [],
+    overlayKind: (room.overlay_kind as ParsedPlanRoom["overlayKind"]) ?? undefined,
+  }))
+
+  return { preWalk, manualRooms }
+}
+
+function buildDraftFromSessionRow(
+  sessionRow: DbSurveySession,
+  roomRows: DbSurveyRoom[],
+  responseRows: DbQuestionResponse[],
+  pinRows: DbOutdoorPin[],
+  snapshot: DbSubmissionSnapshot | undefined,
+  shared: { preWalk: PreWalkState; manualRooms: ParsedPlanRoom[] },
+): PersistedSurveyDraft | null {
   const responsesByRoom = new Map<string, DbQuestionResponse[]>()
   for (const response of responseRows) {
     const list = responsesByRoom.get(response.room_id) ?? []
@@ -565,63 +611,6 @@ export async function pullSurveyDraft(input: {
     campusSubmittedAt: sessionRow.campus_submitted_at ?? undefined,
   }
 
-  const [prewalkStateRows, prewalkMappingRows, manualRoomRows, snapshotRows] = await Promise.all([
-    supabaseRestSelect<{ completed_at: string | null; skipped_at: string | null }>(
-      "esa_prewalk_state",
-      `school_id=eq.${encodeURIComponent(input.schoolId)}&select=completed_at,skipped_at`,
-    ),
-    supabaseRestSelect<DbPrewalkMapping>(
-      "esa_prewalk_mappings",
-      `school_id=eq.${encodeURIComponent(input.schoolId)}&select=*`,
-    ),
-    supabaseRestSelect<DbManualRoom>(
-      "esa_manual_rooms",
-      `school_id=eq.${encodeURIComponent(input.schoolId)}&select=*`,
-    ),
-    supabaseRestSelect<{
-      submitted_at: string
-      session_json: SurveySession
-      campus_json: SurveySubmission["campus"]
-      floor_plan_rooms: SurveySubmission["floorPlanRooms"]
-    }>(
-      "esa_submission_snapshots",
-      `survey_session_id=eq.${encodeURIComponent(sessionId)}&select=submitted_at,session_json,campus_json,floor_plan_rooms&order=submitted_at.desc&limit=1`,
-    ),
-  ])
-
-  const mappings: PreWalkState["mappings"] = {}
-  for (const row of prewalkMappingRows) {
-    mappings[`${row.survey_type}::${row.room_id}`] = {
-      roomId: row.room_id,
-      surveyType: row.survey_type,
-      spaceType: row.space_type,
-      note1: row.note1 ?? undefined,
-      note2: row.note2 ?? undefined,
-      mappedAt: row.mapped_at ?? undefined,
-    }
-  }
-
-  const preWalk: PreWalkState = {
-    mappings,
-    completedAt: prewalkStateRows[0]?.completed_at ?? null,
-    skippedAt: prewalkStateRows[0]?.skipped_at ?? null,
-  }
-
-  const manualRooms: ParsedPlanRoom[] = manualRoomRows.map((room) => ({
-    id: room.room_id,
-    name: room.name,
-    x: room.x,
-    y: room.y,
-    area: room.area,
-    building: room.building ?? undefined,
-    neighborhood: room.neighborhood ?? undefined,
-    areaSqft: room.area_sqft ?? undefined,
-    levelId: room.level_id,
-    points: (room.points as ParsedPlanRoom["points"]) ?? [],
-    overlayKind: (room.overlay_kind as ParsedPlanRoom["overlayKind"]) ?? undefined,
-  }))
-
-  const snapshot = snapshotRows[0]
   const lastSubmission: SurveySubmission | null = snapshot
     ? {
         session: snapshot.session_json,
@@ -637,15 +626,129 @@ export async function pullSurveyDraft(input: {
 
   return {
     version: 1,
-    schoolId: input.schoolId,
-    surveyType: input.surveyType,
+    schoolId: sessionRow.school_id,
+    surveyType: sessionRow.survey_type,
     session: surveySession,
     selectedLevelId: null,
-    preWalk,
-    manualRooms,
+    preWalk: shared.preWalk,
+    manualRooms: shared.manualRooms,
     lastSubmission,
     savedAt: sessionRow.updated_at,
   }
+}
+
+async function buildDraftsForSessionRows(
+  sessionRows: DbSurveySession[],
+  sharedBySchool: Map<string, { preWalk: PreWalkState; manualRooms: ParsedPlanRoom[] }>,
+): Promise<PersistedSurveyDraft[]> {
+  if (!sessionRows.length) return []
+
+  const sessionIds = sessionRows.map((row) => row.id)
+  const [roomRows, responseRows, pinRows, snapshotRows] = await Promise.all([
+    supabaseRestSelect<DbSurveyRoom>(
+      "esa_survey_rooms",
+      `${restInFilter("survey_session_id", sessionIds)}&select=*`,
+    ),
+    supabaseRestSelect<DbQuestionResponse>(
+      "esa_question_responses",
+      `${restInFilter("survey_session_id", sessionIds)}&select=*`,
+    ),
+    supabaseRestSelect<DbOutdoorPin>(
+      "esa_outdoor_pins",
+      `${restInFilter("survey_session_id", sessionIds)}&select=*`,
+    ),
+    supabaseRestSelect<DbSubmissionSnapshot>(
+      "esa_submission_snapshots",
+      `${restInFilter("survey_session_id", sessionIds)}&select=survey_session_id,submitted_at,session_json,campus_json,floor_plan_rooms&order=submitted_at.desc`,
+    ),
+  ])
+
+  const roomsBySession = new Map<string, DbSurveyRoom[]>()
+  for (const row of roomRows) {
+    const list = roomsBySession.get(row.survey_session_id) ?? []
+    list.push(row)
+    roomsBySession.set(row.survey_session_id, list)
+  }
+
+  const responsesBySession = new Map<string, DbQuestionResponse[]>()
+  for (const row of responseRows) {
+    const list = responsesBySession.get(row.survey_session_id) ?? []
+    list.push(row)
+    responsesBySession.set(row.survey_session_id, list)
+  }
+
+  const pinsBySession = new Map<string, DbOutdoorPin[]>()
+  for (const row of pinRows) {
+    const list = pinsBySession.get(row.survey_session_id) ?? []
+    list.push(row)
+    pinsBySession.set(row.survey_session_id, list)
+  }
+
+  const snapshotBySession = new Map<string, DbSubmissionSnapshot>()
+  for (const row of snapshotRows) {
+    if (!snapshotBySession.has(row.survey_session_id)) {
+      snapshotBySession.set(row.survey_session_id, row)
+    }
+  }
+
+  const drafts: PersistedSurveyDraft[] = []
+  for (const sessionRow of sessionRows) {
+    const shared = sharedBySchool.get(sessionRow.school_id)
+    if (!shared) continue
+    const draft = buildDraftFromSessionRow(
+      sessionRow,
+      roomsBySession.get(sessionRow.id) ?? [],
+      responsesBySession.get(sessionRow.id) ?? [],
+      pinsBySession.get(sessionRow.id) ?? [],
+      snapshotBySession.get(sessionRow.id),
+      shared,
+    )
+    if (draft) drafts.push(draft)
+  }
+
+  return drafts
+}
+
+export async function pullSurveyDraftsForSchool(schoolId: string): Promise<PersistedSurveyDraft[]> {
+  if (!isSupabaseServerConfigured()) return []
+
+  const sessionRows = await supabaseRestSelect<DbSurveySession>(
+    "esa_survey_sessions",
+    `school_id=eq.${encodeURIComponent(schoolId)}&select=*`,
+  )
+  if (!sessionRows.length) return []
+
+  const shared = await loadSchoolSharedDraftData(schoolId)
+  const sharedBySchool = new Map([[schoolId, shared]])
+  return buildDraftsForSessionRows(sessionRows, sharedBySchool)
+}
+
+export async function pullAllSurveyDrafts(): Promise<PersistedSurveyDraft[]> {
+  if (!isSupabaseServerConfigured()) return []
+
+  const sessionRows = await supabaseRestSelect<DbSurveySession>(
+    "esa_survey_sessions",
+    "select=*&order=updated_at.desc",
+  )
+  if (!sessionRows.length) return []
+
+  const schoolIds = [...new Set(sessionRows.map((row) => row.school_id))]
+  const sharedBySchool = new Map<string, { preWalk: PreWalkState; manualRooms: ParsedPlanRoom[] }>()
+  await Promise.all(
+    schoolIds.map(async (schoolId) => {
+      sharedBySchool.set(schoolId, await loadSchoolSharedDraftData(schoolId))
+    }),
+  )
+
+  return buildDraftsForSessionRows(sessionRows, sharedBySchool)
+}
+
+export async function pullSurveyDraft(input: {
+  schoolId: string
+  surveyType: SurveyType
+}): Promise<PersistedSurveyDraft | null> {
+  const drafts = await pullSurveyDraftsForSchool(input.schoolId)
+  return drafts.find((draft) => draft.surveyType === input.surveyType) ?? null
 }
 
 export function isSurveyDbConfigured(): boolean {

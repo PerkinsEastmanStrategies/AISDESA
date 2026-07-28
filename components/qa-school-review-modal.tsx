@@ -14,6 +14,7 @@ import {
   campusCategoryScoresFromSnapshot,
 } from "@/lib/qa-peer-comparison"
 import { downloadQaScoreCsv } from "@/lib/qa-score-export"
+import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
 import { cn, scoreTextColor } from "@/lib/utils"
 import type { AisdSchoolOption } from "@aisd/shared"
 
@@ -44,6 +45,7 @@ export default function QaSchoolReviewModal({
   schoolDisplayName,
   schools,
   schoolClassById,
+  schoolDrafts,
   onClose,
   onFinalized,
 }: {
@@ -51,6 +53,7 @@ export default function QaSchoolReviewModal({
   schoolDisplayName: string
   schools: AisdSchoolOption[]
   schoolClassById: Map<string, string>
+  schoolDrafts?: PersistedSurveyDraft[]
   onClose: () => void
   onFinalized: () => void
 }) {
@@ -71,8 +74,9 @@ export default function QaSchoolReviewModal({
         schoolName: schoolDisplayName,
         campusId: school.campusId,
         schoolClass: school.schoolClass,
+        drafts: schoolDrafts,
       }),
-    [school.campusId, school.schoolClass, school.schoolId, schoolDisplayName],
+    [school.campusId, school.schoolClass, school.schoolId, schoolDisplayName, schoolDrafts],
   )
 
   const campusCategories = useMemo(

@@ -26,7 +26,7 @@ import {
   TABLE_OF_SURVEY_ENTRIES,
 } from "@aisd/shared"
 import { scoreRoomSessionWithMetadata } from "@/lib/traditional-studio-room-score"
-import { loadDraftsForSchool } from "@/lib/survey-persistence"
+import { loadDraftsForSchool, type PersistedSurveyDraft } from "@/lib/survey-persistence"
 
 export interface AssessedRoomRecord extends ScoredRoomEntry {
   surveyType: SurveyType
@@ -278,6 +278,7 @@ export function buildCampusScoringSnapshot(input: {
   schoolName: string
   campusId: string
   schoolClass?: string | null
+  drafts?: PersistedSurveyDraft[]
   liveSurveyType?: SurveyType
   liveSession?: SurveySession | null
   liveRoomScoreDetails?: Record<string, RoomScoreResult>
@@ -286,7 +287,7 @@ export function buildCampusScoringSnapshot(input: {
   const sessionsBySurveyType: Partial<Record<SurveyType, SurveySession>> = {}
   const roomScoreDetailsBySurveyType: Partial<Record<SurveyType, Record<string, RoomScoreResult>>> = {}
 
-  const drafts = loadDraftsForSchool(input.schoolId)
+  const drafts = input.drafts ?? loadDraftsForSchool(input.schoolId)
   for (const draft of drafts) {
     if (draft.surveyType === "closeout") continue
     sessionsBySurveyType[draft.surveyType] = draft.session

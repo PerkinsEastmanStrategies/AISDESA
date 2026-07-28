@@ -79,6 +79,7 @@ export default function RoomSelector({
     state.preWalk.mappings,
     selectedId,
     state.surveyType,
+    state.school?.schoolClass,
   )
   const selectedSpaceType =
     effectiveSpaceTypeForSelection({
@@ -93,7 +94,11 @@ export default function RoomSelector({
     showStudioType && selectedSpaceType && isStudioType(selectedSpaceType)
       ? selectedSpaceType
       : ""
-  const preWalkMapped = hasPreWalkMappings(state.preWalk.mappings, state.surveyType)
+  const preWalkMapped = hasPreWalkMappings(
+    state.preWalk.mappings,
+    state.surveyType,
+    state.school?.schoolClass,
+  )
   const spaceTypeReady = !showSpaceType || !!selectedSpaceType || preWalkMapped
   const spaceTypeNoun = showStudioType ? "studio type" : "space type"
   const showGrade =
@@ -173,9 +178,16 @@ export default function RoomSelector({
     [...rooms].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
 
   const { pinnedRoomOptions, otherRoomOptions } = useMemo(() => {
-    let onFloor = state.allRooms.filter(
-      (r) => (!effectiveLevelId || r.levelId === effectiveLevelId) && isClassroomRoom(r),
-    )
+    const schoolClass = state.school?.schoolClass
+    const mappedTypeForRoom = (roomId: string) =>
+      preWalkSpaceTypeForRoom(state.preWalk.mappings, roomId, state.surveyType, schoolClass)
+
+    let onFloor = state.allRooms.filter((r) => {
+      if (effectiveLevelId && r.levelId !== effectiveLevelId) return false
+      return isClassroomRoom(r) || !!mappedTypeForRoom(r.id)
+    })
+    const eligibleForPreWalk = (r: (typeof state.allRooms)[number]) =>
+      isClassroomRoom(r) || !!mappedTypeForRoom(r.id)
     if (state.surveyType === "closeout" && state.session) {
       onFloor = onFloor.filter((r) => {
         const rs = state.session!.rooms[r.id]
@@ -187,14 +199,11 @@ export default function RoomSelector({
     let pinned: typeof onFloor = []
 
     if (preWalkMapped) {
+      const pinnedSource = state.allRooms.filter(eligibleForPreWalk)
       if (selectedSpaceType) {
-        pinned = onFloor.filter(
-          (r) => preWalkSpaceTypeForRoom(state.preWalk.mappings, r.id, state.surveyType) === selectedSpaceType,
-        )
+        pinned = pinnedSource.filter((r) => mappedTypeForRoom(r.id) === selectedSpaceType)
       } else {
-        pinned = onFloor.filter(
-          (r) => !!preWalkSpaceTypeForRoom(state.preWalk.mappings, r.id, state.surveyType),
-        )
+        pinned = pinnedSource.filter((r) => !!mappedTypeForRoom(r.id))
       }
       for (const room of pinned) pinnedIds.add(room.id)
       pinned = sortRoomsByName(pinned)
@@ -202,7 +211,7 @@ export default function RoomSelector({
 
     let other = onFloor.filter((r) => {
       if (pinnedIds.has(r.id)) return false
-      const mappedType = preWalkSpaceTypeForRoom(state.preWalk.mappings, r.id, state.surveyType)
+      const mappedType = mappedTypeForRoom(r.id)
       if (selectedSpaceType && mappedType && mappedType !== selectedSpaceType) return false
       return true
     })
@@ -227,6 +236,7 @@ export default function RoomSelector({
     preWalkMapped,
     selectedSpaceType,
     effectiveLevelId,
+    state.school?.schoolClass,
   ])
 
   const roomOptions = useMemo(
@@ -906,7 +916,12 @@ export default function RoomSelector({
                       </li>
                       {filteredPinnedRooms.map((r) => {
                         const active = selectedId === r.id
-                        const mappedType = preWalkSpaceTypeForRoom(state.preWalk.mappings, r.id, state.surveyType)
+                        const mappedType = preWalkSpaceTypeForRoom(
+                          state.preWalk.mappings,
+                          r.id,
+                          state.surveyType,
+                          state.school?.schoolClass,
+                        )
                         return (
                           <li key={r.id}>
                             <button
