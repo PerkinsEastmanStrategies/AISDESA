@@ -207,12 +207,18 @@ function AssessorProfileMenu() {
 
 /** Fixed top bar: logo + ESA Survey title. Does not scroll with main content. */
 export default function SurveyHeader() {
-  const { state, setView, continueSurvey, surveyedRooms, hasAssessorRegistered } = useSurvey()
+  const {
+    state,
+    setView,
+    continueSurvey,
+    openResults,
+    schoolHasResults,
+    schoolScoredRoomCount,
+    hasAssessorRegistered,
+  } = useSurvey()
 
   const showResults =
-    surveyedRooms.some((r) => r.overallScore !== null) &&
-    state.view === "survey" &&
-    hasAssessorRegistered
+    schoolHasResults && state.view === "survey" && hasAssessorRegistered
 
   return (
     <header className="z-50 shrink-0 border-b border-[var(--color-border)] bg-[var(--color-card)] shadow-sm safe-top">
@@ -253,11 +259,11 @@ export default function SurveyHeader() {
           {showResults && (
             <button
               type="button"
-              onClick={() => setView("results")}
+              onClick={() => openResults("campus")}
               className="flex shrink-0 items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-[var(--color-primary)] active:bg-blue-100"
             >
               <BarChart3 className="h-3.5 w-3.5" />
-              Results ({surveyedRooms.filter((r) => r.overallScore !== null).length})
+              Results ({schoolScoredRoomCount})
             </button>
           )}
           {state.view === "results" && hasAssessorRegistered && (

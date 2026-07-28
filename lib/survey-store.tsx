@@ -107,6 +107,12 @@ import {
   queueSurveySync,
 } from "@/lib/survey-remote-sync"
 import type { RemoteSurveyStatus } from "@/lib/survey-remote-types"
+import {
+  findSubmittedRoomAssessment,
+  schoolHasResults,
+  schoolScoredRoomCount,
+  type SubmittedRoomAssessment,
+} from "@/lib/school-assessment-index"
 
 export type SurveyView = "landing" | "admin" | "survey" | "results"
 
@@ -1672,6 +1678,12 @@ interface SurveyContextValue {
   closeRemoteConflict: () => void
   loadRemoteSurveyDraft: () => Promise<boolean>
   pendingSyncCount: number
+  schoolHasResults: boolean
+  schoolScoredRoomCount: number
+  findSubmittedRoomAssessment: (roomId: string) => SubmittedRoomAssessment | null
+  resultsInitialTab: "campus" | "room" | "neighborhood" | "compare" | "photos" | null
+  openResults: (tab?: "campus" | "room" | "neighborhood" | "compare" | "photos") => void
+  clearResultsInitialTab: () => void
 }
 
 const SurveyContext = createContext<SurveyContextValue | null>(null)
@@ -1722,6 +1734,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const [remoteConflictOpen, setRemoteConflictOpen] = useState(false)
   const [remoteConflict, setRemoteConflict] = useState<RemoteSurveyStatus | null>(null)
   const [pendingSyncCount, setPendingSyncCount] = useState(0)
+  const [resultsInitialTab, setResultsInitialTab] = useState<
+    "campus" | "room" | "neighborhood" | "compare" | "photos" | null
+  >(null)
   const lastSyncedSubmissionRef = useRef<string | null>(null)
   const surveyTypeBeforeConflictRef = useRef<SurveyType>("studios")
   const [state, dispatch] = useReducer(reducer, {
@@ -2061,6 +2076,49 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   }, [levelRooms, state.surveyType, state.session])
 
   const surveyedRooms = useMemo(() => buildScoredRoomEntries(state), [state])
+
+  const campusSnapshotInput = useMemo(
+    () =>
+      state.school
+        ? {
+            schoolId: state.school.id,
+            schoolName: state.school.displayName,
+            campusId: state.school.campusId,
+            schoolClass: state.school.schoolClass,
+            liveSurveyType: state.surveyType,
+            liveSession: state.session,
+            liveRoomScoreDetails: state.roomScoreDetails,
+            liveNeighborhoodResolver: (roomId: string, roomSession: RoomSurveySession) => {
+              const fromSession = roomSession.neighborhood?.trim()
+              if (fromSession) return fromSession
+              return state.allRooms.find((r) => r.id === roomId)?.neighborhood?.trim()
+            },
+          }
+        : null,
+    [
+      state.school,
+      state.surveyType,
+      state.session,
+      state.roomScoreDetails,
+      state.allRooms,
+    ],
+  )
+
+  const schoolHasResultsFlag = useMemo(
+    () => (campusSnapshotInput ? schoolHasResults(campusSnapshotInput) : false),
+    [campusSnapshotInput],
+  )
+
+  const schoolScoredRoomCountValue = useMemo(
+    () => (campusSnapshotInput ? schoolScoredRoomCount(campusSnapshotInput) : 0),
+    [campusSnapshotInput],
+  )
+
+  const findSubmittedRoomAssessmentForSchool = useCallback(
+    (roomId: string) =>
+      state.school ? findSubmittedRoomAssessment(state.school.id, roomId) : null,
+    [state.school],
+  )
 
   const currentRoomSession =
     state.selectedRoomId && state.session ? state.session.rooms[state.selectedRoomId] ?? null : null
@@ -2421,6 +2479,14 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     [],
   )
   const setView = useCallback((view: SurveyView) => dispatch({ type: "SET_VIEW", view }), [])
+  const openResults = useCallback(
+    (tab: "campus" | "room" | "neighborhood" | "compare" | "photos" = "campus") => {
+      setResultsInitialTab(tab)
+      dispatch({ type: "SET_VIEW", view: "results" })
+    },
+    [],
+  )
+  const clearResultsInitialTab = useCallback(() => setResultsInitialTab(null), [])
   const continueSurvey = useCallback(() => dispatch({ type: "CONTINUE_SURVEY" }), [])
   const resetSurvey = useCallback(() => dispatch({ type: "RESET_SURVEY" }), [])
   const dismissResumeBanner = useCallback(() => dispatch({ type: "DISMISS_RESUME_BANNER" }), [])
@@ -2564,6 +2630,12 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         closeRemoteConflict,
         loadRemoteSurveyDraft,
         pendingSyncCount,
+        schoolHasResults: schoolHasResultsFlag,
+        schoolScoredRoomCount: schoolScoredRoomCountValue,
+        findSubmittedRoomAssessment: findSubmittedRoomAssessmentForSchool,
+        resultsInitialTab,
+        openResults,
+        clearResultsInitialTab,
       }}
     >
       {children}

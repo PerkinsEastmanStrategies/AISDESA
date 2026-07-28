@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   ArrowLeft,
   Camera,
@@ -29,25 +29,42 @@ import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
 type ResultsTab = "campus" | "room" | "neighborhood" | "compare" | "photos"
 
 export default function SurveyResults() {
-  const { state, currentResults, continueSurvey, resetSurvey, selectRoom, submission, schools } =
-    useSurvey()
+  const {
+    state,
+    currentResults,
+    continueSurvey,
+    resetSurvey,
+    selectRoom,
+    submission,
+    schools,
+    resultsInitialTab,
+    clearResultsInitialTab,
+  } = useSurvey()
   const [tab, setTab] = useState<ResultsTab>("campus")
   const [roomQuery, setRoomQuery] = useState("")
   const [scoringInfoOpen, setScoringInfoOpen] = useState(false)
 
+  useEffect(() => {
+    if (!resultsInitialTab) return
+    setTab(resultsInitialTab)
+    setRoomQuery("")
+    clearResultsInitialTab()
+  }, [resultsInitialTab, clearResultsInitialTab])
+
   const results = currentResults ?? submission
-  const campus = results?.campus
   const plan = state.floorPlan
-  const assessor = state.assessorByType[state.surveyType] ?? (results?.session.assessorName
-    ? { name: results.session.assessorName, email: results.session.assessorEmail ?? "" }
-    : null)
+  const assessor =
+    state.assessorByType[state.surveyType] ??
+    (results?.session.assessorName
+      ? { name: results.session.assessorName, email: results.session.assessorEmail ?? "" }
+      : null)
 
   const snapshot = useMemo(() => {
-    if (!campus || !state.school) return null
+    if (!state.school) return null
     return buildCampusScoringSnapshot({
       schoolId: state.school.id,
-      schoolName: campus.schoolName,
-      campusId: campus.campusId,
+      schoolName: state.school.displayName,
+      campusId: state.school.campusId,
       schoolClass: state.school.schoolClass,
       liveSurveyType: state.surveyType,
       liveSession: state.session,
@@ -59,7 +76,6 @@ export default function SurveyResults() {
       },
     })
   }, [
-    campus,
     state.school,
     state.surveyType,
     state.session,
@@ -116,7 +132,29 @@ export default function SurveyResults() {
     )
   }, [snapshot, roomQuery])
 
-  if (!results || !campus || !snapshot) return null
+  if (!snapshot || !state.school) return null
+
+  const campus =
+    results?.campus ??
+    ({
+      schoolId: state.school.id,
+      schoolName: state.school.displayName,
+      campusId: state.school.campusId,
+      overallScore: snapshot.campusOverallScore,
+      neighborhoods: snapshot.neighborhoods,
+      rooms: snapshot.allRooms.map((room) => ({
+        roomId: room.roomId,
+        roomName: room.roomName,
+        schoolRoomNumber: room.schoolRoomNumber,
+        neighborhood: room.neighborhood,
+        gradeType: room.gradeType,
+        overallScore: room.overallScore,
+        categoryScores: room.categoryScores,
+        answeredCount: room.answeredCount,
+        totalCount: room.totalCount,
+        complete: room.complete,
+      })),
+    } as NonNullable<typeof results>["campus"])
 
   const assessedCount = snapshot.allRooms.length
   const scoredCount = snapshot.allRooms.filter((r) => r.overallScore !== null).length
