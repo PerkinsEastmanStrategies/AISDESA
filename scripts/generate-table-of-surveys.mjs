@@ -509,6 +509,10 @@ export function surveyNavTypesForSchool(
     if (primaryTypeByFocus.get(focus) === type) navTypes.push(type)
   }
 
+  if (!navTypes.includes("closeout")) {
+    navTypes.push("closeout")
+  }
+
   return navTypes
 }
 
