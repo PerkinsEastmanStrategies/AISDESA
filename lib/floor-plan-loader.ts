@@ -46,7 +46,7 @@ const STUB_SVG_MAX_BYTES = 1000
 const blobUrlsBySchool = new Map<string, string[]>()
 const displaySvgTextByKey = new Map<string, string>()
 
-/** Sentinel `src` when SVG markup is cached for inline rendering (WebKit / iPad). */
+/** Sentinel `src` when SVG text is cached for WebKit data-URL rendering. */
 export const INLINE_FLOOR_PLAN_SRC = "aisd:inline-floor-plan"
 
 export function isInlineFloorPlanSrc(src: string | undefined | null): boolean {
@@ -65,17 +65,19 @@ export function getFloorPlanDisplaySvg(schoolId: string, levelId: string): strin
   return displaySvgTextByKey.get(displaySvgKey(schoolId, levelId)) ?? null
 }
 
-/** Inner markup of a prepared floor-plan SVG (without the root <svg> wrapper). */
-export function extractSvgInnerMarkup(svgText: string): string {
-  if (typeof DOMParser === "undefined") return ""
+export function hasFloorPlanDisplayCache(schoolId: string, levelId: string): boolean {
+  return displaySvgTextByKey.has(displaySvgKey(schoolId, levelId))
+}
+
+/** Data URL for SVG text — works in WebKit <image> where blob: URLs fail. */
+export function floorPlanSvgDataUrl(svgText: string): string {
   try {
-    const doc = new DOMParser().parseFromString(svgText, "image/svg+xml")
-    const svg = doc.documentElement
-    if (!svg || svg.tagName.toLowerCase() !== "svg") return ""
-    if (doc.querySelector("parsererror")) return ""
-    return svg.innerHTML
+    const bytes = new TextEncoder().encode(svgText)
+    let binary = ""
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!)
+    return `data:image/svg+xml;base64,${btoa(binary)}`
   } catch {
-    return ""
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgText)}`
   }
 }
 

@@ -87,6 +87,8 @@ import { SURVEY_TYPES } from "@aisd/shared"
 import { validateSurveyBeforeDeferral, type SubmitValidationResult } from "@/lib/survey-validation"
 import {
   loadFloorPlanLevelDisplay,
+  hasFloorPlanDisplayCache,
+  isInlineFloorPlanSrc,
   loadSchoolRoomsForSchool,
   revokeFloorPlanBlobUrls,
 } from "@/lib/floor-plan-loader"
@@ -2212,7 +2214,11 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       if (!school?.hasFloorPlan || !plan) return
 
       const existing = plan.levels.find((level) => level.id === levelId)
-      if (existing?.src) return
+      const inlineStale =
+        existing?.src &&
+        isInlineFloorPlanSrc(existing.src) &&
+        !hasFloorPlanDisplayCache(school.id, levelId)
+      if (existing?.src && !inlineStale) return
 
       setFloorPlanDisplayLoading(true)
       try {

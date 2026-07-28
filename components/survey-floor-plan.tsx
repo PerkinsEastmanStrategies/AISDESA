@@ -33,11 +33,11 @@ import { programTypeFillColor, programTypeLegendColors } from "@/lib/program-typ
 import NeighborhoodLegend from "@/components/neighborhood-legend"
 import { cn, scoreFillRgba, scoreStrokeRgba } from "@/lib/utils"
 import {
-  extractSvgInnerMarkup,
+  floorPlanSvgDataUrl,
   getFloorPlanDisplaySvg,
+  hasFloorPlanDisplayCache,
   isInlineFloorPlanSrc,
 } from "@/lib/floor-plan-loader"
-import { needsInlineFloorPlanSvg } from "@/lib/floor-plans"
 import { neighborhoodGroupId, NEIGHBORHOOD_OPTIONS } from "@aisd/shared"
 
 function colorWithAlpha(color: string, alpha: number): string {
@@ -235,22 +235,27 @@ export default function SurveyFloorPlan({
   const levelId = state.selectedLevelId ?? plan?.defaultLevelId ?? "floor-1"
   const level = plan?.levels.find((l) => l.id === levelId)
 
-  const inlinePlanMarkup = useMemo(() => {
-    if (!needsInlineFloorPlanSvg() || !state.school || !levelId) return null
+  // WebKit/iOS: render via data-URL <image> (blob: breaks; inline markup leaks CSS onto overlays).
+  const webKitPlanImageUrl = useMemo(() => {
+    if (!state.school || !levelId || !isInlineFloorPlanSrc(level?.src)) return null
     const svgText = getFloorPlanDisplaySvg(state.school.id, levelId)
-    if (!svgText) return null
-    return extractSvgInnerMarkup(svgText)
+    return svgText ? floorPlanSvgDataUrl(svgText) : null
   }, [state.school?.id, levelId, level?.src])
+
+  const planImageHref = webKitPlanImageUrl ?? level?.src ?? ""
 
   const planBackdropReady =
     Boolean(level?.src) &&
-    (!isInlineFloorPlanSrc(level?.src) || Boolean(inlinePlanMarkup))
+    (!isInlineFloorPlanSrc(level?.src) || Boolean(webKitPlanImageUrl))
 
   useEffect(() => {
-    if (!levelId || !plan) return
-    if (level?.src) return
+    if (!levelId || !plan || !state.school) return
+    if (level?.src) {
+      if (!isInlineFloorPlanSrc(level.src)) return
+      if (hasFloorPlanDisplayCache(state.school.id, levelId)) return
+    }
     void ensureFloorPlanLevel(levelId)
-  }, [levelId, plan, level?.src, ensureFloorPlanLevel])
+  }, [levelId, plan, level?.src, state.school, ensureFloorPlanLevel])
 
   const handleRoomSelect = useCallback(
     (roomId: string) => {
@@ -850,24 +855,16 @@ export default function SurveyFloorPlan({
               isPanning ? "cursor-grabbing" : "cursor-grab",
             )}
           >
-            {inlinePlanMarkup ? (
-              <g
-                aria-hidden
-                pointerEvents="none"
-                dangerouslySetInnerHTML={{ __html: inlinePlanMarkup }}
-              />
-            ) : (
-              <image
-                href={level.src}
-                x={vb.x}
-                y={vb.y}
-                width={vb.w}
-                height={vb.h}
-                // Fill the viewBox rect exactly so overlay polygons align with the image.
-                preserveAspectRatio="none"
-                pointerEvents="none"
-              />
-            )}
+            <image
+              href={planImageHref}
+              x={vb.x}
+              y={vb.y}
+              width={vb.w}
+              height={vb.h}
+              // Fill the viewBox rect exactly so overlay polygons align with the image.
+              preserveAspectRatio="none"
+              pointerEvents="none"
+            />
             {visibleLevelRooms.map((room) => {
               const photoSelected = photoRoomSelectionMatches(
                 room,
