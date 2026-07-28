@@ -202,6 +202,10 @@ export interface SurveySession {
   startedAt: string
   updatedAt: string
   submittedAt?: string
+  /** Assessor closing remarks submitted with the campus assessment from Close Out. */
+  finalComment?: string
+  /** Set when the assessor submits the full campus assessment from Close Out. */
+  campusSubmittedAt?: string
 }
 
 export interface CategoryScore {

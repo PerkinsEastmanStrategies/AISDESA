@@ -269,13 +269,16 @@ export function getSurveyTypeInfo(
   }
 
   if (surveyType === "closeout") {
-    if (!closeOutSessionHasWork(session) && !draft?.lastSubmission) {
-      return { status: "not_started", assessor }
-    }
-    if (isCloseOutSurveyComplete(session) || (draft?.lastSubmission && !closeOutSessionHasWork(session))) {
+    if (session.campusSubmittedAt || draft?.lastSubmission?.session.campusSubmittedAt) {
       return { status: "complete", assessor }
     }
-    return { status: "in_progress", assessor }
+    if (closeOutSessionHasWork(session) || !!session.finalComment?.trim() || draft?.lastSubmission) {
+      return { status: "in_progress", assessor }
+    }
+    if (isCloseOutSurveyComplete(session) && Object.keys(session.rooms).length > 0) {
+      return { status: "in_progress", assessor }
+    }
+    return { status: "not_started", assessor }
   }
 
   if (surveyTypeHasDedicatedCompletion(surveyType)) {

@@ -7,7 +7,7 @@ import type {
   SurveySession,
   SurveyType,
 } from "@aisd/shared"
-import { getRoomSurveyRubric, studioTypeRequiresGrade } from "@aisd/shared"
+import { getRoomSurveyRubric, studioTypeRequiresGrade, SURVEY_TYPES } from "@aisd/shared"
 import { assessorSessionFields } from "@/lib/assessor"
 import { isSkippedDependentQuestion } from "@/lib/question-dependencies"
 import { isQuestionFullyAnswered, validateRoomSession, type SubmitValidationResult } from "@/lib/survey-validation"
@@ -81,9 +81,177 @@ export function closeOutSessionHasWork(session: SurveySession | null | undefined
 export function isCloseOutSurveyComplete(session: SurveySession | null | undefined): boolean {
   if (!session) return false
   const rooms = Object.values(session.rooms)
-  if (rooms.length === 0) return false
+  if (rooms.length === 0) return true
   return !rooms.some(roomHasCloseOutWork)
 }
+
+export function countCloseOutPendingItems(session: SurveySession | null | undefined): {
+  rooms: number
+  questions: number
+  grades: number
+} {
+  if (!session) return { rooms: 0, questions: 0, grades: 0 }
+  let questions = 0
+  let grades = 0
+  let rooms = 0
+  for (const room of Object.values(session.rooms)) {
+    if (!roomHasCloseOutWork(room)) continue
+    rooms += 1
+    questions += effectiveCloseOutPendingQuestionIds(room).length
+    if (room.pendingGrade) grades += 1
+  }
+  return { rooms, questions, grades }
+}
+
+/** Merge incomplete items from one source survey session into the Close Out queue. */
+function mergeIncompleteFromSourceSurvey(
+  sourceSession: SurveySession,
+  allRooms: ParsedPlanRoom[],
+  closeRooms: Record<string, RoomSurveySession>,
+  schoolClass?: string | null,
+): Record<string, RoomSurveySession> {
+  const surveyType = sourceSession.surveyType
+  if (surveyType === "closeout") return closeRooms
+
+  const next = { ...closeRooms }
+
+  for (const [roomId, roomSession] of Object.entries(sourceSession.rooms)) {
+    const started = roomSession.responses.length > 0 || !!roomSession.gradeType
+    if (!started) continue
+
+    const rubric = getRoomSurveyRubric(
+      surveyType,
+      roomSession.roomType,
+      roomSession.gradeType,
+      schoolClass,
+    )
+    if (!rubric) continue
+
+    const parsed = allRooms.find((r) => r.id === roomId)
+    const result = validateRoomSession(
+      roomId,
+      parsed?.name ?? roomId,
+      roomSession,
+      rubric.questions,
+      { schoolClass },
+    )
+
+    if (result.complete) {
+      if (next[roomId] && !roomHasCloseOutWork(next[roomId])) {
+        delete next[roomId]
+      }
+      continue
+    }
+
+    const missingIds = result.missingQuestionIds
+    const pendingGrade = result.missingGrade
+    const existingClose = next[roomId]
+
+    const pendingQuestionIds = [
+      ...new Set([...(existingClose?.pendingQuestionIds ?? []), ...missingIds]),
+    ]
+    const responseMap = new Map((existingClose?.responses ?? []).map((r) => [r.questionId, r]))
+    for (const response of roomSession.responses) {
+      if (pendingQuestionIds.includes(response.questionId)) {
+        responseMap.set(response.questionId, response)
+      }
+    }
+    for (const response of existingClose?.responses ?? []) {
+      responseMap.set(response.questionId, response)
+    }
+
+    next[roomId] = {
+      roomId,
+      roomNumber: roomSession.roomNumber,
+      schoolRoomNumber: roomSession.schoolRoomNumber,
+      preWalkNote1: roomSession.preWalkNote1,
+      preWalkNote2: roomSession.preWalkNote2,
+      neighborhood: roomSession.neighborhood,
+      areaSqft: roomSession.areaSqft,
+      roomType: roomSession.roomType,
+      gradeType: roomSession.gradeType,
+      building: roomSession.building,
+      levelId: roomSession.levelId,
+      responses: [...responseMap.values()],
+      sourceSurveyType: surveyType as Exclude<SurveyType, "closeout">,
+      pendingQuestionIds,
+      pendingGrade:
+        pendingGrade ||
+        (!!existingClose?.pendingGrade && studioTypeRequiresGrade(roomSession.roomType, schoolClass)),
+    }
+  }
+
+  return next
+}
+
+/**
+ * Rebuild the Close Out queue from all in-progress source survey drafts for a school.
+ * Preserves Close Out answers and campus-level fields on the existing session.
+ */
+export function rebuildCloseOutFromSourceSurveys(params: {
+  schoolId: string
+  schoolName: string
+  campusId: string
+  building: string
+  existingCloseOut: SurveySession | null
+  sourceSessions: SurveySession[]
+  allRooms: ParsedPlanRoom[]
+  assessor?: AssessorInfo | null
+  schoolClass?: string | null
+}): SurveySession {
+  const now = new Date().toISOString()
+  let closeRooms: Record<string, RoomSurveySession> = { ...(params.existingCloseOut?.rooms ?? {}) }
+
+  for (const sourceSession of params.sourceSessions) {
+    if (sourceSession.surveyType === "closeout") continue
+    closeRooms = mergeIncompleteFromSourceSurvey(
+      sourceSession,
+      params.allRooms,
+      closeRooms,
+      params.schoolClass,
+    )
+  }
+
+  for (const [roomId, room] of Object.entries(closeRooms)) {
+    const pruned = pruneCloseOutRoomPending(room)
+    if (roomHasCloseOutWork(pruned)) {
+      closeRooms[roomId] = pruned
+    } else {
+      delete closeRooms[roomId]
+    }
+  }
+
+  const base =
+    params.existingCloseOut ??
+    emptyCloseOutSession(
+      {
+        surveyId: `AISD-CLOSEOUT-${Date.now()}`,
+        surveyType: "closeout",
+        schoolId: params.schoolId,
+        schoolName: params.schoolName,
+        campusId: params.campusId,
+        building: params.building,
+        rooms: {},
+        startedAt: now,
+        updatedAt: now,
+      },
+      params.assessor,
+    )
+
+  return {
+    ...base,
+    schoolId: params.schoolId,
+    schoolName: params.schoolName,
+    campusId: params.campusId,
+    building: params.building,
+    rooms: closeRooms,
+    updatedAt: now,
+    ...(params.assessor ? assessorSessionFields(params.assessor) : {}),
+  }
+}
+
+/** Source survey modules scanned when rebuilding Close Out. */
+export const CLOSEOUT_SOURCE_SURVEY_TYPES = SURVEY_TYPES.filter((type) => type !== "closeout")
 
 export function withPendingUpdatedForResponse(
   room: RoomSurveySession,

@@ -63,12 +63,8 @@ export default function SurveyTypeNav({ variant }: SurveyTypeNavProps) {
   }
 
   const schoolClass = state.school?.schoolClass
-  const closeOutStatus = surveyTypeInfos.closeout?.status ?? "not_started"
   const navTypes = surveyNavTypesForSchool(schoolClass)
-  const types: SurveyType[] =
-    closeOutStatus !== "not_started" && !navTypes.includes("closeout")
-      ? [...navTypes, "closeout"]
-      : navTypes
+  const types: SurveyType[] = navTypes
   const items = types.map((type) => {
     const group = surveyTypesInSameNavGroup(type, schoolClass)
     return {

@@ -11,6 +11,7 @@ import SurveyResults from "@/components/survey-results"
 import AdminDashboard from "@/components/admin-dashboard"
 import EsaLanding from "@/components/esa-landing"
 import PreWalkPromptModal from "@/components/pre-walk-prompt-modal"
+import SurveyRemoteConflictModal from "@/components/survey-remote-conflict-modal"
 import { getSurveyRubric, surveyTypeLabel } from "@aisd/shared"
 
 function SurveyBody() {
@@ -122,10 +123,32 @@ function SurveyAppContent() {
   )
 }
 
+function SurveyRemoteConflictHost() {
+  const {
+    remoteConflictOpen,
+    remoteConflict,
+    dismissRemoteConflict,
+    closeRemoteConflict,
+    loadRemoteSurveyDraft,
+  } = useSurvey()
+
+  return (
+    <SurveyRemoteConflictModal
+      open={remoteConflictOpen}
+      status={remoteConflict}
+      onClose={closeRemoteConflict}
+      onContinue={dismissRemoteConflict}
+      onLoadRemote={() => void loadRemoteSurveyDraft()}
+      showLoadRemote
+    />
+  )
+}
+
 export default function SurveyApp() {
   return (
     <SurveyProvider>
       <SurveyAppContent />
+      <SurveyRemoteConflictHost />
     </SurveyProvider>
   )
 }

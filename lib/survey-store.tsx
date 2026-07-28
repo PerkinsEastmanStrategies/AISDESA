@@ -6,6 +6,7 @@ import {
   useLayoutEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
   createContext,
   useContext,
@@ -58,6 +59,7 @@ import {
   loadActiveDraftMeta,
   loadAssessors,
   loadDraft,
+  loadDraftsForSchool,
   saveAssessors,
   saveDraft,
   shouldContinueSurveyVisit,
@@ -84,15 +86,27 @@ import { loadFloorPlanForSchool } from "@/lib/floor-plan-loader"
 import { loadAisdSchoolOptions } from "@/lib/load-aisd-schools"
 import {
   deferIncompleteToCloseOut,
+  countCloseOutPendingItems,
+  isCloseOutSurveyComplete,
+  rebuildCloseOutFromSourceSurveys,
   roomNeedsCloseOut,
   syncCloseOutProgressToSource,
   syncSourceProgressToCloseOut,
   withPendingUpdatedForGrade,
   withPendingUpdatedForResponse,
 } from "@/lib/closeout"
+import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
 import { EMPTY_PREWALK, getPreWalkMapping, migratePreWalkState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypePhotoKey, shouldPromptPreWalkOnSchoolSelect } from "@/lib/prewalk"
 import { applyTraditionalStudioCopyToRoom, getTraditionalStudioCopyOffer } from "@/lib/traditional-studio-copy"
 import { scoreRoomSessionWithMetadata } from "@/lib/traditional-studio-room-score"
+import {
+  fetchRemoteSurveyStatusClient,
+  flushSurveySyncQueue,
+  pullRemoteDraftClient,
+  pushSurveyDraftClient,
+  queueSurveySync,
+} from "@/lib/survey-remote-sync"
+import type { RemoteSurveyStatus } from "@/lib/survey-remote-types"
 
 export type SurveyView = "landing" | "admin" | "survey" | "results"
 
@@ -178,6 +192,8 @@ type Action =
       session: SurveySession
       assessor?: AssessorInfo | null
     }
+  | { type: "SET_FINAL_COMMENT"; comment: string }
+  | { type: "SUBMIT_CAMPUS" }
 
 function newSession(
   school: AisdSchoolOption,
@@ -546,6 +562,76 @@ function stateFromDraft(
   return isCampusScopedSurveyType(draft.surveyType) ? bootstrapCampusScopedSurvey(base) : base
 }
 
+function prepareCloseOutDraft(
+  school: AisdSchoolOption,
+  existingDraft: PersistedSurveyDraft | null,
+  allRooms: ParsedPlanRoom[],
+  assessorByType: AssessorBySurveyType,
+): PersistedSurveyDraft {
+  const assessor =
+    (isAssessorRegistered(assessorByType.closeout) ? assessorByType.closeout : null) ??
+    (isAssessorRegistered(assessorByType.studios) ? assessorByType.studios : null) ??
+    (existingDraft?.session ? assessorFromSession(existingDraft.session) : null)
+  const sourceSessions = loadDraftsForSchool(school.id).map((draft) => draft.session)
+  const session = rebuildCloseOutFromSourceSurveys({
+    schoolId: school.id,
+    schoolName: school.displayName,
+    campusId: school.campusId,
+    building: existingDraft?.session.building ?? "",
+    existingCloseOut: existingDraft?.session ?? null,
+    sourceSessions,
+    allRooms,
+    assessor: assessor && isAssessorRegistered(assessor) ? assessor : null,
+    schoolClass: school.schoolClass,
+  })
+
+  return {
+    version: 1,
+    schoolId: school.id,
+    surveyType: "closeout",
+    session,
+    selectedLevelId: existingDraft?.selectedLevelId ?? null,
+    selectedRoomId: existingDraft?.selectedRoomId ?? null,
+    lastSubmission: existingDraft?.lastSubmission ?? null,
+    savedAt: new Date().toISOString(),
+  }
+}
+
+function buildCampusSubmission(state: SurveyState): SurveySubmission | null {
+  if (!state.session || !state.school || state.surveyType !== "closeout") return null
+
+  const snapshot = buildCampusScoringSnapshot({
+    schoolId: state.school.id,
+    schoolName: state.school.displayName,
+    campusId: state.school.campusId,
+    schoolClass: state.school.schoolClass,
+    liveSurveyType: state.surveyType,
+    liveSession: state.session,
+    liveRoomScoreDetails: state.roomScoreDetails,
+  })
+
+  const submittedAt = new Date().toISOString()
+  const session: SurveySession = {
+    ...state.session,
+    campusSubmittedAt: submittedAt,
+    submittedAt,
+    updatedAt: submittedAt,
+  }
+
+  const campus = aggregateCampusScores(snapshot.allRooms, {
+    schoolId: state.school.id,
+    schoolName: state.school.displayName,
+    campusId: state.school.campusId,
+  })
+
+  return {
+    session,
+    submittedAt,
+    campus,
+    floorPlanRooms: Object.values(state.floorPlanRooms),
+  }
+}
+
 function buildSubmission(state: SurveyState): SurveySubmission | null {
   if (!state.session || !state.school) return null
   const rubric = getSurveyRubric(state.surveyType)
@@ -672,6 +758,30 @@ function reducer(state: SurveyState, action: Action): SurveyState {
     case "SET_SURVEY_TYPE": {
       if (!state.school) {
         return { ...state, surveyType: action.surveyType, submission: null, showResumeBanner: false }
+      }
+      if (action.surveyType === "closeout") {
+        const prepared = prepareCloseOutDraft(
+          state.school,
+          action.draft ?? loadDraft(state.school.id, "closeout"),
+          state.allRooms,
+          state.assessorByType,
+        )
+        const restored = stateFromDraft(
+          state.school,
+          prepared,
+          false,
+          state.assessorByType,
+          state.allRooms,
+          state.floorPlan,
+        )
+        return bootstrapCampusScopedSurvey({
+          ...restored,
+          surveyType: "closeout",
+          pendingStudioType:
+            action.pendingStudioType !== undefined
+              ? action.pendingStudioType
+              : restored.pendingStudioType,
+        })
       }
       if (action.draft) {
         const restored = stateFromDraft(
@@ -1453,6 +1563,34 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         submitValidation: null,
       }
     }
+    case "SET_FINAL_COMMENT": {
+      if (!state.session || state.surveyType !== "closeout") return state
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          finalComment: action.comment,
+          updatedAt: new Date().toISOString(),
+        },
+      }
+    }
+    case "SUBMIT_CAMPUS": {
+      if (state.surveyType !== "closeout" || !state.session || !state.school) return state
+      if (!isCloseOutSurveyComplete(state.session)) return state
+      const submission = buildCampusSubmission(state)
+      if (!submission) return state
+
+      console.log("Campus assessment submitted:", submission)
+
+      return {
+        ...state,
+        view: "results",
+        submission,
+        selectedRoomId: null,
+        submitValidation: null,
+        session: submission.session,
+      }
+    }
     default:
       return state
   }
@@ -1496,6 +1634,8 @@ interface SurveyContextValue {
   submitSurvey: (options?: { deferIncomplete?: boolean }) => boolean
   /** Save current room (optionally defer incomplete to Close Out) and select the next room. */
   saveAndContinueToNextRoom: (options?: { deferIncomplete?: boolean }) => boolean
+  submitCampusAssessment: () => boolean
+  setFinalComment: (comment: string) => void
   peekSubmitValidation: () => SubmitValidationResult | null
   setView: (view: SurveyView) => void
   continueSurvey: () => void
@@ -1508,6 +1648,9 @@ interface SurveyContextValue {
   currentRoomScore: RoomScoreResult | null
   canSubmit: boolean
   submitHint: string
+  canSubmitCampus: boolean
+  submitCampusHint: string
+  closeOutPending: { roomIds: string[]; roomLabels: string[] }
   currentResults: SurveySubmission | null
   hasCustomWeights: boolean
   setCategoryWeight: (category: string, weight: number | null) => void
@@ -1523,6 +1666,12 @@ interface SurveyContextValue {
   outdoorElementPins: OutdoorElementPin[]
   placeOutdoorElementPin: (elementType: string, lng: number, lat: number) => void
   removeOutdoorElementPin: (pinId: string) => void
+  remoteConflictOpen: boolean
+  remoteConflict: RemoteSurveyStatus | null
+  dismissRemoteConflict: () => void
+  closeRemoteConflict: () => void
+  loadRemoteSurveyDraft: () => Promise<boolean>
+  pendingSyncCount: number
 }
 
 const SurveyContext = createContext<SurveyContextValue | null>(null)
@@ -1570,6 +1719,11 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const [schoolsLoadError, setSchoolsLoadError] = useState<string | null>(null)
   const [schoolsReloadNonce, setSchoolsReloadNonce] = useState(0)
   const reloadSchools = useCallback(() => setSchoolsReloadNonce((n) => n + 1), [])
+  const [remoteConflictOpen, setRemoteConflictOpen] = useState(false)
+  const [remoteConflict, setRemoteConflict] = useState<RemoteSurveyStatus | null>(null)
+  const [pendingSyncCount, setPendingSyncCount] = useState(0)
+  const lastSyncedSubmissionRef = useRef<string | null>(null)
+  const surveyTypeBeforeConflictRef = useRef<SurveyType>("studios")
   const [state, dispatch] = useReducer(reducer, {
     surveyType: "studios",
     school: null,
@@ -1731,6 +1885,125 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     state.submission,
   ])
 
+  // Alert when another assessor has started/submitted this survey module online.
+  useEffect(() => {
+    if (!state.hydrated || !state.school) return
+
+    const assessor = state.assessorByType[state.surveyType]
+    void fetchRemoteSurveyStatusClient({
+      schoolId: state.school.id,
+      surveyType: state.surveyType,
+      assessorEmail: assessor?.email,
+    }).then((status) => {
+      if (status?.configured && status.conflict && status.hasRemote) {
+        setRemoteConflict(status)
+        setRemoteConflictOpen(true)
+      }
+    })
+  }, [state.hydrated, state.school?.id, state.surveyType, state.assessorByType])
+
+  // Debounced cloud sync when online (localStorage remains primary for offline).
+  useEffect(() => {
+    if (!state.hydrated || !state.school || !state.session || !state.lastSavedAt) return
+
+    const school = state.school
+    const surveyType = state.surveyType
+    const timer = window.setTimeout(() => {
+      const draft = loadDraft(school.id, surveyType)
+      if (!draft) return
+
+      const writeSnapshot =
+        !!draft.lastSubmission &&
+        draft.lastSubmission.submittedAt !== lastSyncedSubmissionRef.current
+
+      void pushSurveyDraftClient({
+        school,
+        draft,
+        writeSnapshot,
+      }).then(async (result) => {
+        if (result === "pushed" && writeSnapshot && draft.lastSubmission) {
+          lastSyncedSubmissionRef.current = draft.lastSubmission.submittedAt
+        }
+        if (result === "skipped_remote_newer") {
+          const remote = await pullRemoteDraftClient({ schoolId: school.id, surveyType })
+          if (remote && remote.savedAt > draft.savedAt) {
+            saveDraft(remote)
+            dispatch({ type: "RESTORE", school, draft: remote, showResumeBanner: false })
+          }
+        }
+        setPendingSyncCount(0)
+      })
+
+      queueSurveySync(school.id, surveyType, state.lastSavedAt!)
+    }, 2500)
+
+    return () => window.clearTimeout(timer)
+  }, [
+    state.hydrated,
+    state.school,
+    state.session,
+    state.surveyType,
+    state.lastSavedAt,
+    state.submission,
+  ])
+
+  useEffect(() => {
+    const syncPendingCount = () => {
+      try {
+        const raw = localStorage.getItem("aisd-survey-sync-queue")
+        const queue = raw ? (JSON.parse(raw) as unknown[]) : []
+        setPendingSyncCount(Array.isArray(queue) ? queue.length : 0)
+      } catch {
+        setPendingSyncCount(0)
+      }
+    }
+
+    syncPendingCount()
+
+    const onOnline = () => {
+      void flushSurveySyncQueue({
+        schools,
+        loadDraft,
+        onRemoteNewer: () => syncPendingCount(),
+      }).then(syncPendingCount)
+    }
+
+    window.addEventListener("online", onOnline)
+    return () => window.removeEventListener("online", onOnline)
+  }, [schools])
+
+  const dismissRemoteConflict = useCallback(() => {
+    setRemoteConflictOpen(false)
+  }, [])
+
+  const closeRemoteConflict = useCallback(() => {
+    setRemoteConflictOpen(false)
+    if (!state.school) return
+
+    const previousType = surveyTypeBeforeConflictRef.current
+    if (previousType === state.surveyType) return
+
+    const draft = loadDraft(state.school.id, previousType)
+    dispatch({
+      type: "SET_SURVEY_TYPE",
+      surveyType: previousType,
+      draft,
+    })
+  }, [state.school, state.surveyType])
+
+  const loadRemoteSurveyDraft = useCallback(async (): Promise<boolean> => {
+    if (!state.school) return false
+    const remote = await pullRemoteDraftClient({
+      schoolId: state.school.id,
+      surveyType: state.surveyType,
+    })
+    if (!remote) return false
+    saveDraft(remote)
+    dispatch({ type: "RESTORE", school: state.school, draft: remote, showResumeBanner: false })
+    setRemoteConflictOpen(false)
+    return true
+  }, [state.school, state.surveyType])
+
   const plan = state.floorPlan
   const levelId = state.selectedLevelId ?? plan?.defaultLevelId
 
@@ -1829,8 +2102,58 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     : state.surveyType === "outdoor"
       ? "Answer outdoor questions to save progress"
       : state.surveyType === "closeout"
-        ? "No deferred questions yet — unfinished items appear here after you save a survey with unanswered questions"
+        ? "Finish deferred questions below, then submit the campus assessment"
         : "Score at least one room to save progress"
+
+  const closeOutPending = useMemo(() => {
+    if (state.surveyType !== "closeout" || !state.session) {
+      return { roomIds: [] as string[], roomLabels: [] as string[] }
+    }
+    const roomIds = Object.values(state.session.rooms)
+      .filter((room) => roomNeedsCloseOut(room))
+      .map((room) => room.roomId)
+      .sort((a, b) => roomDisplayName(state, a).localeCompare(roomDisplayName(state, b)))
+    return {
+      roomIds,
+      roomLabels: roomIds.map((roomId) => roomDisplayName(state, roomId)),
+    }
+  }, [state.surveyType, state.session, state.allRooms, state.manualRooms])
+
+  const canSubmitCampus = useMemo(() => {
+    if (state.surveyType !== "closeout" || !state.session || !state.school) return false
+    if (state.session.campusSubmittedAt) return false
+    if (!isCloseOutSurveyComplete(state.session)) return false
+    const hasSourceProgress = loadDraftsForSchool(state.school.id).some(
+      (draft) =>
+        draft.surveyType !== "closeout" &&
+        (Object.values(draft.session.rooms).some(
+          (room) => room.responses.length > 0 || !!room.gradeType,
+        ) ||
+          !!draft.lastSubmission),
+    )
+    return hasSourceProgress
+  }, [state.surveyType, state.session, state.school])
+
+  const submitCampusHint = useMemo(() => {
+    if (state.session?.campusSubmittedAt) return "Campus assessment submitted"
+    const pending = countCloseOutPendingItems(state.session)
+    if (pending.rooms > 0) {
+      return `Answer remaining Close Out items before submitting (${pending.questions} unanswered question${pending.questions === 1 ? "" : "s"})`
+    }
+    if (state.school) {
+      const hasSourceProgress = loadDraftsForSchool(state.school.id).some(
+        (draft) =>
+          draft.surveyType !== "closeout" &&
+          Object.values(draft.session.rooms).some(
+            (room) => room.responses.length > 0 || !!room.gradeType,
+          ),
+      )
+      if (!hasSourceProgress) {
+        return "Complete at least one survey section before submitting the campus assessment"
+      }
+    }
+    return "Ready to submit the full campus assessment · auto-saved"
+  }, [state.session, state.school])
 
   const flaggedQuestionIds = useMemo(() => {
     if (!state.submitValidation || !state.selectedRoomId) return []
@@ -1971,9 +2294,22 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     ],
   )
 
+  const submitCampusAssessment = useCallback(() => {
+    if (!canSubmitCampus || !state.session || !state.school) return false
+    dispatch({ type: "SUBMIT_CAMPUS" })
+    return true
+  }, [canSubmitCampus, state.session, state.school])
+
+  const setFinalComment = useCallback((comment: string) => {
+    dispatch({ type: "SET_FINAL_COMMENT", comment })
+  }, [])
+
   const setSurveyType = useCallback(
     (t: SurveyType, options?: { pendingStudioType?: string | null }) => {
       if (state.school) {
+        if (t !== state.surveyType) {
+          surveyTypeBeforeConflictRef.current = state.surveyType
+        }
         const draft = loadDraft(state.school.id, t)
         dispatch({
           type: "SET_SURVEY_TYPE",
@@ -1989,7 +2325,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         })
       }
     },
-    [state.school],
+    [state.school, state.surveyType],
   )
 
   const setSchool = useCallback(
@@ -2190,6 +2526,8 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         traditionalStudioCopyOffer,
         submitSurvey,
         saveAndContinueToNextRoom,
+        submitCampusAssessment,
+        setFinalComment,
         peekSubmitValidation,
         setView,
         continueSurvey,
@@ -2202,6 +2540,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         currentRoomScore,
         canSubmit,
         submitHint,
+        canSubmitCampus,
+        submitCampusHint,
+        closeOutPending,
         currentResults,
         hasCustomWeights,
         setCategoryWeight,
@@ -2217,6 +2558,12 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         outdoorElementPins: state.session?.outdoorElementPins ?? [],
         placeOutdoorElementPin,
         removeOutdoorElementPin,
+        remoteConflictOpen,
+        remoteConflict,
+        dismissRemoteConflict,
+        closeRemoteConflict,
+        loadRemoteSurveyDraft,
+        pendingSyncCount,
       }}
     >
       {children}

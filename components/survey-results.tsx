@@ -158,6 +158,12 @@ export default function SurveyResults() {
                 {assessor.email ? ` · ${assessor.email}` : ""}
               </p>
             )}
+            {results?.session.finalComment?.trim() ? (
+              <p className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-700">
+                <span className="font-semibold text-slate-900">Final thoughts: </span>
+                {results.session.finalComment.trim()}
+              </p>
+            ) : null}
             <button
               type="button"
               onClick={() => setScoringInfoOpen(true)}

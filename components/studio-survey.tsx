@@ -5,6 +5,7 @@ import { useSurvey } from "@/lib/survey-store"
 import RoomSelector from "@/components/room-selector"
 import QuestionForm from "@/components/question-form"
 import SurveyActionBar from "@/components/survey-action-bar"
+import CloseOutPanel from "@/components/close-out-panel"
 import { PreWalkBanner } from "@/components/pre-walk-launcher"
 import TraditionalStudioCopyReviewModal from "@/components/traditional-studio-copy-review-modal"
 import OutdoorElementsMapModal from "@/components/outdoor-elements-map-modal"
@@ -22,7 +23,7 @@ function roomDisplayName(
 }
 
 export default function StudioSurvey() {
-  const { state, currentRoomSession } = useSurvey()
+  const { state, currentRoomSession, closeOutPending } = useSurvey()
   const [showFloorPlan, setShowFloorPlan] = useState(false)
   const [outdoorMapOpen, setOutdoorMapOpen] = useState(false)
   const [copyReviewModalOpen, setCopyReviewModalOpen] = useState(false)
@@ -74,6 +75,7 @@ export default function StudioSurvey() {
   }
 
   const isCloseOut = state.surveyType === "closeout"
+  const closeOutPendingCount = closeOutPending.roomIds.length
   const isOutdoor = state.surveyType === "outdoor"
   const needsSpaceType =
     state.surveyType === "administration" ||
@@ -136,7 +138,9 @@ export default function StudioSurvey() {
         <div className="flex flex-1 items-center justify-center px-6 py-8 text-center">
           <p className="text-sm text-[var(--color-muted-foreground)]">
             {isCloseOut
-              ? "Select a room with deferred questions to finish Close Out scoring."
+              ? closeOutPendingCount > 0
+                ? "Select a room below to answer deferred questions from other survey sections."
+                : "Review your campus Close Out summary below, add final thoughts, and submit when ready."
               : needsSpaceType
                 ? "Select a space type, then choose a room from the dropdown or floor plan to begin scoring."
                 : "Select a studio type, then choose a room from the dropdown or floor plan to begin scoring."}
@@ -144,7 +148,8 @@ export default function StudioSurvey() {
         </div>
       )}
 
-      <SurveyActionBar />
+      {isCloseOut && <CloseOutPanel />}
+      {!isCloseOut && <SurveyActionBar />}
     </>
   )
 }

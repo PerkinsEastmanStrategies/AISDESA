@@ -7,7 +7,7 @@ import {
 } from "@aisd/shared"
 import { getQaFinalization } from "@/lib/admin-qa"
 import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
-import { listAllDrafts, type PersistedSurveyDraft } from "@/lib/survey-persistence"
+import { listAllDrafts, loadDraft, type PersistedSurveyDraft } from "@/lib/survey-persistence"
 import { getSurveyTypeInfo } from "@/lib/survey-status"
 
 export type AdminSurveyStatus = "in_progress" | "complete" | "submitted"
@@ -160,6 +160,11 @@ export function buildAdminSchoolSummaries(
       const schoolClass = schoolClassById.get(school.id) ?? school.schoolClass ?? null
       const required = requiredSurveyTypes(schoolClass)
       const qa = getQaFinalization(school.id)
+      const closeOutDraft = loadDraft(school.id, "closeout")
+      const campusSubmittedAt =
+        closeOutDraft?.session.campusSubmittedAt ??
+        closeOutDraft?.lastSubmission?.session.campusSubmittedAt ??
+        null
 
       const cells = {} as Record<SurveyType, AdminMatrixCellStatus>
       for (const type of SURVEY_TYPES) {
@@ -212,6 +217,8 @@ export function buildAdminSchoolSummaries(
       let status: AdminSchoolStatus
       if (qa) {
         status = "finalized"
+      } else if (campusSubmittedAt) {
+        status = "complete"
       } else if (requiredSurveyCount === 0 || completedRequiredCount === 0) {
         status = schoolRecords.some((record) => record.status === "in_progress")
           ? "in_progress"

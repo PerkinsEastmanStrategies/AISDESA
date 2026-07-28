@@ -553,7 +553,7 @@ export function surveyTypeLabel(type: SurveyType): string {
   }
 }
 
-/** Primary survey modules shown in the sidebar (Close Out appears when used). */
+/** Primary survey modules shown in the sidebar (Close Out is always last). */
 export const SURVEY_TYPES: SurveyType[] = [...SURVEY_MODULE_ORDER]
 
 /** Survey types limited to middle and high schools (legacy helper — prefer table lookups). */
