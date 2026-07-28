@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { createPortal } from "react-dom"
-import { ChevronDown, ChevronLeft, ChevronRight, Info, Map as MapIcon, X } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Info, Map as MapIcon, X } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
 import SurveyFloorPlan from "@/components/survey-floor-plan"
 import { useFloorPlanDisplay } from "@/lib/use-floor-plan-display"
@@ -56,6 +56,7 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
   const [note2, setNote2] = useState("")
   const [typesPanelOpen, setTypesPanelOpen] = useState(true)
   const [detailsPanelOpen, setDetailsPanelOpen] = useState(true)
+  const [mobilePickerExpanded, setMobilePickerExpanded] = useState(false)
   const [showDesignIntentPopup, setShowDesignIntentPopup] = useState(false)
   const [roomUseMap, setRoomUseMap] = useState<RoomUseMap>(new Map())
 
@@ -76,7 +77,12 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
     if (!open) return
     setActiveSpaceType(null)
     setSelectedRoomId(null)
+    setMobilePickerExpanded(false)
   }, [open, selectedSurveyType])
+
+  useEffect(() => {
+    if (activeSpaceType) setMobilePickerExpanded(false)
+  }, [activeSpaceType])
 
   const spaceTypeOptions = useMemo(
     () => spaceTypeOptionsForPreWalk(selectedSurveyType, state.school?.schoolClass),
@@ -146,9 +152,17 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
 
   const handleRoomTap = (roomId: string) => {
     setSelectedRoomId(roomId)
+    setMobilePickerExpanded(false)
     if (activeSpaceType) {
       setPreWalkMapping(selectedSurveyType, roomId, activeSpaceType)
     }
+  }
+
+  const handleAssignActiveSpaceType = (dismissSheet = false) => {
+    if (!selectedRoomId || !activeSpaceType) return
+    setPreWalkMapping(selectedSurveyType, selectedRoomId, activeSpaceType)
+    updatePreWalkNotes(selectedSurveyType, selectedRoomId, note1, note2)
+    if (dismissSheet) setSelectedRoomId(null)
   }
 
   const handleSaveNotes = () => {
@@ -186,10 +200,14 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
     onClose()
   }
 
-  if (!open || typeof document === "undefined" || !surveyOptions.length) return null
-
   const spaceTypeNoun =
     selectedSurveyType === "studios" ? "studio type" : "space type"
+
+  const activeSpaceTypeColor = activeSpaceType
+    ? preWalkSpaceTypeColor(activeSpaceType, spaceTypeOptions)
+    : null
+
+  if (!open || typeof document === "undefined" || !surveyOptions.length) return null
 
   return createPortal(
     <div className="fixed inset-0 z-[200] flex flex-col bg-slate-900">
@@ -235,7 +253,7 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
       </header>
 
       {state.floorPlan && mapDisplayReady && !state.floorPlanLoading && (
-        <div className="relative z-30 shrink-0 border-b border-slate-700/40 bg-slate-900/95 px-3 py-2 backdrop-blur-sm">
+        <div className="relative z-30 hidden shrink-0 border-b border-slate-700/40 bg-slate-900/95 px-3 py-2 backdrop-blur-sm sm:block">
           <div className="flex gap-1 overflow-x-auto scrollbar-none">
             {state.floorPlan.levels.map((level) => (
               <button
@@ -301,7 +319,7 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
             Loading floor plan…
           </div>
         ) : (
-          <div className="absolute inset-0">
+          <div className="absolute inset-0 pb-16 sm:pb-0">
             <SurveyFloorPlan
               variant="prewalk"
               preWalkMappings={surveyMappings}
@@ -313,10 +331,10 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
           </div>
         )}
 
-        {/* Survey + space types — floating left panel */}
+        {/* Survey + space types — tablet/desktop left panel */}
         <div
           className={cn(
-            "pointer-events-none absolute left-0 top-0 z-20 flex max-h-full flex-col pt-2 transition-transform duration-200",
+            "pointer-events-none absolute left-0 top-0 z-20 hidden max-h-full flex-col pt-2 transition-transform duration-200 sm:flex",
             typesPanelOpen ? "translate-x-0" : "-translate-x-[calc(100%-2.5rem)]",
           )}
         >
@@ -423,11 +441,11 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
           </button>
         </div>
 
-        {/* Room details — floating right panel */}
+        {/* Room details — tablet/desktop right panel */}
         {selectedRoomId && (
           <div
             className={cn(
-              "pointer-events-none absolute right-0 top-0 z-20 flex max-h-full flex-col pt-2 transition-transform duration-200",
+              "pointer-events-none absolute right-0 top-0 z-20 hidden max-h-full flex-col pt-2 transition-transform duration-200 sm:flex",
               detailsPanelOpen ? "translate-x-0" : "translate-x-[calc(100%-2.5rem)]",
             )}
           >
@@ -563,9 +581,275 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
           </div>
         )}
 
-        {/* Active type hint — bottom center, only when no room selected */}
+        {/* Phone: bottom sheet — pick survey + space type */}
+        {!selectedRoomId && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 sm:hidden">
+            {mobilePickerExpanded && (
+              <button
+                type="button"
+                className="pointer-events-auto fixed inset-0 bg-slate-900/40"
+                onClick={() => setMobilePickerExpanded(false)}
+                aria-label="Close type picker"
+              />
+            )}
+            <div
+              className={cn(
+                "pointer-events-auto relative flex flex-col overflow-hidden rounded-t-2xl border border-b-0 border-slate-200/80 bg-white shadow-2xl transition-[max-height] duration-200",
+                mobilePickerExpanded ? "max-h-[min(58vh,28rem)]" : "max-h-[3.75rem]",
+              )}
+            >
+              <button
+                type="button"
+                onClick={() => setMobilePickerExpanded((expanded) => !expanded)}
+                className="flex shrink-0 items-center gap-2 px-3 py-3 text-left active:bg-slate-50"
+                aria-expanded={mobilePickerExpanded}
+              >
+                {activeSpaceTypeColor ? (
+                  <span
+                    className="inline-block h-3 w-3 shrink-0 rounded-sm"
+                    style={{ backgroundColor: activeSpaceTypeColor }}
+                    aria-hidden
+                  />
+                ) : (
+                  <span className="inline-block h-3 w-3 shrink-0 rounded-sm bg-slate-200" aria-hidden />
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-slate-900">
+                    {activeSpaceType ?? `Choose ${spaceTypeNoun}`}
+                  </span>
+                  <span className="block truncate text-[10px] text-slate-500">
+                    {surveyTypeLabel(selectedSurveyType)} · {displayLevel?.label ?? "Floor"} ·{" "}
+                    {mappedCountForSurvey} mapped
+                  </span>
+                </span>
+                {mobilePickerExpanded ? (
+                  <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+                ) : (
+                  <ChevronUp className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+                )}
+              </button>
+              {mobilePickerExpanded && (
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-slate-100">
+                  <div className="shrink-0 px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">
+                      Survey
+                    </p>
+                    <div className="relative mt-1">
+                      <select
+                        value={selectedSurveyType}
+                        onChange={(event) =>
+                          setSelectedSurveyType(event.target.value as SurveyType)
+                        }
+                        className="w-full appearance-none rounded-xl border border-slate-200 bg-white py-2 pl-3 pr-9 text-sm font-medium text-slate-900 outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-blue-100"
+                        aria-label="Select survey to map"
+                      >
+                        {surveyOptions.map((surveyType) => (
+                          <option key={surveyType} value={surveyType}>
+                            {surveyTypeLabel(surveyType)}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown
+                        className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                        aria-hidden
+                      />
+                    </div>
+                    {state.floorPlan && (
+                      <div className="mt-2 flex gap-1 overflow-x-auto scrollbar-none">
+                        {state.floorPlan.levels.map((level) => (
+                          <button
+                            key={level.id}
+                            type="button"
+                            onClick={() => setLevel(level.id)}
+                            className={cn(
+                              "shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-semibold",
+                              level.id === levelId
+                                ? "bg-[var(--color-primary)] text-white"
+                                : "bg-slate-100 text-slate-600 active:bg-slate-200",
+                            )}
+                          >
+                            {level.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+                    {spaceTypeOptions.map((type) => {
+                      const count = mappingCounts.get(type) ?? 0
+                      const active = activeSpaceType === type
+                      const color = preWalkSpaceTypeColor(type, spaceTypeOptions)
+                      return (
+                        <li key={type}>
+                          <button
+                            type="button"
+                            onClick={() => setActiveSpaceType(type)}
+                            className={cn(
+                              "mb-1 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-colors",
+                              active
+                                ? "bg-slate-900 text-white shadow-sm"
+                                : "text-slate-800 active:bg-slate-50",
+                            )}
+                          >
+                            <span
+                              className="inline-block h-3 w-3 shrink-0 rounded-sm"
+                              style={{ backgroundColor: color }}
+                              aria-hidden
+                            />
+                            <span className="min-w-0 flex-1 truncate font-medium">{type}</span>
+                            <span
+                              className={cn(
+                                "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600",
+                              )}
+                            >
+                              {count}
+                            </span>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Phone: bottom sheet — room details */}
+        {selectedRoomId && (
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-40 sm:hidden"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <div className="pointer-events-auto flex max-h-[min(72vh,32rem)] flex-col overflow-hidden rounded-t-2xl border border-b-0 border-slate-200/80 bg-white shadow-2xl">
+              <div className="flex items-start justify-between border-b border-slate-100 px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">
+                    Room details
+                  </p>
+                  <p className="mt-0.5 truncate text-sm font-semibold text-slate-900">
+                    {selectedRoom?.name ?? `Room ${selectedRoomId}`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRoomId(null)}
+                  className="rounded-lg p-1 text-slate-400 active:bg-slate-100"
+                  aria-label="Deselect room"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className="space-y-3 px-3 py-3">
+                  <p className="text-[11px] text-slate-500">Floor plan id: {selectedRoomId}</p>
+                  {selectedRoomUse && (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                        Room use
+                      </p>
+                      <p className="mt-0.5 text-sm font-medium text-slate-900">
+                        {selectedRoomUse.id}
+                      </p>
+                      {selectedRoomUse.useName &&
+                        selectedRoomUse.useName.toUpperCase() !==
+                          selectedRoomUse.id.toUpperCase() && (
+                          <p className="mt-0.5 text-xs leading-snug text-slate-600">
+                            {selectedRoomUse.useName}
+                          </p>
+                        )}
+                    </div>
+                  )}
+
+                  {selectedMapping ? (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                        Assigned type
+                      </p>
+                      <p className="mt-0.5 text-sm font-medium text-slate-900">
+                        {selectedMapping.spaceType}
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-slate-500">
+                        {surveyTypeLabel(selectedSurveyType)}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-amber-700">
+                      {activeSpaceType
+                        ? `Tap again to assign as “${activeSpaceType}”.`
+                        : "Select a space type from the picker, then tap this room."}
+                    </p>
+                  )}
+
+                  {activeSpaceType && (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        handleAssignActiveSpaceType(true)
+                      }}
+                      className="w-full rounded-xl border border-[var(--color-primary)] bg-blue-50 px-3 py-2 text-sm font-semibold text-[var(--color-primary)] active:bg-blue-100"
+                    >
+                      {selectedMapping?.spaceType === activeSpaceType
+                        ? "Done"
+                        : `Assign as ${activeSpaceType}`}
+                    </button>
+                  )}
+
+                  <div>
+                    <label
+                      htmlFor="prewalk-note-1-mobile"
+                      className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-400"
+                    >
+                      Note 1
+                    </label>
+                    <textarea
+                      id="prewalk-note-1-mobile"
+                      value={note1}
+                      onChange={(e) => setNote1(e.target.value)}
+                      onBlur={handleSaveNotes}
+                      rows={2}
+                      placeholder="Location, use, or condition notes…"
+                      className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="prewalk-note-2-mobile"
+                      className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-400"
+                    >
+                      Note 2
+                    </label>
+                    <textarea
+                      id="prewalk-note-2-mobile"
+                      value={note2}
+                      onChange={(e) => setNote2(e.target.value)}
+                      onBlur={handleSaveNotes}
+                      rows={2}
+                      placeholder="Optional second note…"
+                      className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+
+                  {selectedMapping && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveMapping}
+                      className="w-full rounded-xl px-3 py-2 text-sm font-medium text-red-600 active:bg-red-50"
+                    >
+                      Remove assignment
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Active type hint — tablet/desktop only */}
         {activeSpaceType && !selectedRoomId && (
-          <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900/90 px-4 py-2 text-center text-xs font-medium text-white shadow-lg backdrop-blur-sm">
+          <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 hidden max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900/90 px-4 py-2 text-center text-xs font-medium text-white shadow-lg backdrop-blur-sm sm:block">
             Tap rooms on the map to assign as{" "}
             <span className="font-semibold">{activeSpaceType}</span>
             {" · "}
@@ -574,7 +858,7 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
         )}
 
         {!activeSpaceType && !selectedRoomId && (
-          <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900/75 px-4 py-2 text-center text-xs text-white shadow-lg backdrop-blur-sm">
+          <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 hidden max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900/75 px-4 py-2 text-center text-xs text-white shadow-lg backdrop-blur-sm sm:block">
             Choose a survey and {spaceTypeNoun} on the left to begin mapping rooms
           </div>
         )}

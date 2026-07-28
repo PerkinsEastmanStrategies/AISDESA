@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw, X } from "lucide-react"
+import { Maximize2, Minimize2, Scan, ZoomIn, ZoomOut, RotateCcw, X } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
 import { useSelectRoomWithConfirm } from "@/components/use-select-room-with-confirm"
 import { overlayPointsForRoom, viewBoxString, type ParsedPlanRoom } from "@aisd/shared"
@@ -339,6 +339,13 @@ export default function SurveyFloorPlan({
     didPanRef.current = false
     setIsPanning(false)
   }, [])
+
+  const resetViewToExtent = useCallback(() => {
+    setZoom(DEFAULT_ZOOM)
+    setPan({ x: 0, y: 0 })
+    setRotation(0)
+    resetPointerState()
+  }, [setZoom, setPan, resetPointerState])
 
   useEffect(() => {
     if (photoGalleryMode || !state.school) {
@@ -691,7 +698,7 @@ export default function SurveyFloorPlan({
           photoGalleryMode
             ? "border-b border-[var(--color-border)] bg-white"
             : isPreWalk
-            ? "pointer-events-auto absolute left-[min(18rem,calc(100vw-2rem))] right-2 top-2 z-20 rounded-xl border border-slate-200/80 bg-white/95 shadow-md backdrop-blur-sm sm:left-[min(19rem,calc(100vw-2rem))]"
+            ? "pointer-events-auto absolute left-2 right-2 top-2 z-20 rounded-xl border border-slate-200/80 bg-white/95 shadow-md backdrop-blur-sm sm:left-[min(19rem,calc(100vw-2rem))] sm:right-2"
             : "border-b border-[var(--color-border)] bg-white",
         )}
         onPointerDown={(e) => e.stopPropagation()}
@@ -823,6 +830,15 @@ export default function SurveyFloorPlan({
           </button>
           <button
             type="button"
+            onClick={resetViewToExtent}
+            className="flex h-9 w-8 items-center justify-center rounded-lg active:bg-slate-100"
+            aria-label="Show full floor plan"
+            title="Show full floor plan"
+          >
+            <Scan className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
             onClick={rotateView}
             className="flex h-9 w-8 items-center justify-center rounded-lg active:bg-slate-100"
             aria-label="Rotate floor plan 90 degrees"
@@ -863,7 +879,7 @@ export default function SurveyFloorPlan({
       )}
 
       {!photoGalleryMode && isPreWalk && !resultsScoreMode && showNeighborhoods && neighborhoodLegend.length > 0 && (
-        <div className="pointer-events-none absolute bottom-3 left-[min(18rem,calc(100vw-2rem))] right-3 z-20 sm:left-[min(19rem,calc(100vw-2rem))]">
+        <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-20 hidden sm:absolute sm:left-[min(19rem,calc(100vw-2rem))] sm:right-3 sm:block">
           <NeighborhoodLegend
             items={neighborhoodLegend}
             className="pointer-events-auto rounded-xl border border-slate-200/80 bg-white/95 shadow-md backdrop-blur-sm"
@@ -874,8 +890,8 @@ export default function SurveyFloorPlan({
       {!photoGalleryMode && isPreWalk && !resultsScoreMode && showSizeDeviation && hasSizeDeviationColors && (
         <div
           className={cn(
-            "pointer-events-none absolute left-[min(18rem,calc(100vw-2rem))] right-3 z-20 sm:left-[min(19rem,calc(100vw-2rem))]",
-            showNeighborhoods && neighborhoodLegend.length > 0 ? "bottom-14" : "bottom-3",
+            "pointer-events-none absolute left-3 right-3 z-20 hidden sm:absolute sm:left-[min(19rem,calc(100vw-2rem))] sm:right-3 sm:block",
+            showNeighborhoods && neighborhoodLegend.length > 0 ? "bottom-14 sm:bottom-14" : "bottom-3",
           )}
         >
           <NeighborhoodLegend

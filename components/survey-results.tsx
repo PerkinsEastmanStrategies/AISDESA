@@ -177,14 +177,13 @@ export default function SurveyResults() {
   const tabs: {
     id: ResultsTab
     label: string
-    shortLabel: string
     icon: typeof Home
   }[] = [
-    { id: "campus", label: "Campus", shortLabel: "Campus", icon: Home },
-    { id: "room", label: "By Room", shortLabel: "Rooms", icon: LayoutGrid },
-    { id: "neighborhood", label: "By Neighborhood", shortLabel: "Hood", icon: Map },
-    { id: "compare", label: "Compare", shortLabel: "Compare", icon: GitCompare },
-    { id: "photos", label: "Photos", shortLabel: "Photos", icon: Camera },
+    { id: "campus", label: "Campus", icon: Home },
+    { id: "room", label: "By Room", icon: LayoutGrid },
+    { id: "neighborhood", label: "By Neighborhood", icon: Map },
+    { id: "compare", label: "Compare", icon: GitCompare },
+    { id: "photos", label: "Photos", icon: Camera },
   ]
 
   return (
@@ -234,8 +233,8 @@ export default function SurveyResults() {
           <OverallScoreDisplay score={snapshot.campusOverallScore} label="Campus ESA" />
         </div>
 
-        <div className="mt-4 flex gap-1.5 rounded-xl bg-slate-100 p-1.5">
-          {tabs.map(({ id, label, shortLabel, icon: Icon }) => (
+        <div className="mt-4 flex gap-1 rounded-xl bg-slate-100 p-1 sm:gap-1.5 sm:p-1.5">
+          {tabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
@@ -244,15 +243,14 @@ export default function SurveyResults() {
                 setRoomQuery("")
               }}
               className={cn(
-                "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-1.5 py-2.5 text-[11px] font-medium transition-colors sm:gap-1.5 sm:px-2.5 sm:text-xs",
+                "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-0.5 py-2 text-[10px] font-medium leading-tight transition-colors sm:flex-row sm:gap-1.5 sm:px-2.5 sm:py-2.5 sm:text-xs",
                 tab === id
                   ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80"
                   : "text-slate-500 active:text-slate-700",
               )}
             >
-              <Icon className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate sm:hidden">{shortLabel}</span>
-              <span className="hidden truncate sm:inline">{label}</span>
+              <Icon className="h-4 w-4 shrink-0 sm:h-3.5 sm:w-3.5" aria-hidden />
+              <span className="w-full text-center sm:w-auto sm:truncate">{label}</span>
             </button>
           ))}
         </div>
