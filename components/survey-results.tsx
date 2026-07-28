@@ -22,6 +22,7 @@ import ScoringHierarchy, {
   RoomScoreCards,
 } from "@/components/scoring-hierarchy"
 import FocusAreaComparisonPanel from "@/components/focus-area-comparison-panel"
+import CampusResultsInsights from "@/components/campus-results-insights"
 import { OverallScoreDisplay } from "@/components/score-display"
 import { cn } from "@/lib/utils"
 import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
@@ -41,10 +42,17 @@ export default function SurveyResults() {
     resultsInitialTab,
     clearResultsInitialTab,
     scoringDrafts,
+    remoteSchoolDraftsLoading,
+    remoteDraftsConfigured,
+    refreshRemoteSchoolDrafts,
   } = useSurvey()
   const [tab, setTab] = useState<ResultsTab>("campus")
   const [roomQuery, setRoomQuery] = useState("")
   const [scoringInfoOpen, setScoringInfoOpen] = useState(false)
+
+  useEffect(() => {
+    void refreshRemoteSchoolDrafts()
+  }, [refreshRemoteSchoolDrafts])
 
   useEffect(() => {
     if (!resultsInitialTab) return
@@ -53,9 +61,12 @@ export default function SurveyResults() {
     clearResultsInitialTab()
   }, [resultsInitialTab, clearResultsInitialTab])
 
+  const resultsSyncing = remoteDraftsConfigured && remoteSchoolDraftsLoading
+
   const results = currentResults ?? submission
   const plan = state.floorPlan
-  useFloorPlanDisplay(!!plan)
+  const showFloorPlanPanel = tab === "room" || tab === "neighborhood"
+  useFloorPlanDisplay((showFloorPlanPanel || tab === "photos") && !!plan)
   const assessor =
     state.assessorByType[state.surveyType] ??
     (results?.session.assessorName
@@ -70,23 +81,8 @@ export default function SurveyResults() {
       campusId: state.school.campusId,
       schoolClass: state.school.schoolClass,
       drafts: scoringDrafts,
-      liveSurveyType: state.surveyType,
-      liveSession: state.session,
-      liveRoomScoreDetails: state.roomScoreDetails,
-      liveNeighborhoodResolver: (roomId, roomSession) => {
-        const fromSession = roomSession.neighborhood?.trim()
-        if (fromSession) return fromSession
-        return state.allRooms.find((r) => r.id === roomId)?.neighborhood?.trim()
-      },
     })
-  }, [
-    state.school,
-    scoringDrafts,
-    state.surveyType,
-    state.session,
-    state.roomScoreDetails,
-    state.allRooms,
-  ])
+  }, [state.school, scoringDrafts])
 
   const roomScoreById = useMemo(() => {
     if (!snapshot) return {}
@@ -137,7 +133,21 @@ export default function SurveyResults() {
     )
   }, [snapshot, roomQuery])
 
-  if (!snapshot || !state.school) return null
+  if (!state.school) return null
+
+  if (!snapshot && resultsSyncing) {
+    return (
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 bg-gradient-to-b from-slate-200 to-slate-300/90 p-8 text-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-[var(--color-primary)]" />
+        <p className="text-sm font-medium text-slate-700">Loading campus scores from Supabase…</p>
+        <p className="max-w-sm text-xs text-slate-500">
+          Pulling all survey modules for this school so results match across devices.
+        </p>
+      </div>
+    )
+  }
+
+  if (!snapshot) return null
 
   const campus =
     results?.campus ??
@@ -201,6 +211,11 @@ export default function SurveyResults() {
                 {assessor.email ? ` · ${assessor.email}` : ""}
               </p>
             )}
+            {resultsSyncing && (
+              <p className="mt-2 text-xs font-medium text-[var(--color-primary)]">
+                Syncing latest scores from Supabase…
+              </p>
+            )}
             {results?.session.finalComment?.trim() ? (
               <p className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-700">
                 <span className="font-semibold text-slate-900">Final thoughts: </span>
@@ -259,24 +274,32 @@ export default function SurveyResults() {
           </div>
         ) : (
           <>
-            <div className="flex-1 p-3 lg:border-r lg:border-slate-200/80">
+            <div
+              className={cn(
+                "flex-1 p-3",
+                showFloorPlanPanel && plan && "lg:border-r lg:border-slate-200/80",
+              )}
+            >
           {tab === "campus" && (
-            <section className="rounded-2xl border border-slate-200/90 bg-slate-50/50 p-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-              <div className="mb-3 flex items-start justify-between gap-2 px-0.5">
-                <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
-                  Scoring focus areas
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setScoringInfoOpen(true)}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium text-slate-600 hover:bg-white hover:text-slate-900"
-                >
-                  <Info className="h-3 w-3" aria-hidden />
-                  Scoring info
-                </button>
-              </div>
-              <ScoringHierarchy snapshot={snapshot} />
-            </section>
+            <div className="space-y-4">
+              <CampusResultsInsights snapshot={snapshot} />
+              <section className="rounded-2xl border border-slate-200/90 bg-slate-50/50 p-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+                <div className="mb-3 flex items-start justify-between gap-2 px-0.5">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                    Detailed breakdown
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setScoringInfoOpen(true)}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium text-slate-600 hover:bg-white hover:text-slate-900"
+                  >
+                    <Info className="h-3 w-3" aria-hidden />
+                    Scoring info
+                  </button>
+                </div>
+                <ScoringHierarchy snapshot={snapshot} />
+              </section>
+            </div>
           )}
 
           {tab === "room" && (
@@ -323,7 +346,7 @@ export default function SurveyResults() {
           )}
             </div>
 
-            {plan && (
+            {showFloorPlanPanel && plan && (
               <div className="border-t border-slate-200/80 p-3 lg:w-[45%] lg:border-t-0 lg:pl-0">
                 <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
                   <SurveyFloorPlan

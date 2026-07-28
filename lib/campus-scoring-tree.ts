@@ -95,10 +95,15 @@ function roomDisplayName(roomId: string, roomSession: RoomSurveySession): string
   return roomSession.roomNumber?.trim() || roomId
 }
 
-function resolveSpaceType(roomSession: RoomSurveySession): string {
+function resolveSpaceType(
+  roomSession: RoomSurveySession,
+  surveyType: SurveyType,
+  schoolClass?: string | null,
+): string {
   const type = roomSession.roomType?.trim()
-  if (type && type !== "Studios") return type
-  return type || "Unassigned space type"
+  if (!type || type === "Studios") return type || "Unassigned space type"
+  const entry = lookupTableEntry(surveyType, type, schoolClass)
+  return entry?.spaceType ?? type
 }
 
 function scoreSessionRooms(
@@ -197,7 +202,7 @@ function buildAssessedRoom(
 ): AssessedRoomRecord | null {
   if (!roomHasAssessment(detail)) return null
 
-  const spaceType = resolveSpaceType(roomSession)
+  const spaceType = resolveSpaceType(roomSession, surveyType, schoolClass)
   const focusAreaId = scoringFocusAreaForRoom(surveyType, roomSession.roomType, schoolClass)
   if (!focusAreaId) return null
 

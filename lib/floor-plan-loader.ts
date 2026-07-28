@@ -18,6 +18,7 @@ import {
 import {
   evictFloorPlanSvgFromMemoryCache,
   fetchFloorPlanSvgByFilename,
+  needsInlineFloorPlanSvg,
   preferMobileFloorPlan,
   prefetchFloorPlanSvgs,
 } from "@/lib/floor-plans"
@@ -43,6 +44,61 @@ const DEFAULT_BUILDING_SQFT = 150_000
 const STUB_SVG_MAX_BYTES = 1000
 
 const blobUrlsBySchool = new Map<string, string[]>()
+const displaySvgTextByKey = new Map<string, string>()
+
+/** Sentinel `src` when SVG markup is cached for inline rendering (WebKit / iPad). */
+export const INLINE_FLOOR_PLAN_SRC = "aisd:inline-floor-plan"
+
+export function isInlineFloorPlanSrc(src: string | undefined | null): boolean {
+  return src === INLINE_FLOOR_PLAN_SRC
+}
+
+function displaySvgKey(schoolId: string, levelId: string): string {
+  return `${schoolId}::${levelId}`
+}
+
+function cacheFloorPlanDisplaySvg(schoolId: string, levelId: string, svgText: string): void {
+  displaySvgTextByKey.set(displaySvgKey(schoolId, levelId), svgText)
+}
+
+export function getFloorPlanDisplaySvg(schoolId: string, levelId: string): string | null {
+  return displaySvgTextByKey.get(displaySvgKey(schoolId, levelId)) ?? null
+}
+
+/** Inner markup of a prepared floor-plan SVG (without the root <svg> wrapper). */
+export function extractSvgInnerMarkup(svgText: string): string {
+  if (typeof DOMParser === "undefined") return ""
+  try {
+    const doc = new DOMParser().parseFromString(svgText, "image/svg+xml")
+    const svg = doc.documentElement
+    if (!svg || svg.tagName.toLowerCase() !== "svg") return ""
+    if (doc.querySelector("parsererror")) return ""
+    return svg.innerHTML
+  } catch {
+    return ""
+  }
+}
+
+function clearFloorPlanDisplaySvgCache(schoolId: string): void {
+  const prefix = `${schoolId}::`
+  for (const key of displaySvgTextByKey.keys()) {
+    if (key.startsWith(prefix)) displaySvgTextByKey.delete(key)
+  }
+}
+
+function createFloorPlanLevelSrc(
+  schoolId: string,
+  levelId: string,
+  svgText: string,
+): string {
+  if (needsInlineFloorPlanSvg()) {
+    cacheFloorPlanDisplaySvg(schoolId, levelId, svgText)
+    return INLINE_FLOOR_PLAN_SRC
+  }
+  const blobUrl = URL.createObjectURL(new Blob([svgText], { type: "image/svg+xml" }))
+  trackBlobUrl(schoolId, blobUrl)
+  return blobUrl
+}
 
 /** True for empty upload stubs (e.g. Bryker/Baldwin L1) that still fetch as HTTP 200. */
 export function isEmptyOrStubFloorPlanSvg(svgText: string): boolean {
@@ -62,6 +118,7 @@ export function revokeFloorPlanBlobUrls(schoolId: string): void {
   const urls = blobUrlsBySchool.get(schoolId) ?? []
   for (const url of urls) URL.revokeObjectURL(url)
   blobUrlsBySchool.delete(schoolId)
+  clearFloorPlanDisplaySvgCache(schoolId)
 }
 
 export function isLivelySchool(school: AisdSchoolOption): boolean {
@@ -169,14 +226,13 @@ async function loadLevel(
   if (!prepared) return null
 
   const { svgText, viewBox } = prepared
-  const blobUrl = URL.createObjectURL(new Blob([svgText], { type: "image/svg+xml" }))
-  trackBlobUrl(schoolId, blobUrl)
+  const src = createFloorPlanLevelSrc(schoolId, floor.id, svgText)
 
   return {
     level: {
       id: floor.id,
       label: floor.fullLabel,
-      src: blobUrl,
+      src,
       viewBox,
     },
     rooms: parseRooms ? parsePlanRoomsFromSvg(svgText, floor.id) : [],
@@ -256,14 +312,11 @@ async function loadLivelyFloorPlanLevelDisplay(
     const prepared = prepareDistrictFloorPlanSvg(raw)
     if (!prepared) return null
 
-    const blobUrl = URL.createObjectURL(
-      new Blob([prepared.svgText], { type: "image/svg+xml" }),
-    )
-    trackBlobUrl(schoolId, blobUrl)
+    const src = createFloorPlanLevelSrc(schoolId, levelId, prepared.svgText)
 
     return {
       ...level,
-      src: blobUrl,
+      src,
       viewBox: prepared.viewBox,
     }
   } catch {
@@ -298,14 +351,11 @@ async function loadLivelyFloorPlan(
       const prepared = prepareDistrictFloorPlanSvg(raw)
       if (!prepared) continue
 
-      const blobUrl = URL.createObjectURL(
-        new Blob([prepared.svgText], { type: "image/svg+xml" }),
-      )
-      trackBlobUrl(school.id, blobUrl)
+      const src = createFloorPlanLevelSrc(school.id, level.id, prepared.svgText)
 
       const styledLevel = {
         ...level,
-        src: blobUrl,
+        src,
         viewBox: prepared.viewBox,
       }
       const rooms = parseRoomsFromSvg(prepared.svgText, level.id)

@@ -30,6 +30,7 @@ import { seedAdminEsDemos } from "@/lib/seed-admin-es-demos"
 import { seedAllisonEsFinalizedDemo } from "@/lib/seed-allison-es-demo"
 import { seedDavisEsQaDemo } from "@/lib/seed-davis-es-demo"
 import { clearAllFieldSurveyDataExceptDemos } from "@/lib/clear-field-survey-data"
+import { hydrateLocalDraftsFromRemote } from "@/lib/school-draft-merge"
 import { pullAllRemoteDraftsClient } from "@/lib/survey-remote-sync"
 import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
 import QaSchoolReviewModal from "@/components/qa-school-review-modal"
@@ -468,6 +469,7 @@ export default function AdminDashboard() {
     try {
       const remote = await pullAllRemoteDraftsClient()
       if (remote.configured) {
+        hydrateLocalDraftsFromRemote(remote.drafts)
         setRemoteDraftsConfigured(true)
         setRemoteDrafts(remote.drafts)
         setRecords(buildAdminSurveyRecords(schoolClassById, remote.drafts))

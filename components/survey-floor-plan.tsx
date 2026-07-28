@@ -32,6 +32,12 @@ import {
 import { programTypeFillColor, programTypeLegendColors } from "@/lib/program-type-colors"
 import NeighborhoodLegend from "@/components/neighborhood-legend"
 import { cn, scoreFillRgba, scoreStrokeRgba } from "@/lib/utils"
+import {
+  extractSvgInnerMarkup,
+  getFloorPlanDisplaySvg,
+  isInlineFloorPlanSrc,
+} from "@/lib/floor-plan-loader"
+import { needsInlineFloorPlanSvg } from "@/lib/floor-plans"
 import { neighborhoodGroupId, NEIGHBORHOOD_OPTIONS } from "@aisd/shared"
 
 function colorWithAlpha(color: string, alpha: number): string {
@@ -228,6 +234,17 @@ export default function SurveyFloorPlan({
   const plan = state.floorPlan
   const levelId = state.selectedLevelId ?? plan?.defaultLevelId ?? "floor-1"
   const level = plan?.levels.find((l) => l.id === levelId)
+
+  const inlinePlanMarkup = useMemo(() => {
+    if (!needsInlineFloorPlanSvg() || !state.school || !levelId) return null
+    const svgText = getFloorPlanDisplaySvg(state.school.id, levelId)
+    if (!svgText) return null
+    return extractSvgInnerMarkup(svgText)
+  }, [state.school?.id, levelId, level?.src])
+
+  const planBackdropReady =
+    Boolean(level?.src) &&
+    (!isInlineFloorPlanSrc(level?.src) || Boolean(inlinePlanMarkup))
 
   useEffect(() => {
     if (!levelId || !plan) return
@@ -552,7 +569,7 @@ export default function SurveyFloorPlan({
     [resultsScoreMode],
   )
 
-  if (state.floorPlanLoading || floorPlanDisplayLoading || !level?.src) {
+  if (state.floorPlanLoading || floorPlanDisplayLoading || !planBackdropReady) {
     return (
       <div className="flex h-[min(42vh,360px)] items-center justify-center bg-white text-sm text-[var(--color-muted-foreground)] md:h-[min(50vh,420px)]">
         Loading floor plan…
@@ -833,16 +850,24 @@ export default function SurveyFloorPlan({
               isPanning ? "cursor-grabbing" : "cursor-grab",
             )}
           >
-            <image
-              href={level.src}
-              x={vb.x}
-              y={vb.y}
-              width={vb.w}
-              height={vb.h}
-              // Fill the viewBox rect exactly so overlay polygons align with the image.
-              preserveAspectRatio="none"
-              pointerEvents="none"
-            />
+            {inlinePlanMarkup ? (
+              <g
+                aria-hidden
+                pointerEvents="none"
+                dangerouslySetInnerHTML={{ __html: inlinePlanMarkup }}
+              />
+            ) : (
+              <image
+                href={level.src}
+                x={vb.x}
+                y={vb.y}
+                width={vb.w}
+                height={vb.h}
+                // Fill the viewBox rect exactly so overlay polygons align with the image.
+                preserveAspectRatio="none"
+                pointerEvents="none"
+              />
+            )}
             {visibleLevelRooms.map((room) => {
               const photoSelected = photoRoomSelectionMatches(
                 room,

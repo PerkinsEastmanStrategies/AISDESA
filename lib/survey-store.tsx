@@ -122,6 +122,10 @@ import {
   schoolScoredRoomCount,
   type SubmittedRoomAssessment,
 } from "@/lib/school-assessment-index"
+import {
+  hydrateLocalDraftsFromRemote,
+  mergeSchoolDrafts,
+} from "@/lib/school-draft-merge"
 
 export type SurveyView = "landing" | "admin" | "survey" | "results"
 
@@ -2023,6 +2027,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     try {
       const result = await pullRemoteDraftsForSchoolClient(state.school.id)
       if (result.configured) {
+        hydrateLocalDraftsFromRemote(result.drafts, state.school.id)
         setRemoteDraftsConfigured(true)
         setRemoteSchoolDrafts(result.drafts)
       } else {
@@ -2263,11 +2268,13 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const surveyedRooms = useMemo(() => buildScoredRoomEntries(state), [state])
 
   const scoringDrafts = useMemo(() => {
-    if (remoteDraftsConfigured && remoteSchoolDrafts !== null) {
-      return remoteSchoolDrafts
-    }
     if (!state.school) return undefined
-    return loadDraftsForSchool(state.school.id)
+    const local = loadDraftsForSchool(state.school.id)
+    if (!remoteDraftsConfigured || remoteSchoolDrafts === null) {
+      return local.length ? local : undefined
+    }
+    const merged = mergeSchoolDrafts(local, remoteSchoolDrafts)
+    return merged.length ? merged : undefined
   }, [remoteDraftsConfigured, remoteSchoolDrafts, state.school?.id])
 
   const campusSnapshotInput = useMemo(
@@ -2279,18 +2286,23 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
             campusId: state.school.campusId,
             schoolClass: state.school.schoolClass,
             drafts: scoringDrafts,
-            liveSurveyType: state.surveyType,
-            liveSession: state.session,
-            liveRoomScoreDetails: state.roomScoreDetails,
-            liveNeighborhoodResolver: (roomId: string, roomSession: RoomSurveySession) => {
-              const fromSession = roomSession.neighborhood?.trim()
-              if (fromSession) return fromSession
-              return state.allRooms.find((r) => r.id === roomId)?.neighborhood?.trim()
-            },
+            ...(state.view === "results"
+              ? {}
+              : {
+                  liveSurveyType: state.surveyType,
+                  liveSession: state.session,
+                  liveRoomScoreDetails: state.roomScoreDetails,
+                  liveNeighborhoodResolver: (roomId: string, roomSession: RoomSurveySession) => {
+                    const fromSession = roomSession.neighborhood?.trim()
+                    if (fromSession) return fromSession
+                    return state.allRooms.find((r) => r.id === roomId)?.neighborhood?.trim()
+                  },
+                }),
           }
         : null,
     [
       state.school,
+      state.view,
       scoringDrafts,
       state.surveyType,
       state.session,
@@ -2680,8 +2692,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     (tab: "campus" | "room" | "neighborhood" | "compare" | "photos" = "campus") => {
       setResultsInitialTab(tab)
       dispatch({ type: "SET_VIEW", view: "results" })
+      void refreshRemoteSchoolDrafts()
     },
-    [],
+    [refreshRemoteSchoolDrafts],
   )
   const clearResultsInitialTab = useCallback(() => setResultsInitialTab(null), [])
   const continueSurvey = useCallback(() => dispatch({ type: "CONTINUE_SURVEY" }), [])
@@ -2753,6 +2766,8 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     state.session,
     state.allRooms,
     state.submission,
+    remoteSchoolDrafts,
+    remoteDraftsConfigured,
   ])
 
   return (

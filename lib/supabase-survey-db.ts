@@ -115,6 +115,7 @@ function normalizeEmail(email: string | null | undefined): string {
 }
 
 function sessionHasProgress(session: SurveySession): boolean {
+  if ((session.outdoorElementPins?.length ?? 0) > 0) return true
   return Object.values(session.rooms).some(
     (room) =>
       room.responses.length > 0 ||
@@ -621,7 +622,9 @@ function buildDraftFromSessionRow(
     : null
 
   if (!sessionHasProgress(surveySession) && !lastSubmission) {
-    return null
+    if (!sessionRow.submitted_at && !sessionRow.campus_submitted_at) {
+      return null
+    }
   }
 
   return {

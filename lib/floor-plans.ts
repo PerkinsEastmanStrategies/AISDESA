@@ -31,6 +31,18 @@ export function preferMobileFloorPlan(): boolean {
   return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 }
 
+/**
+ * Safari / iPad WebKit cannot paint blob: (or sometimes nested) URLs in SVG <image>
+ * and shows a large blue "?" placeholder instead. Inline the SVG markup on those clients.
+ */
+export function needsInlineFloorPlanSvg(): boolean {
+  if (typeof window === "undefined") return false
+  const ua = navigator.userAgent
+  const isTouchMac = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1
+  if (/iPad|iPhone|iPod/i.test(ua) || isTouchMac) return true
+  return /AppleWebKit/i.test(ua) && !/CriOS|FxiOS|EdgiOS|Chrome/i.test(ua)
+}
+
 const svgCache = new Map<string, string>()
 const svgInflight = new Map<string, Promise<string | null>>()
 const FLOOR_PLAN_CACHE_NAME = "aisd-floor-plans-v1"
