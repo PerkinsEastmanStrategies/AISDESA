@@ -471,49 +471,16 @@ function QuestionField({
   const answered = isQuestionFullyAnswered(question, { value: value ?? "", comment })
   const noteRequired = responseRequiresUnableToAssessNote(value)
   const multiSelect = isMultiSelectQuestionType(question.questionType)
-  // Auto-answered: stay expanded so the selected option tile is visible.
-  const [collapsed, setCollapsed] = useState(
-    () => answered && !highlighted && !noteRequired && !autoAnswered,
-  )
-  const [userExpanded, setUserExpanded] = useState(autoAnswered)
-  const wasAnsweredRef = useRef(answered)
-  const prevCollapsedRef = useRef(collapsed)
+  const [collapsed, setCollapsed] = useState(false)
+  const prevCollapsedRef = useRef(false)
 
   useEffect(() => {
-    if (autoAnswered) {
+    if (autoAnswered || highlighted || noteRequired || !answered) {
       setCollapsed(false)
-      setUserExpanded(true)
     }
-  }, [autoAnswered, value])
+  }, [autoAnswered, highlighted, noteRequired, answered, value])
 
-  useEffect(() => {
-    if (highlighted || noteRequired) {
-      setCollapsed(false)
-      setUserExpanded(true)
-    }
-  }, [highlighted, noteRequired])
-
-  // Single-select: collapse shortly after the user answers.
-  // Multi-select stays open so they can pick more options; scroll-away still collapses those.
-  // Keep open while a required unable-to-assess note is still missing.
-  // Auto-answered questions stay open so the forced selection remains visible.
-  useEffect(() => {
-    const justAnswered = answered && !wasAnsweredRef.current
-    wasAnsweredRef.current = answered
-
-    if (!answered || noteRequired) {
-      setCollapsed(false)
-      if (noteRequired) setUserExpanded(true)
-      if (!answered) setUserExpanded(false)
-      return
-    }
-    if (autoAnswered || !justAnswered || highlighted || userExpanded || multiSelect) return
-
-    const timer = window.setTimeout(() => setCollapsed(true), 400)
-    return () => window.clearTimeout(timer)
-  }, [answered, highlighted, userExpanded, multiSelect, value, noteRequired, autoAnswered])
-
-  // When a question collapses, keep following content inside the assessor's visible window
+  // When a question is manually collapsed, keep following content inside the scroll window.
   useEffect(() => {
     const justCollapsed = collapsed && !prevCollapsedRef.current
     prevCollapsedRef.current = collapsed
@@ -522,49 +489,17 @@ function QuestionField({
     const el = rootRef.current
     if (!el) return
 
-    // Wait a frame so the shorter collapsed layout is measured
     const frame = window.requestAnimationFrame(() => keepWithinScrollWindow(el))
     return () => window.cancelAnimationFrame(frame)
   }, [collapsed])
 
-  // Also collapse answered questions once they scroll mostly out of view
-  useEffect(() => {
-    const el = rootRef.current
-    if (!el) return
-
-    const scrollRoot = el.closest(".overflow-y-auto") as Element | null
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!answered) {
-          setCollapsed(false)
-          return
-        }
-        if (autoAnswered) return
-        if (!entry.isIntersecting || entry.intersectionRatio < 0.35) {
-          setCollapsed(true)
-          setUserExpanded(false)
-        }
-      },
-      {
-        root: scrollRoot,
-        threshold: [0, 0.35, 0.6, 1],
-        rootMargin: "-8% 0px -8% 0px",
-      },
-    )
-
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [answered, autoAnswered])
-
   const expand = useCallback(() => {
     setCollapsed(false)
-    setUserExpanded(true)
   }, [])
 
   const collapse = useCallback(() => {
     if (answered && !autoAnswered) {
       setCollapsed(true)
-      setUserExpanded(false)
     }
   }, [answered, autoAnswered])
 

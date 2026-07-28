@@ -7,8 +7,10 @@ import type { Feature, FeatureCollection } from "geojson"
 import type { AisdSchoolOption } from "@aisd/shared"
 import {
   loadOutdoorAssetsGeoJSON,
-  outdoorAssetLabel,
+  outdoorAssetLegendItems,
+  outdoorAssetPopupHtml,
   outdoorAssetsForSchool,
+  type OutdoorAssetLegendItem,
 } from "@/lib/outdoor-assets"
 import {
   outdoorElementPinsToGeoJSON,
@@ -85,6 +87,7 @@ export default function OutdoorElementsMapModal({
   const [assetsLoading, setAssetsLoading] = useState(false)
   const [assetsError, setAssetsError] = useState<string | null>(null)
   const [assetCount, setAssetCount] = useState(0)
+  const [assetLegend, setAssetLegend] = useState<OutdoorAssetLegendItem[]>([])
   const [geoStatus, setGeoStatus] = useState<"idle" | "active" | "denied" | "unavailable">("idle")
   const [userCoords, setUserCoords] = useState<{ lng: number; lat: number } | null>(null)
   const [markingMode, setMarkingMode] = useState(true)
@@ -104,6 +107,7 @@ export default function OutdoorElementsMapModal({
       setMapError(null)
       setSelectedElementType(null)
       setSelectedPinId(null)
+      setAssetLegend([])
     }
   }, [open])
 
@@ -314,8 +318,8 @@ export default function OutdoorElementsMapModal({
           source: OUTDOOR_SOURCE_ID,
           filter: ["match", ["geometry-type"], ["Point", "MultiPoint"], true, false],
           paint: {
-            "circle-radius": 8,
-            "circle-color": "#f59e0b",
+            "circle-radius": 9,
+            "circle-color": ["coalesce", ["get", "color"], "#f59e0b"],
             "circle-stroke-width": 2,
             "circle-stroke-color": "#ffffff",
           },
@@ -343,7 +347,7 @@ export default function OutdoorElementsMapModal({
           if (!feature) return
           popupRef.current
             ?.setLngLat(event.lngLat)
-            .setHTML(`<strong>${outdoorAssetLabel(feature)}</strong>`)
+            .setHTML(outdoorAssetPopupHtml(feature))
             .addTo(map)
         }
 
@@ -416,6 +420,7 @@ export default function OutdoorElementsMapModal({
         if (cancelled) return
         const schoolAssets = outdoorAssetsForSchool(allAssets, school)
         setAssetCount(schoolAssets.features.length)
+        setAssetLegend(outdoorAssetLegendItems(schoolAssets))
 
         const source = mapRef.current?.getSource(OUTDOOR_SOURCE_ID) as import("mapbox-gl").GeoJSONSource | undefined
         source?.setData(schoolAssets)
@@ -424,6 +429,7 @@ export default function OutdoorElementsMapModal({
         if (!cancelled) {
           setAssetsError(error instanceof Error ? error.message : "Could not load outdoor assets")
           setAssetCount(0)
+          setAssetLegend([])
         }
       } finally {
         if (!cancelled) setAssetsLoading(false)
@@ -592,22 +598,37 @@ export default function OutdoorElementsMapModal({
                     Your location
                   </li>
                   <li className="flex items-center gap-2">
-                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-white" />
-                    Reference assets
-                  </li>
-                  <li className="flex items-center gap-2">
                     <span className="inline-block h-2.5 w-2.5 rounded-full bg-fuchsia-500 ring-2 ring-white" />
                     Your placed pins
                   </li>
                 </ul>
+                {assetLegend.length > 0 && (
+                  <div className="mt-2 max-h-36 space-y-1 overflow-y-auto border-t border-slate-700/80 pt-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                      Asset types
+                    </p>
+                    {assetLegend.map((item) => (
+                      <div key={item.category} className="flex items-center justify-between gap-2">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span
+                            className="inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <span className="truncate">{item.category}</span>
+                        </span>
+                        <span className="shrink-0 tabular-nums text-slate-400">{item.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <p className="mt-2 text-slate-400">
                   {assetsLoading
                     ? "Loading reference assets…"
                     : assetsError
                       ? assetsError
                       : assetCount > 0
-                        ? `${assetCount} reference asset${assetCount === 1 ? "" : "s"} for this campus`
-                        : "No reference assets loaded yet for this campus"}
+                        ? `${assetCount} mapped asset${assetCount === 1 ? "" : "s"} for this campus`
+                        : "No mapped assets for this campus yet"}
                 </p>
                 {geoStatus === "denied" && (
                   <p className="mt-1 text-amber-300">Location access denied — enable it to see your position.</p>
