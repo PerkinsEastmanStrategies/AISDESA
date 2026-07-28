@@ -81,6 +81,26 @@ export function floorPlanSvgDataUrl(svgText: string): string {
   }
 }
 
+/**
+ * Inner SVG markup for inline rendering (vector-sharp at any zoom).
+ * Strips <style> blocks so plan CSS cannot override room overlay labels.
+ */
+export function floorPlanSvgInlineFragment(svgText: string): string | null {
+  if (typeof DOMParser === "undefined") return null
+  try {
+    const doc = new DOMParser().parseFromString(svgText, "image/svg+xml")
+    if (doc.querySelector("parsererror")) return null
+    const svg = doc.documentElement
+    if (!svg || svg.tagName.toLowerCase() !== "svg") return null
+    for (const styleEl of Array.from(svg.querySelectorAll("style"))) {
+      styleEl.remove()
+    }
+    return svg.innerHTML.trim() || null
+  } catch {
+    return null
+  }
+}
+
 function clearFloorPlanDisplaySvgCache(schoolId: string): void {
   const prefix = `${schoolId}::`
   for (const key of displaySvgTextByKey.keys()) {
@@ -93,8 +113,8 @@ function createFloorPlanLevelSrc(
   levelId: string,
   svgText: string,
 ): string {
+  cacheFloorPlanDisplaySvg(schoolId, levelId, svgText)
   if (needsInlineFloorPlanSvg()) {
-    cacheFloorPlanDisplaySvg(schoolId, levelId, svgText)
     return INLINE_FLOOR_PLAN_SRC
   }
   const blobUrl = URL.createObjectURL(new Blob([svgText], { type: "image/svg+xml" }))

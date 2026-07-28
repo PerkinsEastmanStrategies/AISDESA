@@ -34,6 +34,7 @@ import NeighborhoodLegend from "@/components/neighborhood-legend"
 import { cn, scoreFillRgba, scoreStrokeRgba } from "@/lib/utils"
 import {
   floorPlanSvgDataUrl,
+  floorPlanSvgInlineFragment,
   getFloorPlanDisplaySvg,
   hasFloorPlanDisplayCache,
   isInlineFloorPlanSrc,
@@ -62,6 +63,30 @@ const ZOOM_BUTTON_STEP = 0.5
 
 function clampZoom(value: number, min: number = MIN_ZOOM): number {
   return Math.min(MAX_ZOOM, Math.max(min, value))
+}
+
+/** Screen pixels → SVG units for a viewBox fitted with preserveAspectRatio meet. */
+function svgMeetScale(
+  viewBox: { w: number; h: number },
+  viewport: { width: number; height: number },
+): number {
+  if (viewport.width <= 0 || viewport.height <= 0) return 1
+  return Math.min(viewport.width / viewBox.w, viewport.height / viewBox.h)
+}
+
+function floorPlanSceneTransform(
+  viewBox: { x: number; y: number; w: number; h: number },
+  pan: { x: number; y: number },
+  zoom: number,
+  rotation: number,
+  viewport: { width: number; height: number },
+): string {
+  const meet = svgMeetScale(viewBox, viewport)
+  const panSvgX = pan.x / meet
+  const panSvgY = pan.y / meet
+  const cx = viewBox.x + viewBox.w / 2
+  const cy = viewBox.y + viewBox.h / 2
+  return `translate(${panSvgX} ${panSvgY}) translate(${cx} ${cy}) rotate(${rotation}) scale(${zoom}) translate(${-cx} ${-cy})`
 }
 
 function pointerDistance(pointers: Map<number, { x: number; y: number }>): number {
@@ -212,6 +237,7 @@ export default function SurveyFloorPlan({
   const didPanRef = useRef(false)
   const isPanningRef = useRef(false)
   const touchPinchActiveRef = useRef(false)
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
 
   useEffect(() => {
     isPanningRef.current = isPanning
@@ -244,6 +270,13 @@ export default function SurveyFloorPlan({
 
   const planImageHref = webKitPlanImageUrl ?? level?.src ?? ""
 
+  const planInlineMarkup = useMemo(() => {
+    if (!state.school || !levelId) return null
+    const svgText = getFloorPlanDisplaySvg(state.school.id, levelId)
+    if (!svgText) return null
+    return floorPlanSvgInlineFragment(svgText)
+  }, [state.school?.id, levelId, webKitPlanImageUrl])
+
   const planBackdropReady =
     Boolean(level?.src) &&
     (!isInlineFloorPlanSrc(level?.src) || Boolean(webKitPlanImageUrl))
@@ -256,6 +289,25 @@ export default function SurveyFloorPlan({
     }
     void ensureFloorPlanLevel(levelId)
   }, [levelId, plan, level?.src, state.school, ensureFloorPlanLevel])
+
+  useEffect(() => {
+    const el = viewportRef.current
+    if (!el) return
+
+    const updateSize = () => {
+      setViewportSize({ width: el.clientWidth, height: el.clientHeight })
+    }
+    updateSize()
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateSize)
+      return () => window.removeEventListener("resize", updateSize)
+    }
+
+    const observer = new ResizeObserver(updateSize)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [levelId, expanded, panelVisible, variant])
 
   const handleRoomSelect = useCallback(
     (roomId: string) => {
@@ -587,6 +639,7 @@ export default function SurveyFloorPlan({
   const vb = level.viewBox
   const vbStr = viewBoxString(vb)
   const viewBoxArea = vb.w * vb.h
+  const sceneTransform = floorPlanSceneTransform(vb, pan, zoom, rotation, viewportSize)
   const levelNeighborhoodLabels = levelRooms
     .map((room) => resolveRoomNeighborhood(room))
     .filter((n): n is string => Boolean(n))
@@ -841,30 +894,34 @@ export default function SurveyFloorPlan({
         )}
         style={{ touchAction: "none" }}
       >
-        <div
-          className="absolute inset-0 origin-center will-change-transform"
-          style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) rotate(${rotation}deg) scale(${zoom})`,
-          }}
+        <svg
+          viewBox={vbStr}
+          preserveAspectRatio="xMidYMid meet"
+          shapeRendering="geometricPrecision"
+          textRendering="geometricPrecision"
+          className={cn(
+            "h-full w-full",
+            isPanning ? "cursor-grabbing" : "cursor-grab",
+          )}
         >
-          <svg
-            viewBox={vbStr}
-            preserveAspectRatio="xMidYMid meet"
-            className={cn(
-              "h-full w-full",
-              isPanning ? "cursor-grabbing" : "cursor-grab",
+          <g transform={sceneTransform}>
+            {planInlineMarkup ? (
+              <g
+                aria-hidden
+                pointerEvents="none"
+                dangerouslySetInnerHTML={{ __html: planInlineMarkup }}
+              />
+            ) : (
+              <image
+                href={planImageHref}
+                x={vb.x}
+                y={vb.y}
+                width={vb.w}
+                height={vb.h}
+                preserveAspectRatio="none"
+                pointerEvents="none"
+              />
             )}
-          >
-            <image
-              href={planImageHref}
-              x={vb.x}
-              y={vb.y}
-              width={vb.w}
-              height={vb.h}
-              // Fill the viewBox rect exactly so overlay polygons align with the image.
-              preserveAspectRatio="none"
-              pointerEvents="none"
-            />
             {visibleLevelRooms.map((room) => {
               const photoSelected = photoRoomSelectionMatches(
                 room,
@@ -944,8 +1001,8 @@ export default function SurveyFloorPlan({
                 })}
               </g>
             )}
-          </svg>
-        </div>
+          </g>
+        </svg>
       </div>
 
       {!photoGalleryMode && showRoomUse && programTypeLegend.length > 0 && (
