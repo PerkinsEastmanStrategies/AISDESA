@@ -60,9 +60,9 @@ import {
   loadAssessors,
   loadDraft,
   loadDraftsForSchool,
+  loadResumableDraft,
   saveAssessors,
   saveDraft,
-  shouldContinueSurveyVisit,
   markActiveVisit,
   hasActiveVisit,
   type AssessorBySurveyType,
@@ -78,11 +78,18 @@ import {
   assessorFromSession,
   assessorSessionFields,
   isAssessorRegistered,
+  resolveCampusAssessor,
+  sessionHasRegisteredAssessor,
+  withCampusAssessorOnSession,
 } from "@/lib/assessor"
 import { getSurveyTypeInfo, type SurveyTypeInfo } from "@/lib/survey-status"
 import { SURVEY_TYPES } from "@aisd/shared"
 import { validateSurveyBeforeDeferral, type SubmitValidationResult } from "@/lib/survey-validation"
-import { loadFloorPlanForSchool } from "@/lib/floor-plan-loader"
+import {
+  loadFloorPlanLevelDisplay,
+  loadSchoolRoomsForSchool,
+  revokeFloorPlanBlobUrls,
+} from "@/lib/floor-plan-loader"
 import { loadAisdSchoolOptions } from "@/lib/load-aisd-schools"
 import {
   deferIncompleteToCloseOut,
@@ -157,6 +164,8 @@ type Action =
   | { type: "SET_LEVEL"; levelId: string }
   | { type: "SET_FLOOR_PLAN"; plan: SchoolFloorPlanConfig | null; rooms: ParsedPlanRoom[] }
   | { type: "SET_FLOOR_PLAN_LOADING"; loading: boolean }
+  | { type: "PATCH_FLOOR_PLAN_LEVEL"; level: SchoolFloorPlanConfig["levels"][number] }
+  | { type: "STRIP_FLOOR_PLAN_DISPLAY" }
   | { type: "SET_ROOMS"; rooms: ParsedPlanRoom[] }
   | { type: "ADD_MANUAL_ROOM"; roomNumber: string; building?: string }
   | { type: "SELECT_ROOM"; roomId: string | null }
@@ -223,6 +232,11 @@ function newSession(
 
 function emptyScoreState(): Pick<SurveyState, "roomScores" | "roomScoreDetails" | "floorPlanRooms"> {
   return { roomScores: {}, roomScoreDetails: {}, floorPlanRooms: {} }
+}
+
+function countSessionResponses(session: SurveySession | null | undefined): number {
+  if (!session) return 0
+  return Object.values(session.rooms).reduce((total, room) => total + room.responses.length, 0)
 }
 
 function lookupNeighborhoodFromPlan(
@@ -540,15 +554,31 @@ function stateFromDraft(
   if (sessionAssessor && isAssessorRegistered(sessionAssessor)) {
     mergedAssessors[draft.surveyType] = sessionAssessor
   }
+  const stamped = withCampusAssessorOnSession(
+    draft.session,
+    mergedAssessors,
+    draft.surveyType,
+  )
   const manualRooms = draft.manualRooms ?? []
+  const selectedRoomId = draft.selectedRoomId ?? null
+  const levelFromSession = selectedRoomId
+    ? draft.session.rooms[selectedRoomId]?.levelId
+    : undefined
+  const resolvedLevelId =
+    draft.selectedLevelId ??
+    levelFromSession ??
+    existingFloorPlan?.defaultLevelId ??
+    existingRooms.find((r) => r.id === selectedRoomId)?.levelId ??
+    existingRooms[0]?.levelId ??
+    null
   const base: SurveyState = {
     surveyType: draft.surveyType,
     school,
-    session: draft.session,
-    selectedRoomId: draft.selectedRoomId ?? null,
-    selectedLevelId: draft.selectedLevelId ?? existingFloorPlan?.defaultLevelId ?? null,
+    session: stamped.session,
+    selectedRoomId,
+    selectedLevelId: resolvedLevelId,
     floorPlan: existingFloorPlan,
-    floorPlanLoading: !existingFloorPlan && school.hasFloorPlan,
+    floorPlanLoading: !existingFloorPlan && !existingRooms.length && school.hasFloorPlan,
     allRooms: mergeManualRooms(existingRooms, manualRooms),
     manualRooms,
     view: draft.view ?? "survey",
@@ -557,7 +587,7 @@ function stateFromDraft(
     showResumeBanner,
     hydrated: true,
     weightOverrides: EMPTY_WEIGHT_OVERRIDES,
-    assessorByType: mergedAssessors,
+    assessorByType: stamped.assessorByType,
     submitValidation: null,
     pendingStudioType: draft.pendingStudioType ?? null,
     preWalk: migratePreWalkState(draft.preWalk, school.schoolClass),
@@ -693,8 +723,17 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       return { ...state, showResumeBanner: false }
     case "MARK_SAVED":
       return { ...state, lastSavedAt: action.savedAt }
-    case "RESTORE":
-      return stateFromDraft(action.school, action.draft, action.showResumeBanner ?? false, state.assessorByType)
+    case "RESTORE": {
+      const sameSchool = state.school?.id === action.school.id
+      return stateFromDraft(
+        action.school,
+        action.draft,
+        action.showResumeBanner ?? false,
+        state.assessorByType,
+        sameSchool ? state.allRooms : [],
+        sameSchool ? state.floorPlan : null,
+      )
+    }
     case "UPDATE_SCHOOL": {
       if (!state.school || state.school.id !== action.school.id) return state
       const identityChanged =
@@ -807,11 +846,14 @@ function reducer(state: SurveyState, action: Action): SurveyState {
               : restored.pendingStudioType,
         })
       }
-      const assessor = state.assessorByType[action.surveyType]
+      const assessor = resolveCampusAssessor(state.assessorByType, action.surveyType)
+      const session = newSession(state.school, action.surveyType, assessor)
+      const stamped = withCampusAssessorOnSession(session, state.assessorByType, action.surveyType)
       return bootstrapCampusScopedSurvey({
         ...state,
         surveyType: action.surveyType,
-        session: newSession(state.school, action.surveyType, assessor),
+        session: stamped.session,
+        assessorByType: stamped.assessorByType,
         selectedRoomId: null,
         view: "survey",
         submission: null,
@@ -851,11 +893,14 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         const restored = stateFromDraft(action.school, action.draft, false, state.assessorByType, rooms, floorPlan)
         return bootstrapCampusScopedSurvey(restored)
       }
-      const assessor = state.assessorByType[state.surveyType]
+      const assessor = resolveCampusAssessor(state.assessorByType, state.surveyType)
+      const session = newSession(action.school, state.surveyType, assessor)
+      const stamped = withCampusAssessorOnSession(session, state.assessorByType, state.surveyType)
       return bootstrapCampusScopedSurvey({
         ...state,
         school: action.school,
-        session: newSession(action.school, state.surveyType, assessor),
+        session: stamped.session,
+        assessorByType: stamped.assessorByType,
         selectedRoomId: null,
         selectedLevelId: null,
         floorPlan: null,
@@ -899,6 +944,31 @@ function reducer(state: SurveyState, action: Action): SurveyState {
     }
     case "SET_FLOOR_PLAN_LOADING":
       return { ...state, floorPlanLoading: action.loading }
+    case "PATCH_FLOOR_PLAN_LEVEL": {
+      if (!state.floorPlan) return state
+      return {
+        ...state,
+        floorPlan: {
+          ...state.floorPlan,
+          levels: state.floorPlan.levels.map((level) =>
+            level.id === action.level.id ? action.level : { ...level, src: "" },
+          ),
+        },
+      }
+    }
+    case "STRIP_FLOOR_PLAN_DISPLAY": {
+      if (!state.floorPlan || !state.school) return state
+      revokeFloorPlanBlobUrls(state.school.id)
+      return {
+        ...state,
+        floorPlan: {
+          ...state.floorPlan,
+          levels: state.floorPlan.levels.map((level) =>
+            level.src ? { ...level, src: "" } : level,
+          ),
+        },
+      }
+    }
     case "SET_ROOMS":
       return { ...state, allRooms: mergeManualRooms(action.rooms, state.manualRooms) }
     case "ADD_MANUAL_ROOM": {
@@ -1684,6 +1754,10 @@ interface SurveyContextValue {
   resultsInitialTab: "campus" | "room" | "neighborhood" | "compare" | "photos" | null
   openResults: (tab?: "campus" | "room" | "neighborhood" | "compare" | "photos") => void
   clearResultsInitialTab: () => void
+  floorPlanDisplayLoading: boolean
+  requestFloorPlanDisplay: () => void
+  releaseFloorPlanDisplay: () => void
+  ensureFloorPlanLevel: (levelId: string) => Promise<void>
 }
 
 const SurveyContext = createContext<SurveyContextValue | null>(null)
@@ -1737,6 +1811,8 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const [resultsInitialTab, setResultsInitialTab] = useState<
     "campus" | "room" | "neighborhood" | "compare" | "photos" | null
   >(null)
+  const [floorPlanDisplayRequests, setFloorPlanDisplayRequests] = useState(0)
+  const [floorPlanDisplayLoading, setFloorPlanDisplayLoading] = useState(false)
   const lastSyncedSubmissionRef = useRef<string | null>(null)
   const surveyTypeBeforeConflictRef = useRef<SurveyType>("studios")
   const [state, dispatch] = useReducer(reducer, {
@@ -1801,16 +1877,19 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
     const assessors = loadAssessors()
 
-    if (shouldContinueSurveyVisit()) {
-      const active = loadActiveDraftMeta()
-      const draft = active ? loadDraft(active.schoolId, active.surveyType) : null
-      if (active && draft) {
-        const school =
-          schools.find((s) => s.id === active.schoolId) ?? schoolFromDraft(draft)
-        dispatch({ type: "LOAD_ASSESSORS", assessors })
-        dispatch({ type: "RESTORE", school, draft, showResumeBanner: false })
-        return
-      }
+    const resumable = loadResumableDraft()
+    if (resumable) {
+      markActiveVisit()
+      const school =
+        schools.find((s) => s.id === resumable.meta.schoolId) ?? schoolFromDraft(resumable.draft)
+      dispatch({ type: "LOAD_ASSESSORS", assessors })
+      dispatch({
+        type: "RESTORE",
+        school,
+        draft: resumable.draft,
+        showResumeBanner: false,
+      })
+      return
     }
 
     dispatch({ type: "LOAD_ASSESSORS", assessors })
@@ -1904,7 +1983,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!state.hydrated || !state.school) return
 
-    const assessor = state.assessorByType[state.surveyType]
+    const assessor = resolveCampusAssessor(state.assessorByType, state.surveyType)
     void fetchRemoteSurveyStatusClient({
       schoolId: state.school.id,
       surveyType: state.surveyType,
@@ -1920,6 +1999,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   // Debounced cloud sync when online (localStorage remains primary for offline).
   useEffect(() => {
     if (!state.hydrated || !state.school || !state.session || !state.lastSavedAt) return
+    if (!sessionHasRegisteredAssessor(state.session)) return
 
     const school = state.school
     const surveyType = state.surveyType
@@ -1942,8 +2022,12 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         if (result === "skipped_remote_newer") {
           const remote = await pullRemoteDraftClient({ schoolId: school.id, surveyType })
           if (remote && remote.savedAt > draft.savedAt) {
-            saveDraft(remote)
-            dispatch({ type: "RESTORE", school, draft: remote, showResumeBanner: false })
+            const localAnswers = countSessionResponses(draft.session)
+            const remoteAnswers = countSessionResponses(remote.session)
+            if (remoteAnswers >= localAnswers) {
+              saveDraft(remote)
+              dispatch({ type: "RESTORE", school, draft: remote, showResumeBanner: false })
+            }
           }
         }
         setPendingSyncCount(0)
@@ -2036,10 +2120,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     let cancelled = false
     dispatch({ type: "SET_FLOOR_PLAN_LOADING", loading: true })
 
-    loadFloorPlanForSchool(state.school, (partial) => {
-        if (cancelled) return
-        dispatch({ type: "SET_FLOOR_PLAN", plan: partial.plan, rooms: partial.rooms })
-      })
+    loadSchoolRoomsForSchool(state.school)
       .then(({ plan: loadedPlan, rooms }) => {
         if (cancelled) return
         dispatch({ type: "SET_FLOOR_PLAN", plan: loadedPlan, rooms })
@@ -2054,6 +2135,54 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     }
     // Re-run when the school object is upgraded (campus/name/hasFloorPlan) so rooms reload.
   }, [state.school])
+
+  const requestFloorPlanDisplay = useCallback(() => {
+    setFloorPlanDisplayRequests((count) => count + 1)
+  }, [])
+
+  const releaseFloorPlanDisplay = useCallback(() => {
+    setFloorPlanDisplayRequests((count) => Math.max(0, count - 1))
+  }, [])
+
+  const ensureFloorPlanLevel = useCallback(
+    async (levelId: string) => {
+      const school = state.school
+      const plan = state.floorPlan
+      if (!school?.hasFloorPlan || !plan) return
+
+      const existing = plan.levels.find((level) => level.id === levelId)
+      if (existing?.src) return
+
+      setFloorPlanDisplayLoading(true)
+      try {
+        revokeFloorPlanBlobUrls(school.id)
+        const level = await loadFloorPlanLevelDisplay(school, levelId)
+        if (level) dispatch({ type: "PATCH_FLOOR_PLAN_LEVEL", level })
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setFloorPlanDisplayLoading(false)
+      }
+    },
+    [state.school, state.floorPlan],
+  )
+
+  useEffect(() => {
+    if (floorPlanDisplayRequests === 0) {
+      dispatch({ type: "STRIP_FLOOR_PLAN_DISPLAY" })
+      return
+    }
+    if (!state.school?.hasFloorPlan || !state.floorPlan) return
+
+    const levelId = state.selectedLevelId ?? state.floorPlan.defaultLevelId
+    void ensureFloorPlanLevel(levelId)
+  }, [
+    floorPlanDisplayRequests,
+    state.school,
+    state.floorPlan,
+    state.selectedLevelId,
+    ensureFloorPlanLevel,
+  ])
 
   useEffect(() => {
     dispatch({ type: "RECALC_SCORES" })
@@ -2522,7 +2651,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
   const hasAssessorRegistered =
     hasActiveVisit() &&
-    (isAssessorRegistered(state.assessorByType[state.surveyType]) ||
+    (!!resolveCampusAssessor(state.assessorByType) ||
       (state.surveyType === "closeout" && isAssessorRegistered(state.assessorByType.studios)))
 
   const registerAssessor = useCallback((name: string, email: string) => {
@@ -2636,6 +2765,10 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         resultsInitialTab,
         openResults,
         clearResultsInitialTab,
+        floorPlanDisplayLoading,
+        requestFloorPlanDisplay,
+        releaseFloorPlanDisplay,
+        ensureFloorPlanLevel,
       }}
     >
       {children}

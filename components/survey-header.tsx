@@ -311,7 +311,7 @@ export function SurveyHeaderControls() {
         </div>
       </div>
       {state.school.hasFloorPlan && state.floorPlanLoading && (
-        <p className="mt-2 text-xs text-slate-500">Loading floor plan from storage…</p>
+        <p className="mt-2 text-xs text-slate-500">Loading room list…</p>
       )}
       {!state.school.hasFloorPlan && (
         <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-800 ring-1 ring-amber-200/80">

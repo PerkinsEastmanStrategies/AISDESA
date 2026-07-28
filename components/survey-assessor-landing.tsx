@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Check, CheckCircle2, ChevronDown, LoaderCircle, Search, X } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
 import { surveyTypeLabel } from "@aisd/shared"
-import { isValidAssessorEmail } from "@/lib/assessor"
+import { isValidAssessorEmail, resolveCampusAssessor } from "@/lib/assessor"
 import { cn } from "@/lib/utils"
 
 export default function SurveyAssessorLanding() {
@@ -16,7 +16,8 @@ export default function SurveyAssessorLanding() {
     schoolsLoading,
     setSchool,
   } = useSurvey()
-  const existing = state.assessorByType[state.surveyType]
+  const existing =
+    state.assessorByType[state.surveyType] ?? resolveCampusAssessor(state.assessorByType)
   const typeInfo = surveyTypeInfos[state.surveyType]
 
   const [name, setName] = useState(existing?.name ?? "")
@@ -136,7 +137,7 @@ export default function SurveyAssessorLanding() {
             )}
             {state.school?.hasFloorPlan && state.floorPlanLoading && (
               <p className="mt-1.5 text-xs text-[var(--color-muted-foreground)]">
-                Loading floor plan from storage…
+                Loading room list…
               </p>
             )}
           </div>

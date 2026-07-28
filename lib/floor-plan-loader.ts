@@ -16,6 +16,7 @@ import {
   type FloorPlanLevelEntry,
 } from "@/lib/floor-plan-manifest"
 import {
+  evictFloorPlanSvgFromMemoryCache,
   fetchFloorPlanSvgByFilename,
   preferMobileFloorPlan,
   prefetchFloorPlanSvgs,
@@ -125,6 +126,36 @@ function prepareDistrictFloorPlanSvg(rawSvg: string): {
   }
 }
 
+/** Plan levels without blob URLs — SVG display is loaded on demand. */
+const EMPTY_FLOOR_PLAN_SRC = ""
+
+async function loadLevelRoomsOnly(
+  schoolId: string,
+  floor: FloorPlanLevelEntry,
+  preferMobile: boolean,
+): Promise<LevelLoadResult | null> {
+  const rawSvg = await fetchFloorPlanSvgByFilename(floor.filename, { preferMobile })
+  if (!rawSvg || isEmptyOrStubFloorPlanSvg(rawSvg)) return null
+
+  const prepared = prepareDistrictFloorPlanSvg(rawSvg)
+  if (!prepared) return null
+
+  const { svgText, viewBox } = prepared
+  const rooms = parsePlanRoomsFromSvg(svgText, floor.id)
+  evictFloorPlanSvgFromMemoryCache(floor.filename)
+
+  return {
+    level: {
+      id: floor.id,
+      label: floor.fullLabel,
+      src: EMPTY_FLOOR_PLAN_SRC,
+      viewBox,
+    },
+    rooms,
+    svgText: "",
+  }
+}
+
 async function loadLevel(
   schoolId: string,
   floor: FloorPlanLevelEntry,
@@ -150,6 +181,93 @@ async function loadLevel(
     },
     rooms: parseRooms ? parsePlanRoomsFromSvg(svgText, floor.id) : [],
     svgText,
+  }
+}
+
+async function loadLivelySchoolRooms(school: AisdSchoolOption): Promise<FloorPlanLoadResult> {
+  const loadedById = new Map<
+    string,
+    { level: SchoolFloorPlanConfig["levels"][number]; rooms: ParsedPlanRoom[] }
+  >()
+
+  for (const level of LIVELY_FLOOR_PLAN.levels) {
+    try {
+      const response = await fetch(level.src)
+      if (!response.ok) continue
+      const raw = await response.text()
+      if (isEmptyOrStubFloorPlanSvg(raw)) continue
+
+      const prepared = prepareDistrictFloorPlanSvg(raw)
+      if (!prepared) continue
+
+      const rooms = parseRoomsFromSvg(prepared.svgText, level.id)
+      loadedById.set(level.id, {
+        level: {
+          ...level,
+          src: EMPTY_FLOOR_PLAN_SRC,
+          viewBox: prepared.viewBox,
+        },
+        rooms,
+      })
+    } catch {
+      /* skip failed level */
+    }
+  }
+
+  const styledLevels = LIVELY_FLOOR_PLAN.levels
+    .map((level) => loadedById.get(level.id)?.level)
+    .filter((level): level is SchoolFloorPlanConfig["levels"][number] => Boolean(level))
+
+  if (!styledLevels.length) {
+    return { plan: null, rooms: [] }
+  }
+
+  const preferredDefaultId = LIVELY_FLOOR_PLAN.defaultLevelId
+  const defaultLevelId = styledLevels.some((level) => level.id === preferredDefaultId)
+    ? preferredDefaultId
+    : styledLevels[0].id
+
+  return {
+    plan: {
+      schoolId: school.id,
+      defaultLevelId,
+      buildingSqft: LIVELY_FLOOR_PLAN.buildingSqft,
+      levels: styledLevels,
+    },
+    rooms: LIVELY_FLOOR_PLAN.levels.flatMap(
+      (level) => loadedById.get(level.id)?.rooms ?? [],
+    ),
+  }
+}
+
+async function loadLivelyFloorPlanLevelDisplay(
+  schoolId: string,
+  levelId: string,
+): Promise<SchoolFloorPlanConfig["levels"][number] | null> {
+  const level = LIVELY_FLOOR_PLAN.levels.find((entry) => entry.id === levelId)
+  if (!level) return null
+
+  try {
+    const response = await fetch(level.src)
+    if (!response.ok) return null
+    const raw = await response.text()
+    if (isEmptyOrStubFloorPlanSvg(raw)) return null
+
+    const prepared = prepareDistrictFloorPlanSvg(raw)
+    if (!prepared) return null
+
+    const blobUrl = URL.createObjectURL(
+      new Blob([prepared.svgText], { type: "image/svg+xml" }),
+    )
+    trackBlobUrl(schoolId, blobUrl)
+
+    return {
+      ...level,
+      src: blobUrl,
+      viewBox: prepared.viewBox,
+    }
+  } catch {
+    return null
   }
 }
 
@@ -382,5 +500,97 @@ export async function loadFloorPlanForSchool(
       levels: ordered.map((r) => r.level),
     },
     rooms,
+  }
+}
+
+/**
+ * Parse room metadata for every floor without keeping SVG blobs in memory.
+ * Used during survey scoring so the room dropdown works without loading the map.
+ */
+export async function loadSchoolRoomsForSchool(
+  school: AisdSchoolOption,
+): Promise<FloorPlanLoadResult> {
+  revokeFloorPlanBlobUrls(school.id)
+
+  if (isLivelySchool(school)) {
+    const result = await loadLivelySchoolRooms(school)
+    return {
+      plan: result.plan,
+      rooms: await withRoomSheetData(school, result.rooms),
+    }
+  }
+
+  const manifest = await loadFloorPlanManifest()
+  const floors = getAvailableFloorsForSchool(school, manifest)
+  if (!floors.length) return { plan: null, rooms: [] }
+
+  const preferMobile = preferMobileFloorPlan()
+  const results = await Promise.all(
+    floors.map((floor) => loadLevelRoomsOnly(school.id, floor, preferMobile)),
+  )
+
+  const loadedById = new Map<string, LevelLoadResult>()
+  floors.forEach((floor, i) => {
+    const result = results[i]
+    if (result) loadedById.set(floor.id, result)
+  })
+
+  const ordered = floors
+    .map((floor) => loadedById.get(floor.id))
+    .filter((result): result is LevelLoadResult => Boolean(result))
+
+  if (!ordered.length) return { plan: null, rooms: [] }
+
+  const preferredDefaultId = PREFERRED_DEFAULT_FLOOR_LEVEL_ID
+  const defaultLevelId = ordered.some((entry) => entry.level.id === preferredDefaultId)
+    ? preferredDefaultId
+    : ordered[0].level.id
+
+  const rooms = await withRoomSheetData(
+    school,
+    ordered.flatMap((entry) => entry.rooms),
+  )
+
+  return {
+    plan: {
+      schoolId: school.id,
+      defaultLevelId,
+      buildingSqft: DEFAULT_BUILDING_SQFT,
+      levels: ordered.map((entry) => entry.level),
+    },
+    rooms,
+  }
+}
+
+/** Load one floor's SVG for display (pre-walk, room picker, results map). */
+export async function loadFloorPlanLevelDisplay(
+  school: AisdSchoolOption,
+  levelId: string,
+): Promise<SchoolFloorPlanConfig["levels"][number] | null> {
+  if (isLivelySchool(school)) {
+    return loadLivelyFloorPlanLevelDisplay(school.id, levelId)
+  }
+
+  const manifest = await loadFloorPlanManifest()
+  const floors = getAvailableFloorsForSchool(school, manifest)
+  const floor = floors.find((entry) => entry.id === levelId)
+  if (!floor) return null
+
+  const result = await loadLevel(school.id, floor, false, preferMobileFloorPlan())
+  return result?.level ?? null
+}
+
+/** Revoke blob URLs and drop level src so SVG memory can be reclaimed. */
+export function stripFloorPlanDisplay(
+  schoolId: string,
+  plan: SchoolFloorPlanConfig | null,
+): SchoolFloorPlanConfig | null {
+  revokeFloorPlanBlobUrls(schoolId)
+  if (!plan) return null
+  return {
+    ...plan,
+    levels: plan.levels.map((level) =>
+      level.src ? { ...level, src: EMPTY_FLOOR_PLAN_SRC } : level,
+    ),
   }
 }

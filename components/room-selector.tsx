@@ -34,6 +34,7 @@ import {
 import { validateRoomSession } from "@/lib/survey-validation"
 import { cn } from "@/lib/utils"
 import { useSelectRoomWithConfirm } from "@/components/use-select-room-with-confirm"
+import { useFloorPlanDisplay } from "@/lib/use-floor-plan-display"
 import SpaceTypeAssessmentGuidanceModal from "@/components/space-type-assessment-guidance-modal"
 import TraditionalStudioCopyOffer from "@/components/traditional-studio-copy-offer"
 import NeighborhoodLegend from "@/components/neighborhood-legend"
@@ -65,6 +66,8 @@ export default function RoomSelector({
   const { requestSelectRoom, completedRoomDialog } = useSelectRoomWithConfirm()
   const selectedId = state.selectedRoomId
   const plan = state.floorPlan
+  const effectiveLevelId =
+    state.selectedLevelId ?? plan?.defaultLevelId ?? state.allRooms[0]?.levelId ?? null
   const showStudioType = state.surveyType === "studios"
   const showSpaceType = surveyModuleUsesSpaceTypePicker(
     state.surveyType,
@@ -99,6 +102,7 @@ export default function RoomSelector({
       !!currentRoomSession?.pendingGrade &&
       studioTypeShowsGradePicker(currentRoomSession.roomType, state.school?.schoolClass))
   const floorPlanOpen = spaceTypeReady && showFloorPlan
+  useFloorPlanDisplay(floorPlanOpen)
   const [roomPickerOpen, setRoomPickerOpen] = useState(false)
   const [gradePickerOpen, setGradePickerOpen] = useState(false)
   const [neighborhoodPickerOpen, setNeighborhoodPickerOpen] = useState(false)
@@ -137,7 +141,7 @@ export default function RoomSelector({
       if (b.trim()) set.add(b.trim())
     }
     for (const room of state.allRooms) {
-      if (room.building?.trim() && (!state.selectedLevelId || room.levelId === state.selectedLevelId)) {
+      if (room.building?.trim() && (!effectiveLevelId || room.levelId === effectiveLevelId)) {
         set.add(room.building.trim())
       }
     }
@@ -153,7 +157,7 @@ export default function RoomSelector({
       }
     }
     return [...set].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-  }, [state.allRooms, state.floorPlan, state.selectedLevelId])
+  }, [state.allRooms, state.floorPlan, effectiveLevelId])
 
   const requiresManualBuilding = buildingOptions.length > 1
   const canAddManualRoom =
@@ -170,7 +174,7 @@ export default function RoomSelector({
 
   const { pinnedRoomOptions, otherRoomOptions } = useMemo(() => {
     let onFloor = state.allRooms.filter(
-      (r) => r.levelId === state.selectedLevelId && isClassroomRoom(r),
+      (r) => (!effectiveLevelId || r.levelId === effectiveLevelId) && isClassroomRoom(r),
     )
     if (state.surveyType === "closeout" && state.session) {
       onFloor = onFloor.filter((r) => {
@@ -216,11 +220,13 @@ export default function RoomSelector({
     state.allRooms,
     state.selectedLevelId,
     selectedId,
+    effectiveLevelId,
     state.surveyType,
     state.session,
     state.preWalk.mappings,
     preWalkMapped,
     selectedSpaceType,
+    effectiveLevelId,
   ])
 
   const roomOptions = useMemo(
@@ -572,7 +578,7 @@ export default function RoomSelector({
           </div>
         )}
 
-        {plan && !floorPlanOpen && spaceTypeReady && (
+        {(state.school?.hasFloorPlan || plan) && !floorPlanOpen && spaceTypeReady && (
           <div className="col-span-2">
             <button
               type="button"
@@ -677,7 +683,7 @@ export default function RoomSelector({
           </div>
         )}
 
-      {plan && floorPlanOpen && (
+      {(state.school?.hasFloorPlan || plan) && floorPlanOpen && (
         <SurveyFloorPlan
           key={`picker-${state.selectedLevelId}`}
           variant="picker"

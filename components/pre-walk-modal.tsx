@@ -5,6 +5,7 @@ import { createPortal } from "react-dom"
 import { ChevronDown, ChevronLeft, ChevronRight, Info, Map as MapIcon, X } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
 import SurveyFloorPlan from "@/components/survey-floor-plan"
+import { useFloorPlanDisplay } from "@/lib/use-floor-plan-display"
 import {
   countMappingsBySpaceType,
   defaultPreWalkSurveyType,
@@ -40,6 +41,8 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
     completePreWalk,
     skipPreWalk,
   } = useSurvey()
+
+  useFloorPlanDisplay(open)
 
   const surveyOptions = useMemo(
     () => preWalkSurveyTypesForSchool(state.school?.schoolClass),
@@ -93,6 +96,8 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
   const mappedCountForSurvey = preWalkMappingList(state.preWalk.mappings, selectedSurveyType).length
   const totalMappedCount = preWalkMappingList(state.preWalk.mappings).length
   const levelId = state.selectedLevelId ?? state.floorPlan?.defaultLevelId ?? "floor-1"
+  const displayLevel = state.floorPlan?.levels.find((level) => level.id === levelId)
+  const mapDisplayReady = !!displayLevel?.src
   const selectedMapping = selectedRoomId
     ? getPreWalkMapping(state.preWalk.mappings, selectedSurveyType, selectedRoomId)
     : undefined
@@ -229,7 +234,7 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
         </div>
       </header>
 
-      {state.floorPlan && !state.floorPlanLoading && (
+      {state.floorPlan && mapDisplayReady && !state.floorPlanLoading && (
         <div className="relative z-30 shrink-0 border-b border-slate-700/40 bg-slate-900/95 px-3 py-2 backdrop-blur-sm">
           <div className="flex gap-1 overflow-x-auto scrollbar-none">
             {state.floorPlan.levels.map((level) => (
@@ -287,13 +292,13 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
           </div>
         )}
 
-        {state.floorPlanLoading ? (
+        {state.floorPlanLoading || !state.floorPlan ? (
+          <div className="flex h-full items-center justify-center text-sm text-slate-400">
+            {state.floorPlanLoading ? "Loading rooms…" : "No floor plan available for this school. You can still assign rooms from the survey room list."}
+          </div>
+        ) : !mapDisplayReady ? (
           <div className="flex h-full items-center justify-center text-sm text-slate-400">
             Loading floor plan…
-          </div>
-        ) : !state.floorPlan ? (
-          <div className="flex h-full items-center justify-center px-6 text-center text-sm text-slate-400">
-            No floor plan available for this school. You can still assign rooms from the survey room list.
           </div>
         ) : (
           <div className="absolute inset-0">

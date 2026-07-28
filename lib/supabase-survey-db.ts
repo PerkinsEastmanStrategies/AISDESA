@@ -13,6 +13,7 @@ import type {
 } from "@aisd/shared"
 import { surveyTypeLabel } from "@aisd/shared"
 import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
+import { sessionHasRegisteredAssessor } from "@/lib/assessor"
 import {
   isSupabaseServerConfigured,
   supabaseRestDelete,
@@ -311,6 +312,12 @@ async function syncPrewalk(
     "school_id",
   )
 
+  // Replace school pre-walk mappings wholesale so clears/removals sync to Supabase.
+  await supabaseRestDelete(
+    "esa_prewalk_mappings",
+    `school_id=eq.${encodeURIComponent(school.id)}`,
+  )
+
   const mappings = Object.values(preWalk.mappings ?? {})
   if (mappings.length > 0) {
     await supabaseRestUpsert(
@@ -375,6 +382,10 @@ export async function pushSurveyDraft(input: {
   const campusAssessmentId = await ensureCampusAssessment(school)
 
   const session = draft.session
+  if (!sessionHasRegisteredAssessor(session)) {
+    return { updatedAt: draft.savedAt, action: "pushed" }
+  }
+
   const [upsertedSession] = await supabaseRestUpsert(
     "esa_survey_sessions",
     {

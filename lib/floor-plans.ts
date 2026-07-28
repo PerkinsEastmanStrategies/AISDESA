@@ -100,6 +100,13 @@ async function fetchFloorPlanSvgFromSources(filename: string): Promise<string | 
   return null
 }
 
+/** Drop parsed SVG text from the in-memory cache to reduce heap use. */
+export function evictFloorPlanSvgFromMemoryCache(filename: string): void {
+  if (!filename) return
+  svgCache.delete(filename)
+  svgCache.delete(toMobileFloorPlanFilename(filename))
+}
+
 export async function fetchFloorPlanSvgByFilename(
   filename: string,
   options?: { preferMobile?: boolean },

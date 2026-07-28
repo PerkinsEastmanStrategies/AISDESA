@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useId, useRef, useState } from "react"
-import { Camera, Check, ImagePlus, Trash2, X } from "lucide-react"
+import { Camera, Check, ExternalLink, ImagePlus, Trash2, X } from "lucide-react"
 import PhotoPrivacyReminderModal from "@/components/photo-privacy-reminder-modal"
 import {
   deleteSurveyPhoto,
@@ -11,6 +11,7 @@ import {
   uploadSurveyPhoto,
   type SurveyPhotoUploadContext,
 } from "@/lib/photo-storage"
+import { photosAfterCloudUpload } from "@/lib/response-photos"
 import { compressImageFile } from "@/lib/photo-utils"
 
 interface QuestionPhotoProps {
@@ -29,6 +30,40 @@ interface QuestionPhotoProps {
 }
 
 type PhotoPickerSource = "camera" | "gallery"
+
+function SubmittedPhotoChip({
+  url,
+  onRemove,
+}: {
+  url: string
+  onRemove: () => void
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50/80 px-2.5 py-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <Check className="h-3.5 w-3.5 shrink-0 text-emerald-700" aria-hidden />
+        <span className="truncate text-[11px] font-medium text-emerald-900">Submitted</span>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-medium text-[var(--color-primary)] underline-offset-2 hover:underline"
+        >
+          View
+          <ExternalLink className="h-3 w-3" aria-hidden />
+        </a>
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="rounded p-1 text-emerald-800/70 active:bg-emerald-100"
+        aria-label="Remove submitted photo"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  )
+}
 
 export default function QuestionPhoto({
   photos = [],
@@ -84,8 +119,9 @@ export default function QuestionPhoto({
       setError(null)
       try {
         const uploaded = await uploadSurveyPhoto(uploadContext, imageDataUrl)
-        onChange([...photos.filter((p) => p !== imageDataUrl), uploaded.url])
+        onChange(photosAfterCloudUpload(photos, uploaded.url))
         setPendingPreview(null)
+        setOpen(false)
         return true
       } catch (err) {
         const message =
@@ -165,28 +201,22 @@ export default function QuestionPhoto({
   }
 
   const hasSubmittedOnly = submittedPhotos.length > 0 && localPhotos.length === 0 && !pendingPreview
+  const submittedLabel =
+    submittedPhotos.length === 1
+      ? "Photo submitted"
+      : `${submittedPhotos.length} photos submitted`
 
   if (hasSubmittedOnly && !open && canAddMore) {
     return (
-      <div className="w-full basis-full">
-        <div className="grid grid-cols-3 gap-1.5">
-          {submittedPhotos.map((url) => (
-            <div key={url} className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="" className="h-full w-full object-cover" />
-            </div>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-[var(--color-primary)] ring-1 ring-blue-100"
-        >
-          <Camera className="h-3.5 w-3.5 shrink-0" />
-          {submittedPhotos.length === 1 ? "1 photo submitted" : `${submittedPhotos.length} photos submitted`}
-          {canAddMore ? " · Add another" : ""}
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-[var(--color-primary)] ring-1 ring-blue-100"
+      >
+        <Check className="h-3.5 w-3.5 shrink-0 text-emerald-700" />
+        {submittedLabel}
+        {canAddMore ? " · Add another" : ""}
+      </button>
     )
   }
 
@@ -215,12 +245,12 @@ export default function QuestionPhoto({
             : "inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-[var(--color-primary)] ring-1 ring-blue-100"
         }
       >
-        <Camera className="h-3.5 w-3.5 shrink-0" />
-        {pendingLocal
-          ? "Confirm photo submission"
-          : submittedPhotos.length === 1
-            ? "Photo submitted"
-            : `${submittedPhotos.length} photos submitted`}
+        {pendingLocal ? (
+          <Camera className="h-3.5 w-3.5 shrink-0" />
+        ) : (
+          <Check className="h-3.5 w-3.5 shrink-0 text-emerald-700" />
+        )}
+        {pendingLocal ? "Confirm photo submission" : submittedLabel}
       </button>
     )
   }
@@ -249,21 +279,24 @@ export default function QuestionPhoto({
           </button>
         </div>
 
-        {(submittedPhotos.length > 0 || localPhotos.length > 0) && (
+        {submittedPhotos.length > 0 && (
+          <div className="mb-2 space-y-1.5">
+            {submittedPhotos.map((url) => (
+              <SubmittedPhotoChip key={url} url={url} onRemove={() => handleRemovePhoto(url)} />
+            ))}
+          </div>
+        )}
+
+        {localPhotos.length > 0 && (
           <div className="mb-2 grid grid-cols-3 gap-1.5">
-            {photos.map((url) => (
+            {localPhotos.map((url) => (
               <div
                 key={url}
                 className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt="" className="h-full w-full object-cover" />
-                {isSupabasePhotoUrl(url) && (
-                  <div className="absolute inset-x-0 bottom-0 bg-emerald-700/85 px-1 py-0.5 text-center text-[8px] font-medium text-white">
-                    Submitted
-                  </div>
-                )}
-                {isLocalPhotoDataUrl(url) && !canUploadToCloud && (
+                {!canUploadToCloud && (
                   <div className="absolute inset-x-0 bottom-0 bg-slate-700/80 px-1 py-0.5 text-center text-[8px] font-medium text-white">
                     Local
                   </div>

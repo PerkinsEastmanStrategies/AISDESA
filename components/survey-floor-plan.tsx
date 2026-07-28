@@ -179,7 +179,7 @@ export default function SurveyFloorPlan({
   /** Results photos tab: floor toggles only, clean plan, camera icons on photo rooms. */
   photoGalleryMode?: boolean
 }) {
-  const { state, setLevel, levelRooms } = useSurvey()
+  const { state, setLevel, levelRooms, ensureFloorPlanLevel, floorPlanDisplayLoading } = useSurvey()
   const { requestSelectRoom, completedRoomDialog } = useSelectRoomWithConfirm()
   const viewportRef = useRef<HTMLDivElement>(null)
   const zoomRef = useRef(DEFAULT_ZOOM)
@@ -228,6 +228,12 @@ export default function SurveyFloorPlan({
   const plan = state.floorPlan
   const levelId = state.selectedLevelId ?? plan?.defaultLevelId ?? "floor-1"
   const level = plan?.levels.find((l) => l.id === levelId)
+
+  useEffect(() => {
+    if (!levelId || !plan) return
+    if (level?.src) return
+    void ensureFloorPlanLevel(levelId)
+  }, [levelId, plan, level?.src, ensureFloorPlanLevel])
 
   const handleRoomSelect = useCallback(
     (roomId: string) => {
@@ -546,7 +552,7 @@ export default function SurveyFloorPlan({
     [resultsScoreMode],
   )
 
-  if (state.floorPlanLoading) {
+  if (state.floorPlanLoading || floorPlanDisplayLoading || !level?.src) {
     return (
       <div className="flex h-[min(42vh,360px)] items-center justify-center bg-white text-sm text-[var(--color-muted-foreground)] md:h-[min(50vh,420px)]">
         Loading floor plan…

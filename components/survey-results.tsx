@@ -25,6 +25,7 @@ import FocusAreaComparisonPanel from "@/components/focus-area-comparison-panel"
 import { OverallScoreDisplay } from "@/components/score-display"
 import { cn } from "@/lib/utils"
 import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
+import { useFloorPlanDisplay } from "@/lib/use-floor-plan-display"
 
 type ResultsTab = "campus" | "room" | "neighborhood" | "compare" | "photos"
 
@@ -53,6 +54,7 @@ export default function SurveyResults() {
 
   const results = currentResults ?? submission
   const plan = state.floorPlan
+  useFloorPlanDisplay(!!plan)
   const assessor =
     state.assessorByType[state.surveyType] ??
     (results?.session.assessorName

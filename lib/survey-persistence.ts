@@ -152,6 +152,21 @@ export function loadActiveDraftMeta(): ActiveDraftMeta | null {
   }
 }
 
+/**
+ * Last in-progress survey from localStorage — used on every app open so iOS tab
+ * kills (which clear sessionStorage) still restore the same school, room, and answers.
+ */
+export function loadResumableDraft(): {
+  meta: ActiveDraftMeta
+  draft: PersistedSurveyDraft
+} | null {
+  const meta = loadActiveDraftMeta()
+  if (!meta) return null
+  const draft = loadDraft(meta.schoolId, meta.surveyType)
+  if (!draft?.session) return null
+  return { meta, draft }
+}
+
 function stripRoomsByType(
   rooms: Record<string, RoomSurveySession>,
   roomType: string,
