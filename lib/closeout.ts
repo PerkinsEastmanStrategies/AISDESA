@@ -40,9 +40,13 @@ export function effectiveCloseOutPendingQuestionIds(
         room.sourceSurveyType,
       )
     : null
-  return (room.pendingQuestionIds ?? []).filter(
-    (id) => !isSkippedDependentQuestion(id, room.responses, rubric?.questions),
-  )
+  const responseMap = new Map(room.responses.map((response) => [response.questionId, response]))
+  return (room.pendingQuestionIds ?? []).filter((id) => {
+    if (isSkippedDependentQuestion(id, room.responses, rubric?.questions)) return false
+    const question = rubric?.questions.find((item) => item.questionId === id)
+    if (!question) return true
+    return !isQuestionFullyAnswered(question, responseMap.get(id))
+  })
 }
 
 /** True when this Close Out room still has unanswered, non-skipped work. */
@@ -147,18 +151,35 @@ function mergeIncompleteFromSourceSurvey(
     const pendingGrade = result.missingGrade
     const existingClose = next[roomId]
 
-    const pendingQuestionIds = [
-      ...new Set([...(existingClose?.pendingQuestionIds ?? []), ...missingIds]),
-    ]
     const responseMap = new Map((existingClose?.responses ?? []).map((r) => [r.questionId, r]))
     for (const response of roomSession.responses) {
-      if (pendingQuestionIds.includes(response.questionId)) {
+      if (missingIds.includes(response.questionId)) {
         responseMap.set(response.questionId, response)
       }
     }
     for (const response of existingClose?.responses ?? []) {
       responseMap.set(response.questionId, response)
     }
+
+    const closeoutRubric = getRoomSurveyRubric(
+      "closeout",
+      roomSession.roomType,
+      roomSession.gradeType,
+      schoolClass,
+      surveyType as Exclude<SurveyType, "closeout">,
+    )
+    const isAnsweredInCloseout = (questionId: string) => {
+      const question = closeoutRubric?.questions.find((item) => item.questionId === questionId)
+      if (!question) return false
+      return isQuestionFullyAnswered(question, responseMap.get(questionId))
+    }
+
+    const pendingQuestionIds = [
+      ...new Set([
+        ...(existingClose?.pendingQuestionIds ?? []).filter((id) => !isAnsweredInCloseout(id)),
+        ...missingIds.filter((id) => !isAnsweredInCloseout(id)),
+      ]),
+    ]
 
     next[roomId] = {
       roomId,
@@ -182,6 +203,41 @@ function mergeIncompleteFromSourceSurvey(
   }
 
   return next
+}
+
+/** Merge newly incomplete source items into an existing Close Out draft without wiping answers. */
+export function refreshCloseOutDraftFromSources(params: {
+  existingCloseOut: SurveySession
+  sourceSessions: SurveySession[]
+  allRooms: ParsedPlanRoom[]
+  schoolClass?: string | null
+}): SurveySession {
+  let closeRooms: Record<string, RoomSurveySession> = { ...params.existingCloseOut.rooms }
+
+  for (const sourceSession of params.sourceSessions) {
+    if (sourceSession.surveyType === "closeout") continue
+    closeRooms = mergeIncompleteFromSourceSurvey(
+      sourceSession,
+      params.allRooms,
+      closeRooms,
+      params.schoolClass,
+    )
+  }
+
+  for (const [roomId, room] of Object.entries(closeRooms)) {
+    const pruned = pruneCloseOutRoomPending(room)
+    if (roomHasCloseOutWork(pruned)) {
+      closeRooms[roomId] = pruned
+    } else {
+      delete closeRooms[roomId]
+    }
+  }
+
+  return {
+    ...params.existingCloseOut,
+    rooms: closeRooms,
+    updatedAt: new Date().toISOString(),
+  }
 }
 
 /**

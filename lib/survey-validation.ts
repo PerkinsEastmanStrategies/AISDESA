@@ -11,11 +11,20 @@ import {
   hasRequiredUnableToAssessNote,
   isMultiSelectQuestionType,
   isOutdoorSurveyRoomId,
+  neighborhoodFromSurveyRoomId,
+  neighborhoodSurveyRoomDisplayName,
   outdoorSurveyRoomDisplayName,
   responseRequiresUnableToAssessNote,
   studioTypeRequiresGrade,
 } from "@aisd/shared"
 import { isSkippedDependentQuestion } from "@/lib/question-dependencies"
+
+function validationRoomDisplayName(roomId: string, parsedName?: string): string {
+  if (isOutdoorSurveyRoomId(roomId)) return outdoorSurveyRoomDisplayName()
+  const neighborhoodLabel = neighborhoodFromSurveyRoomId(roomId)
+  if (neighborhoodLabel) return neighborhoodSurveyRoomDisplayName(neighborhoodLabel)
+  return parsedName ?? roomId
+}
 
 export function isQuestionAnswered(
   question: EsaQuestion,
@@ -165,9 +174,7 @@ export function validateSurveySubmission(
     }
 
     const parsed = allRooms.find((r) => r.id === roomId)
-    const roomName = isOutdoorSurveyRoomId(roomId)
-      ? outdoorSurveyRoomDisplayName()
-      : (parsed?.name ?? roomId)
+    const roomName = validationRoomDisplayName(roomId, parsed?.name)
     const result = validateRoomSession(
       roomId,
       roomName,
@@ -223,9 +230,7 @@ export function validateSurveyBeforeDeferral(
     }
 
     const parsed = allRooms.find((r) => r.id === roomId)
-    const roomName = isOutdoorSurveyRoomId(roomId)
-      ? outdoorSurveyRoomDisplayName()
-      : (parsed?.name ?? roomId)
+    const roomName = validationRoomDisplayName(roomId, parsed?.name)
     // Ignore prior deferred flags so newly unanswered items are listed
     const forCheck: RoomSurveySession = {
       ...roomSession,

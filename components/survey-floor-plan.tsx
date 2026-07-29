@@ -37,7 +37,6 @@ import {
   floorPlanSvgDataUrl,
   floorPlanSvgInlineFragment,
   getFloorPlanDisplaySvg,
-  hasFloorPlanDisplayCache,
   isInlineFloorPlanSrc,
 } from "@/lib/floor-plan-loader"
 import { neighborhoodGroupId, NEIGHBORHOOD_OPTIONS } from "@aisd/shared"
@@ -284,12 +283,9 @@ export default function SurveyFloorPlan({
 
   useEffect(() => {
     if (!levelId || !plan || !state.school) return
-    if (level?.src) {
-      if (!isInlineFloorPlanSrc(level.src)) return
-      if (hasFloorPlanDisplayCache(state.school.id, levelId)) return
-    }
+    if (planBackdropReady) return
     void ensureFloorPlanLevel(levelId)
-  }, [levelId, plan, level?.src, state.school, ensureFloorPlanLevel])
+  }, [levelId, plan, state.school, planBackdropReady, floorPlanDisplayLoading, ensureFloorPlanLevel])
 
   useEffect(() => {
     const el = viewportRef.current

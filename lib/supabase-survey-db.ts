@@ -14,6 +14,7 @@ import type {
 import { surveyTypeLabel } from "@aisd/shared"
 import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
 import { sessionHasRegisteredAssessor } from "@/lib/assessor"
+import { countDraftResponses } from "@/lib/school-draft-merge"
 import {
   isSupabaseServerConfigured,
   supabaseRestDelete,
@@ -372,11 +373,21 @@ export async function pushSurveyDraft(input: {
 
   const remoteRows = await supabaseRestSelect<DbSurveySession>(
     "esa_survey_sessions",
-    `school_id=eq.${encodeURIComponent(draft.schoolId)}&survey_type=eq.${encodeURIComponent(draft.surveyType)}&select=updated_at`,
+    `school_id=eq.${encodeURIComponent(draft.schoolId)}&survey_type=eq.${encodeURIComponent(draft.surveyType)}&select=id,updated_at`,
   )
+  const remoteSessionId = remoteRows[0]?.id
   const remoteUpdatedAt = remoteRows[0]?.updated_at
+  const localResponseCount = countDraftResponses(draft)
+
   if (remoteUpdatedAt && remoteUpdatedAt > draft.savedAt) {
-    return { updatedAt: remoteUpdatedAt, action: "skipped_remote_newer" }
+    const remoteDraft = await pullSurveyDraft({
+      schoolId: draft.schoolId,
+      surveyType: draft.surveyType,
+    })
+    const remoteResponseCount = remoteDraft ? countDraftResponses(remoteDraft) : 0
+    if (remoteResponseCount >= localResponseCount) {
+      return { updatedAt: remoteUpdatedAt, action: "skipped_remote_newer" }
+    }
   }
 
   await upsertSchool(school)
@@ -411,6 +422,17 @@ export async function pushSurveyDraft(input: {
 
   const sessionId = (upsertedSession as DbSurveySession).id
 
+  const rooms = Object.values(session.rooms)
+  if (localResponseCount === 0 && remoteSessionId) {
+    const existingResponses = await supabaseRestSelect<{ room_id: string }>(
+      "esa_question_responses",
+      `survey_session_id=eq.${encodeURIComponent(remoteSessionId)}&select=room_id&limit=1`,
+    )
+    if (existingResponses.length > 0) {
+      return { updatedAt: remoteUpdatedAt ?? draft.savedAt, action: "skipped_remote_newer" }
+    }
+  }
+
   await supabaseRestDelete(
     "esa_question_responses",
     `survey_session_id=eq.${encodeURIComponent(sessionId)}`,
@@ -424,7 +446,6 @@ export async function pushSurveyDraft(input: {
     `survey_session_id=eq.${encodeURIComponent(sessionId)}`,
   )
 
-  const rooms = Object.values(session.rooms)
   if (rooms.length > 0) {
     await supabaseRestInsert("esa_survey_rooms", rooms.map((room) => roomToDb(sessionId, room)))
 

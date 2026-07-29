@@ -5,6 +5,7 @@ import {
   isOutdoorSurveyRoomId,
   isSpaceTypeForSurveyModule,
   isStudioType,
+  isSpaceTypeRoomsComplete,
   OUTDOOR_SURVEY_ROOM_ID,
   outdoorSurveyRoomDisplayName,
   spaceTypesForSurveyModule,
@@ -77,30 +78,19 @@ export function isStudiosSurveyComplete(
 
   for (const studioType of requiredTypes) {
     const ofType = roomsMatchingSpaceType(session, "studios", studioType, schoolClass)
-    const filled = ofType.filter((room) => isRoomSurveyFilledOut(room, "studios", schoolClass))
-
-    if (studioType === "Traditional studio") {
-      const identified = new Set(
-        ofType
-          .map((room) => room.neighborhood?.trim())
-          .filter((n): n is string => !!n),
+    if (
+      !isSpaceTypeRoomsComplete(studioType, ofType, schoolClass, (room) =>
+        isRoomSurveyFilledOut(room, "studios", schoolClass),
       )
-      if (identified.size === 0) return false
-
-      for (const neighborhood of identified) {
-        const count = filled.filter((room) => room.neighborhood?.trim() === neighborhood).length
-        if (count < 2) return false
-      }
-      continue
+    ) {
+      return false
     }
-
-    if (filled.length < 1) return false
   }
 
   return true
 }
 
-/** True when every required space type has at least one filled-out room survey. */
+/** True when every required space type meets its guidance-based room count. */
 export function isSpaceTypeSurveyComplete(
   surveyType: SurveyType,
   session: SurveySession | null | undefined,
@@ -113,10 +103,14 @@ export function isSpaceTypeSurveyComplete(
     .map((entry) => entry.spaceType)
 
   for (const spaceType of requiredTypes) {
-    const filled = roomsMatchingSpaceType(session, surveyType, spaceType, schoolClass).filter(
-      (room) => isRoomSurveyFilledOut(room, surveyType, schoolClass),
-    )
-    if (filled.length < 1) return false
+    const ofType = roomsMatchingSpaceType(session, surveyType, spaceType, schoolClass)
+    if (
+      !isSpaceTypeRoomsComplete(spaceType, ofType, schoolClass, (room) =>
+        isRoomSurveyFilledOut(room, surveyType, schoolClass),
+      )
+    ) {
+      return false
+    }
   }
   return true
 }

@@ -234,7 +234,8 @@ export default function QuestionForm() {
         patch.value !== undefined
           ? patch.value
           : existing?.value ?? (isMultiSelectQuestionType(q.questionType) ? [] : ""),
-      comment: patch.comment !== undefined ? patch.comment : existing?.comment,
+      comment:
+        patch.comment !== undefined ? patch.comment.trim() || undefined : existing?.comment,
       ...mergeResponsePhotoFields(existing, patch),
     })
   }
@@ -348,7 +349,7 @@ export default function QuestionForm() {
                   value: canonicalizeResponseValues(value) ?? value,
                 })
               }
-              onCommentChange={(comment) => updateResponse(q.questionId, { comment: comment || undefined })}
+              onCommentChange={(comment) => updateResponse(q.questionId, { comment })}
               onPhotoChange={(photos) => updateResponse(q.questionId, { photos })}
             />
           )
@@ -470,14 +471,33 @@ function QuestionField({
   const answered = isQuestionFullyAnswered(question, { value: value ?? "", comment })
   const noteRequired = responseRequiresUnableToAssessNote(value)
   const multiSelect = isMultiSelectQuestionType(question.questionType)
-  const [collapsed, setCollapsed] = useState(false)
-  const prevCollapsedRef = useRef(false)
+  const [collapsed, setCollapsed] = useState(() => answered && !highlighted && !noteRequired && !autoAnswered)
+  const [userExpanded, setUserExpanded] = useState(false)
+  const wasAnsweredRef = useRef(answered)
+  const prevCollapsedRef = useRef(collapsed)
 
   useEffect(() => {
-    if (autoAnswered || highlighted || noteRequired || !answered) {
+    if (autoAnswered || highlighted || noteRequired) {
       setCollapsed(false)
+      if (noteRequired) setUserExpanded(true)
     }
-  }, [autoAnswered, highlighted, noteRequired, answered, value])
+  }, [autoAnswered, highlighted, noteRequired])
+
+  useEffect(() => {
+    const justAnswered = answered && !wasAnsweredRef.current
+    wasAnsweredRef.current = answered
+
+    if (!answered || noteRequired || autoAnswered) {
+      setCollapsed(false)
+      if (noteRequired) setUserExpanded(true)
+      if (!answered) setUserExpanded(false)
+      return
+    }
+    if (!justAnswered || highlighted || userExpanded || multiSelect) return
+
+    const timer = window.setTimeout(() => setCollapsed(true), 400)
+    return () => window.clearTimeout(timer)
+  }, [answered, highlighted, userExpanded, multiSelect, value, noteRequired, autoAnswered])
 
   // When a question is manually collapsed, keep following content inside the scroll window.
   useEffect(() => {
@@ -492,13 +512,43 @@ function QuestionField({
     return () => window.cancelAnimationFrame(frame)
   }, [collapsed])
 
+  // Collapse answered questions once they scroll mostly out of view.
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el || autoAnswered) return
+
+    const scrollRoot = el.closest(".overflow-y-auto") as Element | null
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!answered) {
+          setCollapsed(false)
+          return
+        }
+        if (!entry.isIntersecting || entry.intersectionRatio < 0.35) {
+          setCollapsed(true)
+          setUserExpanded(false)
+        }
+      },
+      {
+        root: scrollRoot,
+        threshold: [0, 0.35, 0.6, 1],
+        rootMargin: "-8% 0px -8% 0px",
+      },
+    )
+
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [answered, autoAnswered])
+
   const expand = useCallback(() => {
     setCollapsed(false)
+    setUserExpanded(true)
   }, [])
 
   const collapse = useCallback(() => {
     if (answered && !autoAnswered) {
       setCollapsed(true)
+      setUserExpanded(false)
     }
   }, [answered, autoAnswered])
 

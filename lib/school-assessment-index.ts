@@ -1,4 +1,4 @@
-import type { SurveyType } from "@aisd/shared"
+import type { RoomSurveySession, SurveyType } from "@aisd/shared"
 import { surveyTypeLabel } from "@aisd/shared"
 import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
 import { loadDraftsForSchool, type PersistedSurveyDraft } from "@/lib/survey-persistence"
@@ -16,6 +16,22 @@ function draftWasSubmitted(draft: PersistedSurveyDraft): boolean {
   return !!(draft.lastSubmission || draft.session.submittedAt)
 }
 
+/** True when a room has real survey answers, not just a placeholder session entry. */
+export function roomHasAssessmentProgress(
+  roomSession: RoomSurveySession | null | undefined,
+  campusEntry?: { answeredCount?: number; complete?: boolean } | null,
+): boolean {
+  if (campusEntry && ((campusEntry.answeredCount ?? 0) > 0 || campusEntry.complete)) {
+    return true
+  }
+  if (!roomSession) return false
+  return (
+    roomSession.responses.length > 0 ||
+    !!roomSession.gradeType ||
+    !!roomSession.deferredToCloseOut
+  )
+}
+
 function roomInSubmittedDraft(
   draft: PersistedSurveyDraft,
   roomId: string,
@@ -31,14 +47,7 @@ function roomInSubmittedDraft(
 
   if (!campusEntry && !sessionRoom) return null
 
-  const hasAssessment =
-    !!campusEntry ||
-    (sessionRoom &&
-      (sessionRoom.responses.length > 0 ||
-        !!sessionRoom.gradeType ||
-        !!sessionRoom.deferredToCloseOut))
-
-  if (!hasAssessment) return null
+  if (!roomHasAssessmentProgress(sessionRoom, campusEntry)) return null
 
   const spaceType =
     sessionRoom?.roomType?.trim() ||
@@ -58,8 +67,10 @@ export function findSubmittedRoomAssessment(
   schoolId: string,
   roomId: string,
   drafts?: PersistedSurveyDraft[],
+  options?: { surveyType?: SurveyType },
 ): SubmittedRoomAssessment | null {
   for (const draft of drafts ?? loadDraftsForSchool(schoolId)) {
+    if (options?.surveyType && draft.surveyType !== options.surveyType) continue
     const match = roomInSubmittedDraft(draft, roomId)
     if (match) return match
   }

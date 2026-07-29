@@ -10,6 +10,8 @@ import { PreWalkBanner } from "@/components/pre-walk-launcher"
 import TraditionalStudioCopyReviewModal from "@/components/traditional-studio-copy-review-modal"
 import OutdoorElementsMapModal from "@/components/outdoor-elements-map-modal"
 import { resolveRoomNeighborhoodForCopy } from "@/lib/traditional-studio-copy"
+import { isNeighborhoodOnlySpaceType } from "@aisd/shared"
+import { effectiveSpaceTypeForSelection } from "@/lib/prewalk"
 import { Map } from "lucide-react"
 
 function roomDisplayName(
@@ -81,6 +83,18 @@ export default function StudioSurvey() {
     state.surveyType === "administration" ||
     state.surveyType === "arrival" ||
     state.surveyType === "neighborhoods"
+  const selectedSpaceType = effectiveSpaceTypeForSelection({
+    surveyType: state.surveyType,
+    pendingStudioType: state.pendingStudioType,
+    selectedRoomId: state.selectedRoomId,
+    sessionRooms: state.session?.rooms,
+    preWalkMappings: state.preWalk.mappings,
+    schoolClass: state.school?.schoolClass,
+  })
+  const neighborhoodOnlyMode = isNeighborhoodOnlySpaceType(
+    state.surveyType,
+    selectedSpaceType,
+  )
   const showQuestions = !!state.selectedRoomId
 
   return (
@@ -142,7 +156,9 @@ export default function StudioSurvey() {
                 ? "Select a room below to answer deferred questions from other survey sections."
                 : "Review your campus Close Out summary below, add final thoughts, and submit when ready."
               : needsSpaceType
-                ? "Select a space type, then choose a room from the dropdown or floor plan to begin scoring."
+                ? neighborhoodOnlyMode
+                  ? "Select the Neighborhood space type, then choose a neighborhood to begin scoring."
+                  : "Select a space type, then choose a room from the dropdown or floor plan to begin scoring."
                 : "Select a studio type, then choose a room from the dropdown or floor plan to begin scoring."}
           </p>
         </div>

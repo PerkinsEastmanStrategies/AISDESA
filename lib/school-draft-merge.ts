@@ -1,6 +1,6 @@
 import type { SurveySession, SurveyType } from "@aisd/shared"
 import { SURVEY_TYPES } from "@aisd/shared"
-import { saveDraft, type PersistedSurveyDraft } from "@/lib/survey-persistence"
+import { loadDraft, saveDraft, type PersistedSurveyDraft } from "@/lib/survey-persistence"
 
 export function countDraftResponses(draft: PersistedSurveyDraft): number {
   return countSessionResponses(draft.session)
@@ -66,8 +66,10 @@ export function hydrateLocalDraftsFromRemote(
   remoteDrafts: PersistedSurveyDraft[],
   schoolId?: string,
 ): void {
-  for (const draft of remoteDrafts) {
-    if (schoolId && draft.schoolId !== schoolId) continue
-    saveDraft(draft)
+  for (const remote of remoteDrafts) {
+    if (schoolId && remote.schoolId !== schoolId) continue
+    const local = loadDraft(remote.schoolId, remote.surveyType)
+    const merged = local ? pickRicherDraft(local, remote) : remote
+    saveDraft(merged, { setActive: false })
   }
 }

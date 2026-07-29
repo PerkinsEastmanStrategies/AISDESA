@@ -738,6 +738,36 @@ export function outdoorSurveyRoomDisplayName(): string {
   return "Outdoor Spaces"
 }
 
+/** Synthetic session keys for Neighborhood space-type scoring (one per identified neighborhood). */
+export const NEIGHBORHOOD_SURVEY_ROOM_PREFIX = "__neighborhood-survey__:" as const
+
+export function neighborhoodSurveyRoomId(neighborhood: string): string {
+  return `${NEIGHBORHOOD_SURVEY_ROOM_PREFIX}${neighborhood.trim()}`
+}
+
+export function isNeighborhoodSurveyRoomId(roomId: string | null | undefined): boolean {
+  return !!roomId?.startsWith(NEIGHBORHOOD_SURVEY_ROOM_PREFIX)
+}
+
+export function neighborhoodFromSurveyRoomId(roomId: string): string | null {
+  if (!isNeighborhoodSurveyRoomId(roomId)) return null
+  const label = roomId.slice(NEIGHBORHOOD_SURVEY_ROOM_PREFIX.length).trim()
+  return label || null
+}
+
+export function neighborhoodSurveyRoomDisplayName(neighborhood: string): string {
+  const trimmed = neighborhood.trim()
+  return trimmed ? `Neighborhood ${trimmed}` : "Neighborhood"
+}
+
+/** Neighborhoods module: the Neighborhood space type is scored per neighborhood, not per room. */
+export function isNeighborhoodOnlySpaceType(
+  surveyType: SurveyType,
+  spaceType: string | null | undefined,
+): boolean {
+  return surveyType === "neighborhoods" && spaceType === "Neighborhood"
+}
+
 /** Survey types scored once per campus rather than per room. */
 export function isCampusScopedSurveyType(surveyType: SurveyType): boolean {
   return surveyType === "outdoor"

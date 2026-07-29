@@ -136,11 +136,30 @@ function trackBlobUrl(schoolId: string, url: string): void {
   blobUrlsBySchool.set(schoolId, list)
 }
 
+/** Revoke blob: URLs only. Keeps inline SVG text cache for fast floor-plan reopen. */
 export function revokeFloorPlanBlobUrls(schoolId: string): void {
   const urls = blobUrlsBySchool.get(schoolId) ?? []
   for (const url of urls) URL.revokeObjectURL(url)
   blobUrlsBySchool.delete(schoolId)
+}
+
+/** Drop all cached display SVG for a school (e.g. when switching schools). */
+export function clearFloorPlanDisplayCache(schoolId: string): void {
+  revokeFloorPlanBlobUrls(schoolId)
   clearFloorPlanDisplaySvgCache(schoolId)
+}
+
+/** Reattach a display src from an already-cached SVG (after STRIP cleared level.src). */
+export function restoreFloorPlanLevelFromCache(
+  schoolId: string,
+  level: SchoolFloorPlanConfig["levels"][number],
+): SchoolFloorPlanConfig["levels"][number] | null {
+  const svgText = getFloorPlanDisplaySvg(schoolId, level.id)
+  if (!svgText) return null
+  return {
+    ...level,
+    src: createFloorPlanLevelSrc(schoolId, level.id, svgText),
+  }
 }
 
 export function isLivelySchool(school: AisdSchoolOption): boolean {
@@ -657,7 +676,7 @@ export function stripFloorPlanDisplay(
   schoolId: string,
   plan: SchoolFloorPlanConfig | null,
 ): SchoolFloorPlanConfig | null {
-  revokeFloorPlanBlobUrls(schoolId)
+  revokeFloorPlanBlobUrls(schoolId) // keep inline SVG text cache
   if (!plan) return null
   return {
     ...plan,

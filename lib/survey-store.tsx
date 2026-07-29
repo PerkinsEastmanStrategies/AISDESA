@@ -40,9 +40,12 @@ import {
   isElementaryGrade,
   isNeighborhoodSpaceType,
   isOutdoorSpaceType,
+  isNeighborhoodSurveyRoomId,
   isOutdoorSurveyRoomId,
   isRoomComplete,
   isSecondaryGrade,
+  neighborhoodFromSurveyRoomId,
+  neighborhoodSurveyRoomDisplayName,
   OUTDOOR_SURVEY_ROOM_ID,
   outdoorSurveyRoomDisplayName,
   subcategoryOverrideKey,
@@ -90,6 +93,7 @@ import {
   hasFloorPlanDisplayCache,
   isInlineFloorPlanSrc,
   loadSchoolRoomsForSchool,
+  restoreFloorPlanLevelFromCache,
   revokeFloorPlanBlobUrls,
 } from "@/lib/floor-plan-loader"
 import { loadAisdSchoolOptions } from "@/lib/load-aisd-schools"
@@ -98,6 +102,7 @@ import {
   countCloseOutPendingItems,
   isCloseOutSurveyComplete,
   rebuildCloseOutFromSourceSurveys,
+  refreshCloseOutDraftFromSources,
   roomNeedsCloseOut,
   syncCloseOutProgressToSource,
   syncSourceProgressToCloseOut,
@@ -115,17 +120,17 @@ import {
   pullRemoteDraftClient,
   pullRemoteDraftsForSchoolClient,
   pushSurveyDraftClient,
-  queueSurveySync,
+  getPendingSyncCount,
 } from "@/lib/survey-remote-sync"
 import type { RemoteSurveyStatus } from "@/lib/survey-remote-types"
 import {
   findSubmittedRoomAssessment,
+  roomHasAssessmentProgress,
   schoolHasResults,
   schoolScoredRoomCount,
   type SubmittedRoomAssessment,
 } from "@/lib/school-assessment-index"
 import {
-  hydrateLocalDraftsFromRemote,
   mergeSchoolDrafts,
 } from "@/lib/school-draft-merge"
 
@@ -281,6 +286,9 @@ function resolveRoomType(
   if (isOutdoorSurveyRoomId(roomId) && state.surveyType === "outdoor") {
     return "Outdoor Spaces"
   }
+  if (isNeighborhoodSurveyRoomId(roomId) && state.surveyType === "neighborhoods") {
+    return "Neighborhood"
+  }
 
   const preWalkType = preWalkSpaceTypeForRoom(
     state.preWalk.mappings,
@@ -383,6 +391,8 @@ function bootstrapCampusScopedSurvey(state: SurveyState): SurveyState {
 
 function roomDisplayName(state: SurveyState, roomId: string): string {
   if (isOutdoorSurveyRoomId(roomId)) return outdoorSurveyRoomDisplayName()
+  const neighborhoodLabel = neighborhoodFromSurveyRoomId(roomId)
+  if (neighborhoodLabel) return neighborhoodSurveyRoomDisplayName(neighborhoodLabel)
   const parsed = state.allRooms.find((r) => r.id === roomId)
   const sessionRoom = state.session?.rooms[roomId]
   return parsed?.name ?? sessionRoom?.roomNumber ?? roomId
@@ -461,6 +471,31 @@ function ensureRoomSession(
       roomType: "Outdoor Spaces",
       gradeType: "",
       neighborhood: "",
+      preWalkNote1: "",
+      preWalkNote2: "",
+      levelId: "campus",
+      responses: [],
+    }
+  }
+
+  const neighborhoodLabel = neighborhoodFromSurveyRoomId(roomId)
+  if (neighborhoodLabel && state.surveyType === "neighborhoods") {
+    const label = neighborhoodSurveyRoomDisplayName(neighborhoodLabel)
+    if (existing) {
+      return {
+        ...existing,
+        roomType: "Neighborhood",
+        roomNumber: label,
+        neighborhood: neighborhoodLabel,
+        levelId: "campus",
+      }
+    }
+    return {
+      roomId,
+      roomNumber: label,
+      roomType: "Neighborhood",
+      gradeType: "",
+      neighborhood: neighborhoodLabel,
       preWalkNote1: "",
       preWalkNote2: "",
       levelId: "campus",
@@ -687,7 +722,9 @@ function buildSubmission(state: SurveyState): SurveySubmission | null {
   const rubric = getSurveyRubric(state.surveyType)
   if (!rubric) return null
 
-  const scoredRooms: ScoredRoomEntry[] = Object.entries(state.session.rooms).map(([roomId, roomSession]) => {
+  const scoredRooms: ScoredRoomEntry[] = Object.entries(state.session.rooms)
+    .filter(([, roomSession]) => roomHasAssessmentProgress(roomSession))
+    .map(([roomId, roomSession]) => {
     const detail = state.roomScoreDetails[roomId]
     return {
       roomId,
@@ -819,12 +856,35 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         return { ...state, surveyType: action.surveyType, submission: null, showResumeBanner: false }
       }
       if (action.surveyType === "closeout") {
-        const prepared = prepareCloseOutDraft(
-          state.school,
-          action.draft ?? loadDraft(state.school.id, "closeout"),
-          state.allRooms,
-          state.assessorByType,
-        )
+        const existingDraft = action.draft ?? loadDraft(state.school.id, "closeout")
+        const hasCloseOutProgress =
+          !!existingDraft?.session &&
+          (Object.keys(existingDraft.session.rooms).length > 0 ||
+            !!existingDraft.session.finalComment?.trim())
+
+        let prepared: PersistedSurveyDraft
+        if (hasCloseOutProgress && existingDraft) {
+          const sourceSessions = loadDraftsForSchool(state.school.id).map((draft) => draft.session)
+          const session = refreshCloseOutDraftFromSources({
+            existingCloseOut: existingDraft.session,
+            sourceSessions,
+            allRooms: state.allRooms,
+            schoolClass: state.school.schoolClass,
+          })
+          prepared = {
+            ...existingDraft,
+            session,
+            savedAt: new Date().toISOString(),
+          }
+        } else {
+          prepared = prepareCloseOutDraft(
+            state.school,
+            existingDraft,
+            state.allRooms,
+            state.assessorByType,
+          )
+        }
+
         const restored = stateFromDraft(
           state.school,
           prepared,
@@ -965,7 +1025,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         floorPlan: {
           ...state.floorPlan,
           levels: state.floorPlan.levels.map((level) =>
-            level.id === action.level.id ? action.level : { ...level, src: "" },
+            level.id === action.level.id ? action.level : level,
           ),
         },
       }
@@ -1042,8 +1102,13 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       }
       const campusRoom =
         isOutdoorSurveyRoomId(action.roomId) && state.surveyType === "outdoor"
-      const room = campusRoom ? undefined : state.allRooms.find((r) => r.id === action.roomId)
-      if (!campusRoom && !room && state.session) {
+      const neighborhoodSurveyRoom =
+        isNeighborhoodSurveyRoomId(action.roomId) && state.surveyType === "neighborhoods"
+      const room =
+        campusRoom || neighborhoodSurveyRoom
+          ? undefined
+          : state.allRooms.find((r) => r.id === action.roomId)
+      if (!campusRoom && !neighborhoodSurveyRoom && !room && state.session) {
         return state
       }
       if (!state.session) {
@@ -1499,8 +1564,9 @@ function reducer(state: SurveyState, action: Action): SurveyState {
 
       for (const [roomId, roomSession] of Object.entries(state.session.rooms)) {
         const campusRoom = isOutdoorSurveyRoomId(roomId)
-        const parsed = campusRoom ? undefined : state.allRooms.find((r) => r.id === roomId)
-        if (!parsed && !campusRoom) continue
+        const neighborhoodSurveyRoom = isNeighborhoodSurveyRoomId(roomId)
+        const parsed = campusRoom || neighborhoodSurveyRoom ? undefined : state.allRooms.find((r) => r.id === roomId)
+        if (!parsed && !campusRoom && !neighborhoodSurveyRoom) continue
         const rubric = getRoomSurveyRubric(
           state.surveyType,
           roomSession.roomType,
@@ -1818,6 +1884,63 @@ function buildScoredRoomEntries(state: SurveyState): ScoredRoomEntry[] {
     .sort((a, b) => a.roomName.localeCompare(b.roomName))
 }
 
+function persistDraftFromState(state: SurveyState): string | null {
+  if (!state.school || !state.session) return null
+
+  const savedAt = new Date().toISOString()
+  saveDraft({
+    schoolId: state.school.id,
+    surveyType: state.surveyType,
+    session: state.session,
+    selectedLevelId: state.selectedLevelId,
+    selectedRoomId: state.selectedRoomId,
+    pendingStudioType: state.pendingStudioType,
+    preWalk: state.preWalk,
+    view: state.view === "admin" || state.view === "landing" ? "survey" : state.view,
+    manualRooms: state.manualRooms,
+    lastSubmission: state.submission,
+    savedAt,
+  })
+
+  if (state.surveyType === "closeout") {
+    const sourceTypes = new Set(
+      Object.values(state.session.rooms)
+        .map((room) => room.sourceSurveyType)
+        .filter((surveyType): surveyType is Exclude<SurveyType, "closeout"> => !!surveyType),
+    )
+    if (sourceTypes.size === 0) sourceTypes.add("studios")
+
+    for (const sourceType of sourceTypes) {
+      const sourceDraft = loadDraft(state.school.id, sourceType)
+      if (!sourceDraft?.session) continue
+      const synced = syncCloseOutProgressToSource(state.session, sourceDraft.session)
+      saveDraft(
+        {
+          ...sourceDraft,
+          session: synced,
+          savedAt,
+        },
+        { setActive: false },
+      )
+    }
+  } else {
+    const closeDraft = loadDraft(state.school.id, "closeout")
+    if (closeDraft?.session) {
+      const synced = syncSourceProgressToCloseOut(state.session, closeDraft.session)
+      saveDraft(
+        {
+          ...closeDraft,
+          session: synced,
+          savedAt,
+        },
+        { setActive: false },
+      )
+    }
+  }
+
+  return savedAt
+}
+
 export function SurveyProvider({ children }: { children: ReactNode }) {
   const [schools, setSchools] = useState<AisdSchoolOption[]>([])
   const [schoolsLoading, setSchoolsLoading] = useState(true)
@@ -1836,6 +1959,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const [floorPlanDisplayRequests, setFloorPlanDisplayRequests] = useState(0)
   const [floorPlanDisplayLoading, setFloorPlanDisplayLoading] = useState(false)
   const lastSyncedSubmissionRef = useRef<string | null>(null)
+  const floorPlanLevelInflightRef = useRef(new Map<string, Promise<void>>())
   const surveyTypeBeforeConflictRef = useRef<SurveyType>("studios")
   const [state, dispatch] = useReducer(reducer, {
     surveyType: "studios",
@@ -1938,54 +2062,8 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!state.hydrated || !state.school || !state.session) return
 
-    const savedAt = new Date().toISOString()
-    saveDraft({
-      schoolId: state.school.id,
-      surveyType: state.surveyType,
-      session: state.session,
-      selectedLevelId: state.selectedLevelId,
-      selectedRoomId: state.selectedRoomId,
-      pendingStudioType: state.pendingStudioType,
-      preWalk: state.preWalk,
-      view:
-        state.view === "admin" || state.view === "landing" ? "survey" : state.view,
-      manualRooms: state.manualRooms,
-      lastSubmission: state.submission,
-      savedAt,
-    })
-
-    // Keep Studios ↔ Close Out drafts in sync when either side answers deferred items.
-    if (state.surveyType === "closeout") {
-      const sourceType =
-        Object.values(state.session.rooms).find((r) => r.sourceSurveyType)?.sourceSurveyType ??
-        "studios"
-      const sourceDraft = loadDraft(state.school.id, sourceType)
-      if (sourceDraft?.session) {
-        const synced = syncCloseOutProgressToSource(state.session, sourceDraft.session)
-        saveDraft(
-          {
-            ...sourceDraft,
-            session: synced,
-            savedAt,
-          },
-          { setActive: false },
-        )
-      }
-    } else {
-      const closeDraft = loadDraft(state.school.id, "closeout")
-      if (closeDraft?.session) {
-        const synced = syncSourceProgressToCloseOut(state.session, closeDraft.session)
-        saveDraft(
-          {
-            ...closeDraft,
-            session: synced,
-            savedAt,
-          },
-          { setActive: false },
-        )
-      }
-    }
-
+    const savedAt = persistDraftFromState(state)
+    if (!savedAt) return
     dispatch({ type: "MARK_SAVED", savedAt })
   }, [
     state.hydrated,
@@ -2029,9 +2107,16 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     try {
       const result = await pullRemoteDraftsForSchoolClient(state.school.id)
       if (result.configured) {
-        hydrateLocalDraftsFromRemote(result.drafts, state.school.id)
+        const localDrafts = SURVEY_TYPES.filter((t) => t !== "closeout").flatMap((surveyType) => {
+          const draft = loadDraft(state.school!.id, surveyType)
+          return draft ? [draft] : []
+        })
+        const merged = mergeSchoolDrafts(localDrafts, result.drafts)
+        for (const draft of merged) {
+          saveDraft(draft, { setActive: false })
+        }
         setRemoteDraftsConfigured(true)
-        setRemoteSchoolDrafts(result.drafts)
+        setRemoteSchoolDrafts(merged)
       } else {
         setRemoteDraftsConfigured(false)
         setRemoteSchoolDrafts(null)
@@ -2092,10 +2177,8 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
             }
           }
         }
-        setPendingSyncCount(0)
+        setPendingSyncCount(getPendingSyncCount())
       })
-
-      queueSurveySync(school.id, surveyType, state.lastSavedAt!)
     }, 2500)
 
     return () => window.clearTimeout(timer)
@@ -2123,6 +2206,14 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     syncPendingCount()
 
     const onOnline = () => {
+      void flushSurveySyncQueue({
+        schools,
+        loadDraft,
+        onRemoteNewer: () => syncPendingCount(),
+      }).then(syncPendingCount)
+    }
+
+    if (isBrowserOnline()) {
       void flushSurveySyncQueue({
         schools,
         loadDraft,
@@ -2220,16 +2311,34 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         !hasFloorPlanDisplayCache(school.id, levelId)
       if (existing?.src && !inlineStale) return
 
-      setFloorPlanDisplayLoading(true)
-      try {
-        revokeFloorPlanBlobUrls(school.id)
-        const level = await loadFloorPlanLevelDisplay(school, levelId)
-        if (level) dispatch({ type: "PATCH_FLOOR_PLAN_LEVEL", level })
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setFloorPlanDisplayLoading(false)
-      }
+      const key = `${school.id}::${levelId}`
+      const inflight = floorPlanLevelInflightRef.current.get(key)
+      if (inflight) return inflight
+
+      const promise = (async () => {
+        setFloorPlanDisplayLoading(true)
+        try {
+          if (hasFloorPlanDisplayCache(school.id, levelId) && existing) {
+            const restored = restoreFloorPlanLevelFromCache(school.id, existing)
+            if (restored) {
+              dispatch({ type: "PATCH_FLOOR_PLAN_LEVEL", level: restored })
+              return
+            }
+          }
+
+          const level = await loadFloorPlanLevelDisplay(school, levelId)
+          if (level) dispatch({ type: "PATCH_FLOOR_PLAN_LEVEL", level })
+        } catch (err) {
+          console.error(err)
+        } finally {
+          setFloorPlanDisplayLoading(false)
+        }
+      })().finally(() => {
+        floorPlanLevelInflightRef.current.delete(key)
+      })
+
+      floorPlanLevelInflightRef.current.set(key, promise)
+      return promise
     },
     [state.school, state.floorPlan],
   )
@@ -2330,9 +2439,11 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const findSubmittedRoomAssessmentForSchool = useCallback(
     (roomId: string) =>
       state.school
-        ? findSubmittedRoomAssessment(state.school.id, roomId, scoringDrafts)
+        ? findSubmittedRoomAssessment(state.school.id, roomId, scoringDrafts, {
+            surveyType: state.surveyType,
+          })
         : null,
-    [state.school, scoringDrafts],
+    [state.school, state.surveyType, scoringDrafts],
   )
 
   const currentRoomSession =
@@ -2580,6 +2691,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const setSurveyType = useCallback(
     (t: SurveyType, options?: { pendingStudioType?: string | null }) => {
       if (state.school) {
+        if (t !== state.surveyType && state.session) {
+          persistDraftFromState(state)
+        }
         if (t !== state.surveyType) {
           surveyTypeBeforeConflictRef.current = state.surveyType
         }
@@ -2598,7 +2712,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         })
       }
     },
-    [state.school, state.surveyType],
+    [state.school, state.session, state.surveyType],
   )
 
   const setSchool = useCallback(

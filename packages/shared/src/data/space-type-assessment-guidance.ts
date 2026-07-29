@@ -201,10 +201,30 @@ export function parseSpaceTypeGuidanceNote(
   }
 }
 
-export function lookupSpaceTypeAssessmentGuidance(
+export type SpaceTypeCompletionRule =
+  | { kind: "minRooms"; count: number }
+  | { kind: "perNeighborhood"; minPerNeighborhood: number }
+
+function parseMinimumRoomCountFromNote(note: string): number | null {
+  const body = note.trim()
+  const patterns = [
+    /minimum of (\d+)/i,
+    /assess (\d+) representative rooms?/i,
+    /assess at least (\d+)/i,
+    /assess the (\d+) room/i,
+    /complete (\d+) neighborhood/i,
+  ]
+  for (const pattern of patterns) {
+    const match = body.match(pattern)
+    if (match) return Number.parseInt(match[1]!, 10)
+  }
+  return null
+}
+
+function guidanceEntryForSpaceType(
   spaceType: string,
   schoolClass: string | null | undefined,
-): { title: string; body: string } | null {
+): SpaceTypeAssessmentGuidanceEntry | null {
   const keys = guidanceLookupKeys(spaceType)
   const level = schoolLevelFromSchoolClass(schoolClass)
   const candidates = SPACE_TYPE_ASSESSMENT_GUIDANCE.filter((entry) =>
@@ -212,11 +232,102 @@ export function lookupSpaceTypeAssessmentGuidance(
   )
   if (!candidates.length) return null
 
-  const entry =
+  return (
     (level ? candidates.find((c) => guidanceSchoolLevelMatches(c.schoolLevel, level)) : null) ??
     candidates.find((c) => guidanceSchoolLevelMatches(c.schoolLevel, null)) ??
-    candidates.find((c) => c.schoolLevel.toUpperCase() === "ALL")
+    candidates.find((c) => c.schoolLevel.toUpperCase() === "ALL") ??
+    null
+  )
+}
 
+/** Minimum completed room surveys before a space type counts as complete in the picker. */
+export function spaceTypeCompletionRule(
+  spaceType: string,
+  schoolClass: string | null | undefined,
+): SpaceTypeCompletionRule {
+  if (spaceType === "Traditional studio") {
+    return { kind: "perNeighborhood", minPerNeighborhood: 2 }
+  }
+
+  const entry = guidanceEntryForSpaceType(spaceType, schoolClass)
+  if (!entry) return { kind: "minRooms", count: 1 }
+
+  const note = entry.note.trim()
+  if (/^About this space:/i.test(note)) {
+    return { kind: "minRooms", count: 1 }
+  }
+
+  if (/within each identified neighborhood/i.test(note)) {
+    const match = note.match(/(?:assess|complete)\s+(\d+)/i)
+    return { kind: "perNeighborhood", minPerNeighborhood: match ? Number.parseInt(match[1]!, 10) : 1 }
+  }
+
+  const parsed = parseMinimumRoomCountFromNote(note)
+  return { kind: "minRooms", count: parsed ?? 1 }
+}
+
+export function requiredCompletedRoomsForSpaceType(
+  spaceType: string,
+  schoolClass: string | null | undefined,
+): number {
+  const rule = spaceTypeCompletionRule(spaceType, schoolClass)
+  return rule.kind === "minRooms" ? rule.count : rule.minPerNeighborhood
+}
+
+export interface SpaceTypeRoomSession {
+  neighborhood?: string | null
+}
+
+export function isSpaceTypeRoomsComplete<T extends SpaceTypeRoomSession>(
+  spaceType: string,
+  rooms: T[],
+  schoolClass: string | null | undefined,
+  isFilledOut: (room: T) => boolean,
+): boolean {
+  const rule = spaceTypeCompletionRule(spaceType, schoolClass)
+  const filled = rooms.filter((room) => isFilledOut(room))
+
+  if (rule.kind === "minRooms") {
+    return filled.length >= rule.count
+  }
+
+  const identified = new Set(
+    rooms.map((room) => room.neighborhood?.trim()).filter((n): n is string => !!n),
+  )
+  if (identified.size === 0) return false
+
+  for (const neighborhood of identified) {
+    const count = filled.filter((room) => room.neighborhood?.trim() === neighborhood).length
+    if (count < rule.minPerNeighborhood) return false
+  }
+  return true
+}
+
+export function spaceTypeCompletionProgress<T extends SpaceTypeRoomSession>(
+  spaceType: string,
+  rooms: T[],
+  schoolClass: string | null | undefined,
+  isFilledOut: (room: T) => boolean,
+): { complete: number; required: number } {
+  const rule = spaceTypeCompletionRule(spaceType, schoolClass)
+  const filled = rooms.filter((room) => isFilledOut(room))
+
+  if (rule.kind === "minRooms") {
+    return { complete: filled.length, required: rule.count }
+  }
+
+  const identified = new Set(
+    rooms.map((room) => room.neighborhood?.trim()).filter((n): n is string => !!n),
+  )
+  const required = identified.size * rule.minPerNeighborhood
+  return { complete: filled.length, required: Math.max(required, rule.minPerNeighborhood) }
+}
+
+export function lookupSpaceTypeAssessmentGuidance(
+  spaceType: string,
+  schoolClass: string | null | undefined,
+): { title: string; body: string } | null {
+  const entry = guidanceEntryForSpaceType(spaceType, schoolClass)
   if (!entry) return null
   return parseSpaceTypeGuidanceNote(entry.note, spaceType)
 }

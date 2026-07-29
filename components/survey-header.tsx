@@ -5,6 +5,7 @@ import Image from "next/image"
 import { BarChart3, ArrowLeft, Building2, Check, Home, LayoutDashboard, LogOut, Search, User } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
 import { formatSavedAt } from "@/lib/survey-persistence"
+import { resolveCampusAssessor } from "@/lib/assessor"
 import { PreWalkHeaderButton } from "@/components/pre-walk-launcher"
 import { cn } from "@/lib/utils"
 
@@ -24,7 +25,7 @@ function AssessorProfileMenu() {
   const menuRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
 
-  const assessor = state.assessorByType[state.surveyType]
+  const assessor = resolveCampusAssessor(state.assessorByType, state.surveyType)
 
   const filteredSchools = useMemo(() => {
     const q = schoolQuery.trim().toLowerCase()
@@ -237,7 +238,8 @@ export default function SurveyHeader() {
             {state.view === "results" ? "Results" : "Field assessment"}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <AssessorProfileMenu />
+        <div className="flex max-w-[min(100%,14rem)] shrink-0 items-center gap-1.5 overflow-x-auto sm:max-w-none sm:gap-2">
           <button
             type="button"
             onClick={() => setView("landing")}
@@ -276,7 +278,6 @@ export default function SurveyHeader() {
               Questions
             </button>
           )}
-          <AssessorProfileMenu />
         </div>
       </div>
     </header>

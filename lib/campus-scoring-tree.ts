@@ -12,6 +12,8 @@ import {
   getRoomSurveyRubric,
   isOutdoorSurveyRoomId,
   isRoomComplete,
+  neighborhoodFromSurveyRoomId,
+  neighborhoodSurveyRoomDisplayName,
   outdoorSurveyRoomDisplayName,
   scoringFocusAreaForRoom,
   SCORING_FOCUS_AREAS,
@@ -92,6 +94,8 @@ function averageCategoryScores(rooms: Pick<ScoredRoomEntry, "categoryScores" | "
 
 function roomDisplayName(roomId: string, roomSession: RoomSurveySession): string {
   if (isOutdoorSurveyRoomId(roomId)) return outdoorSurveyRoomDisplayName()
+  const neighborhoodLabel = neighborhoodFromSurveyRoomId(roomId)
+  if (neighborhoodLabel) return neighborhoodSurveyRoomDisplayName(neighborhoodLabel)
   return roomSession.roomNumber?.trim() || roomId
 }
 

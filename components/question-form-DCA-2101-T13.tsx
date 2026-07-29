@@ -134,7 +134,8 @@ export default function QuestionForm() {
         patch.value !== undefined
           ? patch.value
           : existing?.value ?? (isMultiSelectQuestionType(q.questionType) ? [] : ""),
-      comment: patch.comment !== undefined ? patch.comment : existing?.comment,
+      comment:
+        patch.comment !== undefined ? patch.comment.trim() || undefined : existing?.comment,
       ...mergeResponsePhotoFields(existing, patch),
     })
   }
@@ -185,7 +186,7 @@ export default function QuestionForm() {
                   value: canonicalizeResponseValues(value) ?? value,
                 })
               }
-              onCommentChange={(comment) => updateResponse(q.questionId, { comment: comment || undefined })}
+              onCommentChange={(comment) => updateResponse(q.questionId, { comment })}
               onPhotoChange={(photos) => updateResponse(q.questionId, { photos })}
             />
           )
