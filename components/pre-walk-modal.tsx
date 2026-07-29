@@ -253,7 +253,7 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
       </header>
 
       {state.floorPlan && mapDisplayReady && !state.floorPlanLoading && (
-        <div className="relative z-30 hidden shrink-0 border-b border-slate-700/40 bg-slate-900/95 px-3 py-2 backdrop-blur-sm sm:block">
+        <div className="relative z-30 hidden shrink-0 border-b border-slate-700/40 bg-slate-900/95 px-3 py-2 backdrop-blur-sm 2xl:block">
           <div className="flex gap-1 overflow-x-auto scrollbar-none">
             {state.floorPlan.levels.map((level) => (
               <button
@@ -319,7 +319,7 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
             Loading floor plan…
           </div>
         ) : (
-          <div className="absolute inset-0 pb-16 sm:pb-0">
+          <div className="absolute inset-0 pb-16 2xl:pb-0">
             <SurveyFloorPlan
               variant="prewalk"
               preWalkMappings={surveyMappings}
@@ -331,10 +331,10 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
           </div>
         )}
 
-        {/* Survey + space types — tablet/desktop left panel */}
+        {/* Survey + space types — desktop left panel */}
         <div
           className={cn(
-            "pointer-events-none absolute left-0 top-0 z-20 hidden max-h-full flex-col pt-2 transition-transform duration-200 sm:flex",
+            "pointer-events-none absolute left-0 top-0 z-20 hidden max-h-full flex-col pt-2 transition-transform duration-200 2xl:flex",
             typesPanelOpen ? "translate-x-0" : "-translate-x-[calc(100%-2.5rem)]",
           )}
         >
@@ -441,11 +441,11 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
           </button>
         </div>
 
-        {/* Room details — tablet/desktop right panel */}
+        {/* Room details — desktop right panel */}
         {selectedRoomId && (
           <div
             className={cn(
-              "pointer-events-none absolute right-0 top-0 z-20 hidden max-h-full flex-col pt-2 transition-transform duration-200 sm:flex",
+              "pointer-events-none absolute right-0 top-0 z-20 hidden max-h-full flex-col pt-2 transition-transform duration-200 2xl:flex",
               detailsPanelOpen ? "translate-x-0" : "translate-x-[calc(100%-2.5rem)]",
             )}
           >
@@ -581,9 +581,9 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
           </div>
         )}
 
-        {/* Phone: bottom sheet — pick survey + space type */}
+        {/* Phone / tablet: bottom sheet — pick survey + space type */}
         {!selectedRoomId && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 sm:hidden">
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 2xl:hidden">
             {mobilePickerExpanded && (
               <button
                 type="button"
@@ -716,10 +716,10 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
           </div>
         )}
 
-        {/* Phone: bottom sheet — room details */}
+        {/* Phone / tablet: bottom sheet — room details */}
         {selectedRoomId && (
           <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-40 sm:hidden"
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-40 2xl:hidden"
             onPointerDown={(event) => event.stopPropagation()}
           >
             <div className="pointer-events-auto flex max-h-[min(72vh,32rem)] flex-col overflow-hidden rounded-t-2xl border border-b-0 border-slate-200/80 bg-white shadow-2xl">
@@ -847,9 +847,9 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
           </div>
         )}
 
-        {/* Active type hint — tablet/desktop only */}
+        {/* Active type hint — desktop only */}
         {activeSpaceType && !selectedRoomId && (
-          <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 hidden max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900/90 px-4 py-2 text-center text-xs font-medium text-white shadow-lg backdrop-blur-sm sm:block">
+          <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 hidden max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900/90 px-4 py-2 text-center text-xs font-medium text-white shadow-lg backdrop-blur-sm 2xl:block">
             Tap rooms on the map to assign as{" "}
             <span className="font-semibold">{activeSpaceType}</span>
             {" · "}
@@ -858,7 +858,7 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
         )}
 
         {!activeSpaceType && !selectedRoomId && (
-          <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 hidden max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900/75 px-4 py-2 text-center text-xs text-white shadow-lg backdrop-blur-sm sm:block">
+          <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 hidden max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900/75 px-4 py-2 text-center text-xs text-white shadow-lg backdrop-blur-sm 2xl:block">
             Choose a survey and {spaceTypeNoun} on the left to begin mapping rooms
           </div>
         )}

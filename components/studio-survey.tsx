@@ -66,7 +66,7 @@ export default function StudioSurvey() {
 
   if (!state.school) {
     return (
-      <div className="flex flex-1 items-center justify-center px-6 py-12 text-center">
+      <div className="flex min-h-[40vh] items-center justify-center px-6 py-12 text-center">
         <p className="text-sm text-[var(--color-muted-foreground)]">
           Select a school on the landing page to begin the survey.
         </p>
@@ -135,7 +135,7 @@ export default function StudioSurvey() {
       {showQuestions ? (
         <QuestionForm />
       ) : (
-        <div className="flex flex-1 items-center justify-center px-6 py-8 text-center">
+        <div className="flex min-h-[40vh] items-center justify-center px-6 py-8 text-center">
           <p className="text-sm text-[var(--color-muted-foreground)]">
             {isCloseOut
               ? closeOutPendingCount > 0

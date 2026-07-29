@@ -105,20 +105,12 @@ export default function SurveyTypeNav({ variant }: SurveyTypeNavProps) {
     <nav
       data-survey-sidebar
       aria-label="Surveys"
-      className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-card)] md:flex"
+      className="hidden h-dvh w-56 shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-card)] md:flex"
     >
       <div className="border-b border-[var(--color-border)] px-4 py-3">
         <h2 className="text-sm font-semibold">Surveys</h2>
         <p className="mt-0.5 text-xs text-[var(--color-muted-foreground)]">Select an assessment</p>
       </div>
-      <div
-        aria-hidden
-        className="hidden shrink-0 md:block"
-        style={{
-          height:
-            "max(0px, calc(var(--survey-progress-tracker-offset, 0px) - var(--survey-sidebar-header-height, 4.5rem)))",
-        }}
-      />
       <ul className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-y-contain p-2">
         {items.map(({ type, label, status, assessor, msHsOnly, active }) => {
           return (

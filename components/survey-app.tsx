@@ -112,7 +112,7 @@ function SurveyAppContent() {
         >
           <SurveyHeaderControls />
           <ResumeBanner />
-          <main className="flex min-h-full flex-col">
+          <main className="flex flex-col">
             <SurveyBody />
           </main>
         </div>

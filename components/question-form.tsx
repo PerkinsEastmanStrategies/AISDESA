@@ -261,7 +261,6 @@ export default function QuestionForm() {
               photos={spaceTypePhotoSubmitted ? [] : spaceTypePhoto ? [spaceTypePhoto] : []}
               maxPhotos={1}
               label="General photo"
-              startExpanded={!spaceTypePhoto}
               privacyContextNote={`General photo of ${spaceType}.`}
               uploadContext={
                 photoUploadBase && spaceType

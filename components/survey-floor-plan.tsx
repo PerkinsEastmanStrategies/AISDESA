@@ -694,12 +694,12 @@ export default function SurveyFloorPlan({
       {completedRoomDialog}
       <div
         className={cn(
-          "flex flex-wrap items-center gap-1 px-2 py-1.5",
+          "flex gap-1 px-2 py-1.5",
           photoGalleryMode
-            ? "border-b border-[var(--color-border)] bg-white"
+            ? "flex-wrap items-center border-b border-[var(--color-border)] bg-white"
             : isPreWalk
-            ? "pointer-events-auto absolute left-2 right-2 top-2 z-20 rounded-xl border border-slate-200/80 bg-white/95 shadow-md backdrop-blur-sm sm:left-[min(19rem,calc(100vw-2rem))] sm:right-2"
-            : "border-b border-[var(--color-border)] bg-white",
+            ? "pointer-events-auto absolute left-2 right-2 top-2 z-20 flex-col rounded-xl border border-slate-200/80 bg-white/95 shadow-md backdrop-blur-sm 2xl:flex-row 2xl:flex-wrap 2xl:items-center 2xl:left-[min(19rem,calc(100vw-2rem))] 2xl:right-2"
+            : "flex-wrap items-center border-b border-[var(--color-border)] bg-white",
         )}
         onPointerDown={(e) => e.stopPropagation()}
       >
@@ -723,7 +723,20 @@ export default function SurveyFloorPlan({
           </div>
         )}
         {!photoGalleryMode && (
-        <div className={cn("flex shrink-0 flex-wrap items-center gap-0.5", isPreWalk && "ml-auto")}>
+        <div
+          className={cn(
+            "flex items-center gap-0.5",
+            isPreWalk
+              ? "w-full min-w-0 flex-col gap-1 2xl:ml-auto 2xl:w-auto 2xl:flex-row 2xl:flex-wrap"
+              : "shrink-0 flex-wrap",
+          )}
+        >
+          <div
+            className={cn(
+              "flex items-center gap-0.5",
+              isPreWalk ? "min-w-0 w-full overflow-x-auto scrollbar-none 2xl:w-auto 2xl:overflow-visible" : "contents",
+            )}
+          >
           <button
             type="button"
             onClick={() => setShowRoomUse((v) => !v)}
@@ -812,6 +825,13 @@ export default function SurveyFloorPlan({
               Size deviation
             </button>
           )}
+          </div>
+          <div
+            className={cn(
+              "flex shrink-0 items-center justify-end gap-0.5",
+              isPreWalk && "w-full 2xl:w-auto",
+            )}
+          >
           <button
             type="button"
             onClick={() => setZoom((z) => clampZoom(z + ZOOM_BUTTON_STEP))}
@@ -870,6 +890,7 @@ export default function SurveyFloorPlan({
               <X className="h-4 w-4" />
             </button>
           )}
+          </div>
         </div>
         )}
       </div>
@@ -879,7 +900,7 @@ export default function SurveyFloorPlan({
       )}
 
       {!photoGalleryMode && isPreWalk && !resultsScoreMode && showNeighborhoods && neighborhoodLegend.length > 0 && (
-        <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-20 hidden sm:absolute sm:left-[min(19rem,calc(100vw-2rem))] sm:right-3 sm:block">
+        <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-20 hidden 2xl:absolute 2xl:left-[min(19rem,calc(100vw-2rem))] 2xl:right-3 2xl:block">
           <NeighborhoodLegend
             items={neighborhoodLegend}
             className="pointer-events-auto rounded-xl border border-slate-200/80 bg-white/95 shadow-md backdrop-blur-sm"
@@ -890,8 +911,8 @@ export default function SurveyFloorPlan({
       {!photoGalleryMode && isPreWalk && !resultsScoreMode && showSizeDeviation && hasSizeDeviationColors && (
         <div
           className={cn(
-            "pointer-events-none absolute left-3 right-3 z-20 hidden sm:absolute sm:left-[min(19rem,calc(100vw-2rem))] sm:right-3 sm:block",
-            showNeighborhoods && neighborhoodLegend.length > 0 ? "bottom-14 sm:bottom-14" : "bottom-3",
+            "pointer-events-none absolute left-3 right-3 z-20 hidden 2xl:absolute 2xl:left-[min(19rem,calc(100vw-2rem))] 2xl:right-3 2xl:block",
+            showNeighborhoods && neighborhoodLegend.length > 0 ? "bottom-14 2xl:bottom-14" : "bottom-3",
           )}
         >
           <NeighborhoodLegend

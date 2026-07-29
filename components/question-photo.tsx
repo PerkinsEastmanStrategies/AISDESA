@@ -74,7 +74,7 @@ export default function QuestionPhoto({
   uploadContext = null,
   maxPhotos,
 }: QuestionPhotoProps) {
-  const [open, setOpen] = useState(startExpanded || photos.length === 0)
+  const [open, setOpen] = useState(startExpanded)
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -98,8 +98,8 @@ export default function QuestionPhoto({
     : "local"
 
   useEffect(() => {
-    if (startExpanded && photos.length === 0 && !pendingPreview) setOpen(true)
-  }, [startExpanded, photos.length, pendingPreview])
+    if (startExpanded) setOpen(true)
+  }, [startExpanded])
 
   useEffect(() => {
     setPendingPreview(null)
@@ -108,8 +108,8 @@ export default function QuestionPhoto({
     setPendingPicker(null)
     setLoading(false)
     setUploading(false)
-    setOpen(startExpanded || photos.length === 0)
-  }, [uploadScopeKey, startExpanded, photos.length])
+    setOpen(startExpanded)
+  }, [uploadScopeKey, startExpanded])
 
   const uploadToCloud = useCallback(
     async (imageDataUrl: string) => {
@@ -228,7 +228,7 @@ export default function QuestionPhoto({
         className="inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200/80 active:bg-slate-50 active:text-slate-700"
       >
         <Camera className="h-3.5 w-3.5 shrink-0" />
-        Add photo
+        {label}
       </button>
     )
   }

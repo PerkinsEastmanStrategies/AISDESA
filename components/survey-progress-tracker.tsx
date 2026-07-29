@@ -1,13 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
-import { createPortal } from "react-dom"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import type { EsaQuestion, RoomQuestionResponse } from "@aisd/shared"
 import { computeRoomQuestionProgress } from "@/lib/survey-question-progress"
-import {
-  clearSurveyProgressTrackerLayout,
-  setSurveyProgressTrackerLayout,
-} from "@/lib/survey-progress-tracker-layout"
 import { cn } from "@/lib/utils"
 
 function ProgressBarContent({
@@ -67,62 +62,29 @@ export default function SurveyProgressTracker({
     [questions, responses],
   )
   const [activeIndex, setActiveIndex] = useState(1)
-  const [mounted, setMounted] = useState(false)
   const [barHeight, setBarHeight] = useState(72)
-  const [pinStyle, setPinStyle] = useState({ top: 0, left: 0, width: 0 })
 
-  const scrollRootRef = useRef<HTMLElement | null>(null)
-  const fixedBarRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const stickyBarRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     setActiveIndex(1)
   }, [roomId])
 
-  const syncPinGeometry = useCallback(() => {
-    const scrollRoot =
-      scrollRootRef.current ??
-      (document.querySelector("[data-survey-scroll-root]") as HTMLElement | null)
-    if (!scrollRoot) return
-    scrollRootRef.current = scrollRoot
-    const rect = scrollRoot.getBoundingClientRect()
-    const sidebar = document.querySelector("[data-survey-sidebar]") as HTMLElement | null
-    const sidebarWidth = sidebar?.getBoundingClientRect().width ?? 0
-    const left = Math.max(rect.left, sidebarWidth)
-    const width = Math.max(0, rect.right - left)
-    setPinStyle({ top: rect.top, left, width })
-  }, [])
-
   useLayoutEffect(() => {
-    if (!fixedBarRef.current) return
-    const node = fixedBarRef.current
+    if (!stickyBarRef.current) return
+    const node = stickyBarRef.current
     const measure = () => setBarHeight(node.offsetHeight)
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(node)
     return () => observer.disconnect()
-  }, [mounted, pinStyle.width, progress.answered, progress.total, activeIndex])
+  }, [progress.answered, progress.total, activeIndex])
 
   useEffect(() => {
-    if (progress.total === 0) {
-      clearSurveyProgressTrackerLayout()
-      return
-    }
-    const offset = pinStyle.top + barHeight
-    setSurveyProgressTrackerLayout(barHeight, offset)
-    return () => clearSurveyProgressTrackerLayout()
-  }, [progress.total, barHeight, pinStyle.top])
+    if (progress.total === 0) return
 
-  useEffect(() => {
-    if (!questions.length) return
-
-    syncPinGeometry()
-
-    const scrollRoot = scrollRootRef.current
-    if (!scrollRoot) return
+    const scrollRoot = document.querySelector("[data-survey-scroll-root]") as HTMLElement | null
+    if (!scrollRoot || !questions.length) return
 
     const updateActive = () => {
       const rootRect = scrollRoot.getBoundingClientRect()
@@ -147,11 +109,10 @@ export default function SurveyProgressTracker({
     }
 
     const onScrollOrResize = () => {
-      syncPinGeometry()
       updateActive()
     }
 
-    updateActive()
+    onScrollOrResize()
     scrollRoot.addEventListener("scroll", onScrollOrResize, { passive: true })
     window.addEventListener("resize", onScrollOrResize)
 
@@ -159,35 +120,18 @@ export default function SurveyProgressTracker({
       scrollRoot.removeEventListener("scroll", onScrollOrResize)
       window.removeEventListener("resize", onScrollOrResize)
     }
-  }, [roomId, questions, syncPinGeometry, barHeight])
+  }, [roomId, questions, barHeight, progress.total])
 
   if (progress.total === 0) return null
 
   const complete = progress.answered >= progress.total
-  const contentProps = { progress, activeIndex, complete }
-
-  const fixedBar =
-    mounted && pinStyle.width > 0
-      ? createPortal(
-          <div
-            ref={fixedBarRef}
-            className="fixed z-50 border-b border-slate-200/90 bg-white/95 shadow-md backdrop-blur-sm"
-            style={{
-              top: pinStyle.top,
-              left: pinStyle.left,
-              width: pinStyle.width,
-            }}
-          >
-            <ProgressBarContent {...contentProps} />
-          </div>,
-          document.body,
-        )
-      : null
 
   return (
-    <>
-      <div aria-hidden style={{ height: barHeight }} className="mb-1 shrink-0" />
-      {fixedBar}
-    </>
+    <div
+      ref={stickyBarRef}
+      className="sticky top-0 z-40 -mx-3 mb-3 border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-sm"
+    >
+      <ProgressBarContent progress={progress} activeIndex={activeIndex} complete={complete} />
+    </div>
   )
 }
