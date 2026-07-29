@@ -88,6 +88,7 @@ import {
 import { getSurveyTypeInfo, type SurveyTypeInfo } from "@/lib/survey-status"
 import { SURVEY_TYPES } from "@aisd/shared"
 import { validateSurveyBeforeDeferral, type SubmitValidationResult } from "@/lib/survey-validation"
+import { scrollSurveyRootToTopAfterPaint } from "@/lib/survey-scroll"
 import {
   loadFloorPlanLevelDisplay,
   hasFloorPlanDisplayCache,
@@ -2665,6 +2666,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       // Clear studio type so the next room requires a fresh selection.
       dispatch({ type: "SET_PENDING_STUDIO_TYPE", roomType: null })
       dispatch({ type: "SELECT_ROOM", roomId: next.id })
+      scrollSurveyRootToTopAfterPaint()
       return true
     },
     [
