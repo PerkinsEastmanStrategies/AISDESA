@@ -27,7 +27,8 @@ import {
 import {
   resolveRoomUseLabelLayout,
   roomLabelBounds,
-  roomUseLabelMode,
+  ROOM_LABEL_FILL,
+  ROOM_LABEL_STROKE,
 } from "@/lib/room-plan-labels"
 import { programTypeFillColor, programTypeLegendColors } from "@/lib/program-type-colors"
 import NeighborhoodLegend from "@/components/neighborhood-legend"
@@ -646,6 +647,7 @@ export default function SurveyFloorPlan({
   const vb = level.viewBox
   const vbStr = viewBoxString(vb)
   const viewBoxArea = vb.w * vb.h
+  const meetScale = svgMeetScale(vb, viewportSize)
   const sceneTransform = floorPlanSceneTransform(vb, pan, zoom, rotation, viewportSize)
   const levelNeighborhoodLabels = levelRooms
     .map((room) => resolveRoomNeighborhood(room))
@@ -943,11 +945,17 @@ export default function SurveyFloorPlan({
         >
           <g transform={sceneTransform}>
             {planInlineMarkup ? (
-              <g
-                aria-hidden
-                pointerEvents="none"
-                dangerouslySetInnerHTML={{ __html: planInlineMarkup }}
-              />
+              <g aria-hidden pointerEvents="none">
+                {showRoomTags && !photoGalleryMode ? (
+                  <style
+                    dangerouslySetInnerHTML={{
+                      __html:
+                        "#CAFM_ID,#planLabels,#planBuildingLabels{display:none!important}",
+                    }}
+                  />
+                ) : null}
+                <g dangerouslySetInnerHTML={{ __html: planInlineMarkup }} />
+              </g>
             ) : (
               <image
                 href={planImageHref}
@@ -996,6 +1004,7 @@ export default function SurveyFloorPlan({
                   showRoomTags={showRoomTags && !photoGalleryMode}
                   roomUse={roomUseForRoom(roomUseMap, room.id, room.name)}
                   zoom={zoom}
+                  meetScale={meetScale}
                   viewBoxWidth={vb.w}
                   viewBoxArea={viewBoxArea}
                   preWalkSpaceType={preWalkMappings?.[room.id]?.spaceType}
@@ -1120,6 +1129,12 @@ export default function SurveyFloorPlan({
   return planPanel
 }
 
+/** Hairline selection/highlight weights in screen pixels (non-scaling-stroke). */
+const ROOM_OVERLAY_STROKE_PX = {
+  selected: 2,
+  highlighted: 1.25,
+} as const
+
 function RoomOverlay({
   room,
   neighborhood,
@@ -1134,6 +1149,7 @@ function RoomOverlay({
   showRoomTags,
   roomUse,
   zoom,
+  meetScale,
   viewBoxWidth,
   viewBoxArea,
   preWalkSpaceType,
@@ -1160,6 +1176,7 @@ function RoomOverlay({
   showRoomTags: boolean
   roomUse?: RoomUseEntry
   zoom: number
+  meetScale: number
   viewBoxWidth: number
   viewBoxArea: number
   preWalkSpaceType?: string
@@ -1197,9 +1214,9 @@ function RoomOverlay({
       fillOpacity = 0.72
     }
   } else if (preWalkColor && preWalkSpaceType) {
-    fill = colorWithAlpha(preWalkColor, selected ? 0.62 : 0.42)
+    fill = colorWithAlpha(preWalkColor, selected ? 0.32 : 0.22)
   } else if (preWalkActiveSpaceType && !preWalkSpaceType) {
-    fill = selected ? "rgba(37, 99, 235, 0.2)" : "rgba(255, 255, 255, 0.01)"
+    fill = selected ? "rgba(37, 99, 235, 0.08)" : "rgba(255, 255, 255, 0.01)"
   } else if (programTypeColor) {
     fill = colorWithAlpha(programTypeColor, selected ? 0.62 : 0.45)
     if (shaded && progressFill) {
@@ -1214,7 +1231,7 @@ function RoomOverlay({
     fill = progressFill
     fillOpacity = 0.45
   } else if (selected) {
-    fill = "rgba(37, 99, 235, 0.15)"
+    fill = "rgba(37, 99, 235, 0.08)"
   } else {
     // Invisible hit target — plan reads as line art until a room is selected or an overlay is on.
     fill = "rgba(255, 255, 255, 0.01)"
@@ -1258,16 +1275,16 @@ function RoomOverlay({
               : "transparent"
 
   const strokeWidth = selected
-    ? 14
+    ? ROOM_OVERLAY_STROKE_PX.selected
     : colorByAssessmentScore ||
         preWalkColor ||
         shaded ||
         programTypeColor ||
         neighborhoodColor ||
         sizeDeviationColor
-      ? 8
+      ? ROOM_OVERLAY_STROKE_PX.highlighted
       : showRoomHighlight
-        ? 6
+        ? ROOM_OVERLAY_STROKE_PX.highlighted
         : 0
 
   const trySelect = (pointerId: number, x: number, y: number) => {
@@ -1279,21 +1296,15 @@ function RoomOverlay({
   }
 
   const { width: roomWidth, height: roomHeight } = roomLabelBounds(room.points)
-  const labelMode =
-    showRoomTags && roomUse
-      ? roomUseLabelMode(zoom, room.area, viewBoxArea, roomWidth, viewBoxWidth, selected)
-      : "hidden"
   const labelLayout =
-    labelMode !== "hidden" && roomUse
+    showRoomTags && roomUse
       ? resolveRoomUseLabelLayout({
           roomId: room.id,
           entry: roomUse,
-          mode: labelMode,
-          viewBoxWidth,
-          viewBoxArea,
-          roomArea: room.area,
           roomWidth,
           roomHeight,
+          zoom,
+          meetScale,
         })
       : null
   const labelLines = labelLayout?.lines ?? []
@@ -1311,6 +1322,7 @@ function RoomOverlay({
         stroke={stroke}
         pointerEvents={photoGalleryMode ? "none" : undefined}
         strokeWidth={strokeWidth}
+        vectorEffect="non-scaling-stroke"
         style={{
           cursor: readOnly ? "default" : "pointer",
           pointerEvents: photoGalleryMode ? "none" : "all",
@@ -1339,12 +1351,12 @@ function RoomOverlay({
           y={room.y - ((labelLines.length - 1) * lineHeight) / 2}
           textAnchor="middle"
           dominantBaseline="middle"
-          fill="#0f172a"
-          stroke="#ffffff"
+          fill={ROOM_LABEL_FILL}
+          stroke={ROOM_LABEL_STROKE}
           strokeWidth={labelStroke}
           paintOrder="stroke"
           fontSize={labelFontSize}
-          fontWeight={600}
+          fontWeight={500}
           pointerEvents="none"
         >
           {labelLines.map((line, index) => (
@@ -1353,7 +1365,7 @@ function RoomOverlay({
               x={room.x}
               dy={index === 0 ? 0 : lineHeight}
               fontSize={index === 0 ? labelFontSize : labelFontSize * 0.82}
-              fontWeight={index === 0 ? 700 : 500}
+              fontWeight={500}
             >
               {line}
             </tspan>

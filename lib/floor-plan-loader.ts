@@ -54,7 +54,7 @@ export function isInlineFloorPlanSrc(src: string | undefined | null): boolean {
 }
 
 function displaySvgKey(schoolId: string, levelId: string): string {
-  return `${schoolId}::${levelId}`
+  return `${schoolId}::${levelId}::plan-style-v2`
 }
 
 function cacheFloorPlanDisplaySvg(schoolId: string, levelId: string, svgText: string): void {

@@ -2,6 +2,36 @@ import type { RoomUseEntry } from "@/lib/room-neighborhood-lookup"
 
 export type RoomUseLabelMode = "hidden" | "id" | "full"
 
+/** Fixed on-screen typography — every visible tag uses the same base size. */
+const ROOM_LABEL_FONT_PX = 13
+const ROOM_LABEL_LINE_HEIGHT_PX = 14.5
+const ROOM_LABEL_STROKE_PX = 1.5
+const ROOM_LABEL_CHAR_WIDTH_EM = 0.56
+const ROOM_LABEL_FIT_PADDING = 1.12
+
+/** Zoom at/above which labels use full size; at MIN_ZOOM they are ~40% smaller. */
+const ROOM_LABEL_ZOOM_FULL = 1.85
+const ROOM_LABEL_ZOOM_MIN = 0.75
+const ROOM_LABEL_SCALE_AT_MIN = 0.6
+
+export const ROOM_LABEL_FILL = "#475569"
+export const ROOM_LABEL_STROKE = "#ffffff"
+
+function roomUseLabelZoomFontScale(zoom: number): number {
+  const z = Math.max(zoom, ROOM_LABEL_ZOOM_MIN)
+  if (z >= ROOM_LABEL_ZOOM_FULL) return 1
+  const t = (z - ROOM_LABEL_ZOOM_MIN) / (ROOM_LABEL_ZOOM_FULL - ROOM_LABEL_ZOOM_MIN)
+  return ROOM_LABEL_SCALE_AT_MIN + (1 - ROOM_LABEL_SCALE_AT_MIN) * t
+}
+
+function effectiveLabelFontPx(zoom: number): number {
+  return ROOM_LABEL_FONT_PX * roomUseLabelZoomFontScale(zoom)
+}
+
+function effectiveLabelLineHeightPx(zoom: number): number {
+  return ROOM_LABEL_LINE_HEIGHT_PX * roomUseLabelZoomFontScale(zoom)
+}
+
 export function roomLabelBounds(points: { x: number; y: number }[]): { width: number; height: number } {
   if (!points.length) return { width: 0, height: 0 }
   let minX = points[0].x
@@ -17,32 +47,23 @@ export function roomLabelBounds(points: { x: number; y: number }[]): { width: nu
   return { width: Math.max(0, maxX - minX), height: Math.max(0, maxY - minY) }
 }
 
-/** Decide how much room-use text to show based on zoom, room size, and footprint. */
-export function roomUseLabelMode(
-  zoom: number,
-  roomArea: number,
-  viewBoxArea: number,
-  roomWidth: number,
-  viewBoxWidth: number,
-  selected: boolean,
-): RoomUseLabelMode {
-  const roomWidthRatio = roomWidth / Math.max(viewBoxWidth, 1)
-  const roomAreaRatio = roomArea / Math.max(viewBoxArea, 1)
-  const largeRoom = roomWidthRatio >= 0.05 || roomAreaRatio >= 0.00012
-  const mediumRoom = roomWidthRatio >= 0.028 || roomAreaRatio >= 0.00005
+function normalizeRoomUseToken(value: string): string {
+  return value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
+}
 
-  if (selected) {
-    return largeRoom ? "full" : "id"
-  }
+/** Corridors are circulation — skip room-tag labels. */
+export function isCorridorRoomUse(roomId: string, entry: RoomUseEntry): boolean {
+  const program = normalizeRoomUseToken(entry.programType ?? "")
+  if (program === "CORRIDOR" || program.startsWith("CORRIDOR")) return true
 
-  const screenWeight = roomArea * zoom * zoom
-  const tinyRoom = viewBoxArea * 0.000045
-  if (screenWeight < tinyRoom) return "hidden"
+  const use = normalizeRoomUseToken(entry.useName)
+  if (use === "CORRIDOR" || use.startsWith("CORRIDOR")) return true
 
-  if (zoom >= 1.15 && largeRoom) return "full"
-  if (zoom >= 0.78 && mediumRoom) return "id"
-  if (zoom >= 0.95 && roomWidthRatio >= 0.018) return "id"
-  return "hidden"
+  const id = normalizeRoomUseToken(entry.id || roomId)
+  // Match COR* room ids but not CORE* instructional spaces.
+  if (/^COR(?!E)/.test(id)) return true
+
+  return false
 }
 
 function compactRoomLabel(roomId: string, entry: RoomUseEntry): string {
@@ -52,47 +73,10 @@ function compactRoomLabel(roomId: string, entry: RoomUseEntry): string {
   const nameNorm = name.toUpperCase().replace(/[^A-Z0-9]/g, "")
   const idNorm = id.toUpperCase().replace(/[^A-Z0-9]/g, "")
 
-  if (id && id.length <= 14 && (nameNorm !== idNorm || !name)) return id
-  if (roomId && roomId.length <= 14) return roomId
-  if (name && name.length <= 14) return name
-  return truncateLabel(id || roomId || name, 10)
-}
-
-export function maxLabelCharsForRoom(roomWidth: number, fontSize: number, lineCount: number): number {
-  const usableWidth = roomWidth * 0.82
-  const perLine = usableWidth / Math.max(fontSize * 0.58, 1)
-  if (lineCount > 1) return Math.max(4, Math.floor(perLine * 0.9))
-  return Math.max(4, Math.floor(perLine))
-}
-
-export function roomUseLabelFontSize(
-  viewBoxWidth: number,
-  mode: RoomUseLabelMode,
-  roomArea: number,
-  viewBoxArea: number,
-  roomWidth: number,
-  roomHeight: number,
-  lineCount: number,
-  longestLineChars: number,
-): number {
-  const viewBase = Math.max(viewBoxWidth * 0.0078, 16)
-  const areaRatio = Math.sqrt(Math.max(roomArea, 1) / Math.max(viewBoxArea, 1))
-  const areaScaled = viewBase * Math.min(1.05, Math.max(0.38, areaRatio * 16))
-
-  const minSide = Math.max(1, Math.min(roomWidth, roomHeight))
-  const heightCap = (minSide * 0.84) / Math.max(1.08, lineCount * 1.1)
-  const widthCap =
-    longestLineChars > 0
-      ? (roomWidth * 0.86) / Math.max(0.52 * longestLineChars, 1)
-      : heightCap
-
-  let size = Math.min(areaScaled, widthCap, heightCap)
-  if (mode === "id") size *= 0.94
-  return Math.max(12, Math.min(size, viewBase * 1.02))
-}
-
-export function roomUseLabelStroke(fontSize: number): number {
-  return Math.max(2, fontSize * 0.14)
+  if (id && (nameNorm !== idNorm || !name)) return id
+  if (roomId) return roomId
+  if (name) return name
+  return id || roomId || name
 }
 
 export function truncateLabel(text: string, maxLen: number): string {
@@ -118,17 +102,16 @@ export function splitUseNameLines(useName: string, maxLineLen: number): string[]
     }
   }
   lines.push(current)
-  return lines.slice(0, 2).map((line) => truncateLabel(line, maxLineLen))
+  return lines.slice(0, 2)
 }
 
 export function buildRoomUseLabelLines(
   roomId: string,
   entry: RoomUseEntry,
-  mode: RoomUseLabelMode,
-  maxChars?: number,
+  mode: Exclude<RoomUseLabelMode, "hidden">,
 ): string[] {
   if (mode === "id") {
-    return [truncateLabel(compactRoomLabel(roomId, entry), maxChars ?? 12)]
+    return [compactRoomLabel(roomId, entry)]
   }
 
   const name = entry.useName.trim()
@@ -137,89 +120,103 @@ export function buildRoomUseLabelLines(
   const nameNorm = name.toUpperCase().replace(/[^A-Z0-9]/g, "")
   const idNorm = id.toUpperCase().replace(/[^A-Z0-9]/g, "")
 
-  const lineLimit = maxChars ?? 16
-
   if (name && (roomNorm === nameNorm || idNorm === nameNorm)) {
-    return splitUseNameLines(name, lineLimit).slice(0, 2)
+    return splitUseNameLines(name, 24)
   }
   if (name && !/^\d+$/.test(id)) {
-    return splitUseNameLines(name, lineLimit).slice(0, 2)
+    return splitUseNameLines(name, 24)
   }
   if (!name || name.toUpperCase() === id.toUpperCase()) {
-    return [truncateLabel(id, lineLimit)]
+    return [id]
   }
 
-  const secondLineLimit = Math.max(8, lineLimit - 2)
-  return [truncateLabel(id, lineLimit), ...splitUseNameLines(name, secondLineLimit)].slice(0, 2)
+  return [id, ...splitUseNameLines(name, 20)].slice(0, 2)
 }
 
-/** Resolve label lines + font size together so text fits inside the room footprint. */
+function estimateLabelScreenSize(lines: string[], fontPx: number, lineHeightPx: number): { width: number; height: number } {
+  const longest = Math.max(1, ...lines.map((line) => line.length))
+  return {
+    width: longest * ROOM_LABEL_CHAR_WIDTH_EM * fontPx,
+    height: lines.length * lineHeightPx,
+  }
+}
+
+/** True when the fixed-size label fits inside the room at the current zoom. */
+export function roomLabelFitsAtZoom(
+  roomWidth: number,
+  roomHeight: number,
+  zoom: number,
+  meetScale: number,
+  lines: string[],
+): boolean {
+  if (!lines.length || roomWidth <= 0 || roomHeight <= 0) return false
+  const fontPx = effectiveLabelFontPx(zoom)
+  const lineHeightPx = effectiveLabelLineHeightPx(zoom)
+  const label = estimateLabelScreenSize(lines, fontPx, lineHeightPx)
+  const roomScreenW = roomWidth * meetScale * zoom
+  const roomScreenH = roomHeight * meetScale * zoom
+  return (
+    roomScreenW >= label.width * ROOM_LABEL_FIT_PADDING &&
+    roomScreenH >= label.height * ROOM_LABEL_FIT_PADDING
+  )
+}
+
+function roomUseLabelRenderMetrics(
+  zoom: number,
+  meetScale: number,
+): Pick<ReturnType<typeof resolveRoomUseLabelLayout>, "fontSize" | "strokeWidth" | "lineHeight"> {
+  const zoomScale = roomUseLabelZoomFontScale(zoom)
+  const fontPx = ROOM_LABEL_FONT_PX * zoomScale
+  const lineHeightPx = ROOM_LABEL_LINE_HEIGHT_PX * zoomScale
+  const strokePx = ROOM_LABEL_STROKE_PX * zoomScale
+  const scale = Math.max(meetScale * zoom, 0.05)
+  return {
+    fontSize: fontPx / scale,
+    strokeWidth: strokePx / scale,
+    lineHeight: lineHeightPx / scale,
+  }
+}
+
+const EMPTY_LAYOUT = {
+  lines: [] as string[],
+  fontSize: 0,
+  strokeWidth: 0,
+  lineHeight: 0,
+  mode: "hidden" as const,
+}
+
+/**
+ * Pick label text + fixed render metrics. Labels stay hidden until zoomed in
+ * enough that the same font size fits inside the room footprint.
+ */
 export function resolveRoomUseLabelLayout(input: {
   roomId: string
   entry: RoomUseEntry
-  mode: RoomUseLabelMode
-  viewBoxWidth: number
-  viewBoxArea: number
-  roomArea: number
   roomWidth: number
   roomHeight: number
+  zoom: number
+  meetScale: number
 }): {
   lines: string[]
   fontSize: number
   strokeWidth: number
   lineHeight: number
+  mode: RoomUseLabelMode
 } {
-  const draftLines = buildRoomUseLabelLines(input.roomId, input.entry, input.mode)
-  const draftLongest = Math.max(1, ...draftLines.map((line) => line.length))
+  const { roomId, entry, roomWidth, roomHeight, zoom, meetScale } = input
+  if (isCorridorRoomUse(roomId, entry)) return EMPTY_LAYOUT
 
-  let fontSize = roomUseLabelFontSize(
-    input.viewBoxWidth,
-    input.mode,
-    input.roomArea,
-    input.viewBoxArea,
-    input.roomWidth,
-    input.roomHeight,
-    draftLines.length,
-    draftLongest,
-  )
+  const metrics = roomUseLabelRenderMetrics(zoom, meetScale)
 
-  let maxChars = maxLabelCharsForRoom(input.roomWidth, fontSize, draftLines.length)
-  let lines = buildRoomUseLabelLines(input.roomId, input.entry, input.mode, maxChars)
-  let longest = Math.max(1, ...lines.map((line) => line.length))
-
-  fontSize = roomUseLabelFontSize(
-    input.viewBoxWidth,
-    input.mode,
-    input.roomArea,
-    input.viewBoxArea,
-    input.roomWidth,
-    input.roomHeight,
-    lines.length,
-    longest,
-  )
-
-  maxChars = maxLabelCharsForRoom(input.roomWidth, fontSize, lines.length)
-  lines = buildRoomUseLabelLines(input.roomId, input.entry, input.mode, maxChars)
-
-  if (lines.length > 1 && input.roomHeight < fontSize * 2.4) {
-    lines = [truncateLabel(lines.join(" "), maxChars)]
+  const fullLines = buildRoomUseLabelLines(roomId, entry, "full")
+  if (roomLabelFitsAtZoom(roomWidth, roomHeight, zoom, meetScale, fullLines)) {
+    return { ...metrics, lines: fullLines, mode: "full" }
   }
 
-  fontSize = roomUseLabelFontSize(
-    input.viewBoxWidth,
-    input.mode,
-    input.roomArea,
-    input.viewBoxArea,
-    input.roomWidth,
-    input.roomHeight,
-    lines.length,
-    Math.max(1, ...lines.map((line) => line.length)),
-  )
-
-  return {
-    lines,
-    fontSize,
-    strokeWidth: roomUseLabelStroke(fontSize),
-    lineHeight: fontSize * 1.12,
+  const idLines = buildRoomUseLabelLines(roomId, entry, "id")
+  if (roomLabelFitsAtZoom(roomWidth, roomHeight, zoom, meetScale, idLines)) {
+    return { ...metrics, lines: idLines, mode: "id" }
   }
+
+  return EMPTY_LAYOUT
 }
