@@ -2648,10 +2648,6 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     (options?: { deferIncomplete?: boolean }) => {
       if (!state.session || !state.selectedRoomId) return false
 
-      const currentIdx = classroomRooms.findIndex((r) => r.id === state.selectedRoomId)
-      const next = currentIdx >= 0 ? classroomRooms[currentIdx + 1] : null
-      if (!next) return false
-
       if (options?.deferIncomplete) {
         applyCurrentRoomDeferral()
       } else {
@@ -2663,9 +2659,8 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "CLEAR_SUBMIT_VALIDATION" })
       }
 
-      // Clear studio type so the next room requires a fresh selection.
-      dispatch({ type: "SET_PENDING_STUDIO_TYPE", roomType: null })
-      dispatch({ type: "SELECT_ROOM", roomId: next.id })
+      // Reset selection so the assessor picks the next room manually.
+      dispatch({ type: "SELECT_ROOM", roomId: null })
       scrollSurveyRootToTopAfterPaint()
       return true
     },
@@ -2675,7 +2670,6 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       state.allRooms,
       state.surveyType,
       state.school?.schoolClass,
-      classroomRooms,
       applyCurrentRoomDeferral,
     ],
   )
