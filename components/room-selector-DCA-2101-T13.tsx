@@ -1017,6 +1017,7 @@ export default function RoomSelector({
       {selectedSpaceType && (
         <SpaceTypeAssessmentGuidanceModal
           spaceType={selectedSpaceType}
+          schoolClass={state.school?.schoolClass}
           open={spaceTypeGuidanceOpen}
           onClose={() => setSpaceTypeGuidanceOpen(false)}
         />

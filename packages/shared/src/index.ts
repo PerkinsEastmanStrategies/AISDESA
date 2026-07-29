@@ -1,6 +1,7 @@
 export * from "./types/floor-plan-room"
 export * from "./types/survey"
 export * from "./data/table-of-surveys"
+export * from "./data/space-type-assessment-guidance"
 export * from "./data/studio-rubric"
 export * from "./data/traditional-studio-rubric"
 export * from "./data/admin-rubric"

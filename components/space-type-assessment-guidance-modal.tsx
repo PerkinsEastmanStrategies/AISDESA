@@ -1,72 +1,73 @@
 "use client"
 
 import { X } from "lucide-react"
+import { lookupSpaceTypeAssessmentGuidance } from "@aisd/shared"
 
-export function spaceTypeGuidanceTitle(spaceType: string): string {
-  if (spaceType === "Traditional studio") {
-    return "Traditional Studios Classroom Assessment Selection Guidance"
-  }
-  return `${spaceType} Assessment Selection Guidance`
-}
+function GuidanceNoteBody({ body }: { body: string }) {
+  const blocks = body.split(/\n\n+/).filter((block) => block.trim())
 
-function TraditionalStudioGuidanceBody() {
   return (
     <>
-      <p>
-        For Traditional Studios classroom assessments, assess{" "}
-        <strong className="font-semibold text-slate-900">
-          two classrooms within each identified neighborhood
-        </strong>
-        . Selected classrooms should be representative of the classrooms in that wing or
-        neighborhood.
-      </p>
-      <div>
-        <p className="font-medium text-slate-900">When selecting classrooms, consider differences in:</p>
-        <ul className="mt-2 list-disc space-y-1 pl-5">
-          <li>Size and layout</li>
-          <li>Windows and natural daylight</li>
-          <li>Overall condition</li>
-          <li>Furniture and built-in features</li>
-          <li>Other distinguishing classroom characteristics</li>
-        </ul>
-      </div>
-      <p>
-        If classrooms within a neighborhood have noticeably different conditions or configurations
-        (such as renovated versus original classrooms), assess{" "}
-        <strong className="font-semibold text-slate-900">
-          at least one classroom representing each condition type
-        </strong>
-        , even if this results in more than two assessments.
-      </p>
-      <p>
-        When possible, select classrooms serving{" "}
-        <strong className="font-semibold text-slate-900">different grade levels</strong> to capture a
-        broader range of instructional environments.
-      </p>
-      <p>
-        The goal is to accurately represent the variety of classroom conditions within each
-        neighborhood while avoiding unnecessary duplication.
-      </p>
+      {blocks.map((block, index) => {
+        const lines = block
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean)
+        const heading = lines[0] ?? ""
+        const listIntro = /:\s*$/.test(heading)
+
+        if (listIntro && lines.length > 1) {
+          return (
+            <div key={index}>
+              <p>{heading}</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                {lines.slice(1).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          )
+        }
+
+        if (/^More about this space:/i.test(heading) && lines.length === 1) {
+          return (
+            <p key={index}>
+              <span className="font-medium text-slate-900">More about this space: </span>
+              {heading.replace(/^More about this space:\s*/i, "")}
+            </p>
+          )
+        }
+
+        if (/^More about this space:/i.test(heading) && lines.length > 1) {
+          return (
+            <div key={index}>
+              <p className="font-medium text-slate-900">{heading.split(":")[0]}:</p>
+              <p className="mt-1">{lines.slice(1).join(" ")}</p>
+            </div>
+          )
+        }
+
+        return <p key={index}>{block}</p>
+      })}
     </>
   )
 }
 
-function PlaceholderGuidanceBody() {
-  return <p>Instructions will be shown here</p>
-}
-
 export default function SpaceTypeAssessmentGuidanceModal({
   spaceType,
+  schoolClass,
   open,
   onClose,
 }: {
   spaceType: string
+  schoolClass?: string | null
   open: boolean
   onClose: () => void
 }) {
   if (!open) return null
 
-  const title = spaceTypeGuidanceTitle(spaceType)
+  const guidance = lookupSpaceTypeAssessmentGuidance(spaceType, schoolClass)
+  const title = guidance?.title ?? `${spaceType} Assessment Selection Guidance`
   const titleId = "space-type-guidance-title"
 
   return (
@@ -100,10 +101,10 @@ export default function SpaceTypeAssessmentGuidanceModal({
         </div>
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain px-4 py-4 text-sm leading-relaxed text-slate-700">
-          {spaceType === "Traditional studio" ? (
-            <TraditionalStudioGuidanceBody />
+          {guidance?.body ? (
+            <GuidanceNoteBody body={guidance.body} />
           ) : (
-            <PlaceholderGuidanceBody />
+            <p>Instructions for this space type are not available yet.</p>
           )}
         </div>
 
