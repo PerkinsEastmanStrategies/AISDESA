@@ -25,7 +25,6 @@ export default function DrilldownScoreList({
   session,
   surveyType,
   roomScoreDetails,
-  schoolClass: propsSchoolClass,
 }: {
   categories: CategoryScore[]
   roomIds: string[]
@@ -33,10 +32,8 @@ export default function DrilldownScoreList({
   surveyType: SurveyType
   /** When provided, used instead of live survey-store score details (campus rollup). */
   roomScoreDetails?: Record<string, RoomScoreResult>
-  schoolClass?: string | null
 }) {
   const { state } = useSurvey()
-  const schoolClass = propsSchoolClass ?? state.school?.schoolClass ?? null
   const [openCategories, setOpenCategories] = useState<Set<string>>(() => new Set())
   const [openSubcategories, setOpenSubcategories] = useState<Set<string>>(() => new Set())
 
@@ -52,9 +49,8 @@ export default function DrilldownScoreList({
         roomScoreDetails ?? state.roomScoreDetails,
         surveyType,
         scoredRoomIds,
-        schoolClass,
       ),
-    [session, roomScoreDetails, state.roomScoreDetails, surveyType, scoredRoomIds, schoolClass],
+    [session, roomScoreDetails, state.roomScoreDetails, surveyType, scoredRoomIds],
   )
 
   const toggleCategory = (category: string) => {
@@ -131,7 +127,6 @@ export default function DrilldownScoreList({
                             sub.subcategory,
                             surveyType,
                             session,
-                            schoolClass,
                           )
                         : []
                       const questionWeightTotal = sumPositiveWeights(questions.map((row) => row.weight))
@@ -185,7 +180,6 @@ export default function DrilldownScoreList({
                                         q.unitId,
                                         session,
                                         surveyType,
-                                        schoolClass,
                                       )
                                     : null
 
@@ -254,7 +248,6 @@ function formatQuestionAnswer(
   unitId: string,
   session: SurveySession,
   surveyType: SurveyType,
-  schoolClass?: string | null,
 ): string | null {
   const roomSession = session.rooms[roomId]
   if (!roomSession) return null
@@ -265,7 +258,6 @@ function formatQuestionAnswer(
     effectiveType,
     roomSession.roomType,
     roomSession.gradeType,
-    schoolClass,
   )
   if (!rubric) return null
 

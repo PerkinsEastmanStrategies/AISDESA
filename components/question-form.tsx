@@ -10,10 +10,8 @@ import {
   isMultiSelectQuestionType,
   canonicalizeResponseValues,
   isOptionValueSelected,
-  applyMultiSelectOptionToggle,
   isSpaceTypeForSurveyModule,
   surveyModuleUsesSpaceTypePicker,
-  questionSetStatusForSpaceType,
   type EsaQuestion,
   type EsaQuestionOption,
   type RoomQuestionResponse,
@@ -33,7 +31,6 @@ import SurveyProgressTracker from "@/components/survey-progress-tracker"
 import TraditionalStudioCopyReviewBanner from "@/components/traditional-studio-copy-review-banner"
 import { cn } from "@/lib/utils"
 import { resolveRoomNeighborhoodForCopy } from "@/lib/traditional-studio-copy"
-import { useQuestionFieldCollapse } from "@/lib/use-question-field-collapse"
 
 const CONTEXT_TOGGLE_KEY = "esa-show-question-context"
 
@@ -94,6 +91,33 @@ function categoryChip(category: string): string {
       return "bg-orange-50 text-orange-800"
     default:
       return "bg-slate-100 text-slate-600"
+  }
+}
+
+/** After a tall question collapses, keep the next question (or this one) fully inside the scroll window. */
+function keepWithinScrollWindow(el: HTMLElement) {
+  const scrollRoot = el.closest(".overflow-y-auto") as HTMLElement | null
+  if (!scrollRoot) return
+
+  const maxScroll = Math.max(0, scrollRoot.scrollHeight - scrollRoot.clientHeight)
+  if (scrollRoot.scrollTop > maxScroll) {
+    scrollRoot.scrollTop = maxScroll
+  }
+
+  const target = (el.nextElementSibling as HTMLElement | null) ?? el
+  const rootRect = scrollRoot.getBoundingClientRect()
+  const targetRect = target.getBoundingClientRect()
+  const stickyBottom = scrollRoot.querySelector(".sticky.bottom-0") as HTMLElement | null
+  const topPad = 12
+  const bottomPad = (stickyBottom?.offsetHeight ?? 0) + 16
+
+  // Pull into view if any part sits outside the visible scroll window
+  if (targetRect.top < rootRect.top + topPad) {
+    scrollRoot.scrollBy({ top: targetRect.top - rootRect.top - topPad, behavior: "smooth" })
+    return
+  }
+  if (targetRect.bottom > rootRect.bottom - bottomPad) {
+    scrollRoot.scrollBy({ top: targetRect.bottom - rootRect.bottom + bottomPad, behavior: "smooth" })
   }
 }
 
@@ -162,40 +186,7 @@ export default function QuestionForm() {
     })
   }, [])
 
-  if (!roomId) return null
-
-  if (!rubric) {
-    const roomType = currentRoomSession?.roomType
-    if (!roomType) return null
-    const status = questionSetStatusForSpaceType(
-      state.surveyType,
-      roomType,
-      state.school?.schoolClass,
-    )
-    if (status === "pending") {
-      return (
-        <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
-          <h2 className="text-lg font-semibold">{roomType}</h2>
-          <p className="mt-2 max-w-md text-sm text-[var(--color-muted-foreground)]">
-            Survey questions for this space type are pending and will be added in a future release.
-            The space type remains in the registry for planning and close-out tracking.
-          </p>
-        </div>
-      )
-    }
-    if (status === "placeholder") {
-      return (
-        <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
-          <h2 className="text-lg font-semibold">{roomType}</h2>
-          <p className="mt-2 max-w-md text-sm text-[var(--color-muted-foreground)]">
-            Neighborhood questions shown here are placeholders until the final Neighborhoods question
-            set is published. Responses may be revised when official questions are loaded.
-          </p>
-        </div>
-      )
-    }
-    return null
-  }
+  if (!rubric || !roomId) return null
 
   const spaceType = currentRoomSession?.roomType
   const showSpaceTypePhoto =
@@ -476,19 +467,90 @@ function QuestionField({
   onCommentChange: (comment: string) => void
   onPhotoChange: (photos: string[]) => void
 }) {
-  const [commentEditing, setCommentEditing] = useState(false)
+  const rootRef = useRef<HTMLFieldSetElement>(null)
   const answered = isQuestionFullyAnswered(question, { value: value ?? "", comment })
   const noteRequired = responseRequiresUnableToAssessNote(value)
   const multiSelect = isMultiSelectQuestionType(question.questionType)
-  const { rootRef, collapsed, expand, collapse } = useQuestionFieldCollapse({
-    answered,
-    noteRequired,
-    highlighted,
-    multiSelect,
-    commentEditing,
-    autoAnswered,
-    value,
-  })
+  const [collapsed, setCollapsed] = useState(() => answered && !highlighted && !noteRequired && !autoAnswered)
+  const [userExpanded, setUserExpanded] = useState(false)
+  const wasAnsweredRef = useRef(answered)
+  const prevCollapsedRef = useRef(collapsed)
+
+  useEffect(() => {
+    if (autoAnswered || highlighted || noteRequired) {
+      setCollapsed(false)
+      if (noteRequired) setUserExpanded(true)
+    }
+  }, [autoAnswered, highlighted, noteRequired])
+
+  useEffect(() => {
+    const justAnswered = answered && !wasAnsweredRef.current
+    wasAnsweredRef.current = answered
+
+    if (!answered || noteRequired || autoAnswered) {
+      setCollapsed(false)
+      if (noteRequired) setUserExpanded(true)
+      if (!answered) setUserExpanded(false)
+      return
+    }
+    if (!justAnswered || highlighted || userExpanded || multiSelect) return
+
+    const timer = window.setTimeout(() => setCollapsed(true), 400)
+    return () => window.clearTimeout(timer)
+  }, [answered, highlighted, userExpanded, multiSelect, value, noteRequired, autoAnswered])
+
+  // When a question is manually collapsed, keep following content inside the scroll window.
+  useEffect(() => {
+    const justCollapsed = collapsed && !prevCollapsedRef.current
+    prevCollapsedRef.current = collapsed
+    if (!justCollapsed) return
+
+    const el = rootRef.current
+    if (!el) return
+
+    const frame = window.requestAnimationFrame(() => keepWithinScrollWindow(el))
+    return () => window.cancelAnimationFrame(frame)
+  }, [collapsed])
+
+  // Collapse answered questions once they scroll mostly out of view.
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el || autoAnswered) return
+
+    const scrollRoot = el.closest(".overflow-y-auto") as Element | null
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!answered) {
+          setCollapsed(false)
+          return
+        }
+        if (!entry.isIntersecting || entry.intersectionRatio < 0.35) {
+          setCollapsed(true)
+          setUserExpanded(false)
+        }
+      },
+      {
+        root: scrollRoot,
+        threshold: [0, 0.35, 0.6, 1],
+        rootMargin: "-8% 0px -8% 0px",
+      },
+    )
+
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [answered, autoAnswered])
+
+  const expand = useCallback(() => {
+    setCollapsed(false)
+    setUserExpanded(true)
+  }, [])
+
+  const collapse = useCallback(() => {
+    if (answered && !autoAnswered) {
+      setCollapsed(true)
+      setUserExpanded(false)
+    }
+  }, [answered, autoAnswered])
 
   const summary = formatAnswerSummary(question, value)
   const hasExtras =
@@ -624,7 +686,15 @@ function QuestionField({
                   multiple
                   onToggle={() => {
                     const current = Array.isArray(value) ? value : []
-                    onChange(applyMultiSelectOptionToggle(opt.option, selected, current))
+                    if (selected) {
+                      onChange(
+                        current.filter((v) =>
+                          isOptionValueSelected(opt.option, v) ? false : true,
+                        ),
+                      )
+                    } else {
+                      onChange([...current, opt.option])
+                    }
                   }}
                 />
               )
@@ -661,7 +731,6 @@ function QuestionField({
           comment={comment}
           onChange={onCommentChange}
           required={noteRequired}
-          onEditingChange={setCommentEditing}
         />
         <QuestionPhoto
           key={

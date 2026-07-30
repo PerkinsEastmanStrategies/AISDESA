@@ -25,7 +25,6 @@ import FocusAreaComparisonPanel from "@/components/focus-area-comparison-panel"
 import CampusResultsInsights from "@/components/campus-results-insights"
 import { OverallScoreDisplay } from "@/components/score-display"
 import { cn } from "@/lib/utils"
-import { UNASSIGNED_NEIGHBORHOOD_ID } from "@aisd/shared"
 import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
 import { useFloorPlanDisplay } from "@/lib/use-floor-plan-display"
 
@@ -37,7 +36,7 @@ export default function SurveyResults() {
     currentResults,
     continueSurvey,
     resetSurvey,
-    editRoomFromResults,
+    selectRoom,
     submission,
     schools,
     resultsInitialTab,
@@ -82,11 +81,8 @@ export default function SurveyResults() {
       campusId: state.school.campusId,
       schoolClass: state.school.schoolClass,
       drafts: scoringDrafts,
-      liveSurveyType: state.surveyType,
-      liveSession: state.session,
-      liveRoomScoreDetails: state.roomScoreDetails,
     })
-  }, [state.school, state.surveyType, state.session, state.roomScoreDetails, scoringDrafts])
+  }, [state.school, scoringDrafts])
 
   const roomScoreById = useMemo(() => {
     if (!snapshot) return {}
@@ -105,7 +101,6 @@ export default function SurveyResults() {
     if (!snapshot) return {}
     const map: Record<string, number | null> = {}
     for (const neighborhood of snapshot.neighborhoods) {
-      if (neighborhood.neighborhoodId === UNASSIGNED_NEIGHBORHOOD_ID) continue
       map[neighborhood.neighborhoodId] = neighborhood.overallScore
     }
     return map
@@ -307,10 +302,6 @@ export default function SurveyResults() {
 
           {tab === "room" && (
             <div className="space-y-3">
-              <p className="rounded-xl border border-blue-100 bg-blue-50/80 px-3 py-2.5 text-xs leading-relaxed text-slate-700">
-                Tap a room below to open it in the survey and edit its answers. Scores update
-                automatically when you save changes.
-              </p>
               <div className="relative">
                 <label htmlFor="results-room-search" className="sr-only">
                   Search rooms
@@ -340,7 +331,7 @@ export default function SurveyResults() {
                 <RoomScoreCards
                   rooms={filteredRooms}
                   snapshot={snapshot}
-                  onSelectRoom={(room) => editRoomFromResults(room.roomId, room.surveyType)}
+                  onSelectRoom={selectRoom}
                 />
               )}
             </div>

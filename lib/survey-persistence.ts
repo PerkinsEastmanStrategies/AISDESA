@@ -8,7 +8,6 @@ import type {
   PreWalkState,
 } from "@aisd/shared"
 import { SURVEY_TYPES } from "@aisd/shared"
-import { EMPTY_PREWALK, mergePreWalkStates, migratePreWalkState } from "@/lib/prewalk"
 import {
   LIFE_SKILLS_RUBRIC_VERSION,
   SENSORY_LAB_RUBRIC_VERSION,
@@ -21,69 +20,7 @@ const ACTIVE_KEY = "aisd-survey-active"
 const ASSESSOR_KEY = "aisd-survey-assessors"
 /** Survives reloads in the same tab; cleared when the tab/app is closed. */
 const VISIT_KEY = "aisd-survey-visit"
-const PREWALK_SCHOOL_KEY_PREFIX = "aisd-survey-prewalk-"
 const DRAFT_VERSION = 1
-
-function preWalkSchoolKey(schoolId: string): string {
-  return `${PREWALK_SCHOOL_KEY_PREFIX}${schoolId}`
-}
-
-/** School-scoped pre-walk store (shared across all survey modules for one school). */
-export function saveSchoolPreWalk(schoolId: string, preWalk: PreWalkState): void {
-  if (typeof window === "undefined") return
-  try {
-    localStorage.setItem(preWalkSchoolKey(schoolId), JSON.stringify(preWalk))
-  } catch {
-    /* quota or private browsing */
-  }
-}
-
-export function loadSchoolPreWalk(schoolId: string): PreWalkState | null {
-  if (typeof window === "undefined") return null
-  try {
-    const raw = localStorage.getItem(preWalkSchoolKey(schoolId))
-    if (!raw) return null
-    return JSON.parse(raw) as PreWalkState
-  } catch {
-    return null
-  }
-}
-
-/** Merge pre-walk from the school store and every module draft for this school. */
-export function collectSchoolPreWalkFromDrafts(schoolId: string): PreWalkState {
-  const fromDrafts = loadDraftsForSchool(schoolId).map((draft) => draft.preWalk)
-  return mergePreWalkStates(...fromDrafts)
-}
-
-export function resolveSchoolPreWalk(
-  schoolId: string,
-  schoolClass?: string | null,
-  ...extra: (PreWalkState | null | undefined)[]
-): PreWalkState {
-  return migratePreWalkState(
-    mergePreWalkStates(loadSchoolPreWalk(schoolId), collectSchoolPreWalkFromDrafts(schoolId), ...extra),
-    schoolClass,
-  )
-}
-
-/** Keep every module draft aligned with the school-level pre-walk map. */
-export function syncSchoolPreWalkToDrafts(
-  schoolId: string,
-  preWalk: PreWalkState,
-  options?: { activeSurveyType?: SurveyType },
-): void {
-  saveSchoolPreWalk(schoolId, preWalk)
-  const savedAt = new Date().toISOString()
-  for (const surveyType of SURVEY_TYPES) {
-    if (surveyType === "closeout") continue
-    const draft = loadDraft(schoolId, surveyType)
-    if (!draft) continue
-    saveDraft(
-      { ...draft, preWalk, savedAt },
-      { setActive: options?.activeSurveyType ? surveyType === options.activeSurveyType : false },
-    )
-  }
-}
 
 export type AssessorBySurveyType = Partial<Record<SurveyType, AssessorInfo>>
 
@@ -96,8 +33,6 @@ export interface PersistedSurveyDraft {
   /** UI selection — restored on reload so the user returns to the same place */
   selectedRoomId?: string | null
   pendingStudioType?: string | null
-  /** Neighborhoods survey: selected neighborhood before existence gate / room pick */
-  pendingNeighborhood?: string | null
   view?: "survey" | "results"
   /** Rooms entered manually (not on the floor plan SVG) */
   manualRooms?: ParsedPlanRoom[]
@@ -217,30 +152,6 @@ export function loadActiveDraftMeta(): ActiveDraftMeta | null {
   }
 }
 
-export function setActiveDraftMeta(meta: ActiveDraftMeta): void {
-  if (typeof window === "undefined") return
-  try {
-    localStorage.setItem(ACTIVE_KEY, JSON.stringify(meta))
-  } catch {
-    /* quota or private browsing */
-  }
-}
-
-/** True when a saved draft has enough state to resume after an iOS tab kill. */
-export function draftHasResumeContent(draft: PersistedSurveyDraft): boolean {
-  if (!draft.session || !draft.schoolId) return false
-  if (draft.savedAt) return true
-  if (Object.keys(draft.session.rooms).length > 0) return true
-  if (draft.selectedRoomId) return true
-  if (draft.lastSubmission) return true
-  const preWalk = draft.preWalk ?? loadSchoolPreWalk(draft.schoolId)
-  if (preWalk && Object.keys(preWalk.mappings ?? {}).length > 0) return true
-  const name = draft.session.assessorName?.trim()
-  const email = draft.session.assessorEmail?.trim()
-  if (name && email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return true
-  return false
-}
-
 /**
  * Last in-progress survey from localStorage — used on every app open so iOS tab
  * kills (which clear sessionStorage) still restore the same school, room, and answers.
@@ -250,24 +161,10 @@ export function loadResumableDraft(): {
   draft: PersistedSurveyDraft
 } | null {
   const meta = loadActiveDraftMeta()
-  if (meta) {
-    const draft = loadDraft(meta.schoolId, meta.surveyType)
-    if (draft?.session && draftHasResumeContent(draft)) {
-      return { meta, draft }
-    }
-  }
-
-  const fallback = listAllDrafts()
-    .filter(draftHasResumeContent)
-    .sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || ""))[0]
-  if (!fallback?.session) return null
-
-  const fallbackMeta = {
-    schoolId: fallback.schoolId,
-    surveyType: fallback.surveyType,
-  } satisfies ActiveDraftMeta
-  setActiveDraftMeta(fallbackMeta)
-  return { meta: fallbackMeta, draft: fallback }
+  if (!meta) return null
+  const draft = loadDraft(meta.schoolId, meta.surveyType)
+  if (!draft?.session) return null
+  return { meta, draft }
 }
 
 function stripRoomsByType(

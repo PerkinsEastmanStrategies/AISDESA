@@ -12,7 +12,6 @@ import AdminDashboard from "@/components/admin-dashboard"
 import EsaLanding from "@/components/esa-landing"
 import PreWalkPromptModal from "@/components/pre-walk-prompt-modal"
 import SurveyRemoteConflictModal from "@/components/survey-remote-conflict-modal"
-import SurveyLeavePromptModal from "@/components/survey-leave-prompt-modal"
 import { getSurveyRubric, surveyTypeLabel } from "@aisd/shared"
 
 function SurveyBody() {
@@ -30,16 +29,11 @@ function SurveyBody() {
 
   if (
     state.surveyType === "studios" ||
-    state.surveyType === "special_education" ||
     state.surveyType === "closeout" ||
     state.surveyType === "outdoor" ||
     state.surveyType === "administration" ||
     state.surveyType === "arrival" ||
-    state.surveyType === "neighborhoods" ||
-    state.surveyType === "athletics" ||
-    state.surveyType === "performing_arts" ||
-    state.surveyType === "shared_spaces" ||
-    state.surveyType === "cte"
+    state.surveyType === "neighborhoods"
   ) {
     return <StudioSurvey />
   }
@@ -47,7 +41,11 @@ function SurveyBody() {
   return (
     <PlaceholderSurvey
       title={surveyTypeLabel(state.surveyType)}
-      description="This survey module is not yet configured."
+      description={
+        rubric
+          ? "Questions coming soon."
+          : "This survey module is not yet configured. Select Studios, Neighborhoods, Arrival/Main Office, or Administration to begin ESA scoring."
+      }
     />
   )
 }
@@ -146,32 +144,11 @@ function SurveyRemoteConflictHost() {
   )
 }
 
-function SurveyLeavePromptHost() {
-  const {
-    leavePromptOpen,
-    leavePromptSurveyLabel,
-    confirmLeaveKeepDraft,
-    confirmLeaveDiscard,
-    cancelLeavePrompt,
-  } = useSurvey()
-
-  return (
-    <SurveyLeavePromptModal
-      open={leavePromptOpen}
-      surveyLabel={leavePromptSurveyLabel}
-      onKeepDraft={confirmLeaveKeepDraft}
-      onDiscard={confirmLeaveDiscard}
-      onCancel={cancelLeavePrompt}
-    />
-  )
-}
-
 export default function SurveyApp() {
   return (
     <SurveyProvider>
       <SurveyAppContent />
       <SurveyRemoteConflictHost />
-      <SurveyLeavePromptHost />
     </SurveyProvider>
   )
 }

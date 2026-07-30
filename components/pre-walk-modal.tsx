@@ -40,7 +40,6 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
     clearPreWalkMappingsForSurvey,
     completePreWalk,
     skipPreWalk,
-    refreshRemotePreWalk,
   } = useSurvey()
 
   useFloorPlanDisplay(open)
@@ -64,11 +63,6 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
   useEffect(() => {
     if (open) setShowDesignIntentPopup(true)
   }, [open])
-
-  useEffect(() => {
-    if (!open) return
-    void refreshRemotePreWalk()
-  }, [open, refreshRemotePreWalk])
 
   useEffect(() => {
     if (!open || !surveyOptions.length) return

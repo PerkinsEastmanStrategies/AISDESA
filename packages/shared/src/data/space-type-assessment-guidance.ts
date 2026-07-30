@@ -1,7 +1,5 @@
 import type { TableSchoolLevel } from "./table-of-surveys"
 import { schoolLevelFromSchoolClass, TABLE_OF_SURVEY_ENTRIES } from "./table-of-surveys"
-import { isSpaceTypeMarkedAbsentAtSchool } from "./survey-config"
-import type { SurveySession } from "../types/survey"
 
 export interface SpaceTypeAssessmentGuidanceEntry {
   spaceType: string
@@ -278,7 +276,6 @@ export function requiredCompletedRoomsForSpaceType(
 
 export interface SpaceTypeRoomSession {
   neighborhood?: string | null
-  spaceTypeMarkedAbsent?: boolean
 }
 
 export function isSpaceTypeRoomsComplete<T extends SpaceTypeRoomSession>(
@@ -286,16 +283,9 @@ export function isSpaceTypeRoomsComplete<T extends SpaceTypeRoomSession>(
   rooms: T[],
   schoolClass: string | null | undefined,
   isFilledOut: (room: T) => boolean,
-  options?: {
-    session?: Pick<SurveySession, "spaceTypeExistsAtSchool"> | null
-  },
 ): boolean {
-  if (options?.session && isSpaceTypeMarkedAbsentAtSchool(options.session, spaceType)) {
-    return true
-  }
-
   const rule = spaceTypeCompletionRule(spaceType, schoolClass)
-  const filled = rooms.filter((room) => isFilledOut(room) || room.spaceTypeMarkedAbsent)
+  const filled = rooms.filter((room) => isFilledOut(room))
 
   if (rule.kind === "minRooms") {
     return filled.length >= rule.count
@@ -320,7 +310,7 @@ export function spaceTypeCompletionProgress<T extends SpaceTypeRoomSession>(
   isFilledOut: (room: T) => boolean,
 ): { complete: number; required: number } {
   const rule = spaceTypeCompletionRule(spaceType, schoolClass)
-  const filled = rooms.filter((room) => isFilledOut(room) || room.spaceTypeMarkedAbsent)
+  const filled = rooms.filter((room) => isFilledOut(room))
 
   if (rule.kind === "minRooms") {
     return { complete: filled.length, required: rule.count }

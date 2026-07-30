@@ -1,6 +1,5 @@
 export type SurveyType =
   | "studios"
-  | "special_education"
   | "outdoor"
   | "neighborhoods"
   | "arrival"
@@ -155,8 +154,6 @@ export interface RoomSurveySession {
   traditionalStudioCopiedFromRoomId?: string
   /** Traditional studio: assessor must verify copied responses before continuing */
   traditionalStudioCopyReviewPending?: boolean
-  /** Space type marked not present at school/neighborhood — scores as 0 without room questions. */
-  spaceTypeMarkedAbsent?: boolean
 }
 
 /** Room → space type assignment from a building walk-through before scoring. */
@@ -209,8 +206,6 @@ export interface SurveySession {
   finalComment?: string
   /** Set when the assessor submits the full campus assessment from Close Out. */
   campusSubmittedAt?: string
-  /** Per space type: false = space not present at this school (skip room survey). */
-  spaceTypeExistsAtSchool?: Record<string, boolean>
 }
 
 export interface CategoryScore {

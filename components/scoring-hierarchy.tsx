@@ -6,7 +6,7 @@ import DrilldownScoreList from "@/components/drilldown-score-list"
 import { ScoreBadge, ScoreBar } from "@/components/score-display"
 import { sumPositiveWeights } from "@/lib/weight-display"
 import { cn, scoreTextColor } from "@/lib/utils"
-import type { CampusScoringSnapshot, AssessedRoomRecord } from "@/lib/campus-scoring-tree"
+import type { CampusScoringSnapshot } from "@/lib/campus-scoring-tree"
 import { neighborhoodGroupLabel, UNASSIGNED_NEIGHBORHOOD_ID } from "@aisd/shared"
 
 function spaceKey(focusAreaId: string, spaceType: string) {
@@ -189,7 +189,6 @@ export default function ScoringHierarchy({ snapshot }: { snapshot: CampusScoring
                                             roomIds={[room.roomId]}
                                             session={session}
                                             surveyType={room.surveyType}
-                                            schoolClass={snapshot.schoolClass}
                                             roomScoreDetails={
                                               snapshot.roomScoreDetailsBySurveyType[
                                                 room.surveyType
@@ -224,7 +223,7 @@ export function RoomScoreCards({
 }: {
   rooms: CampusScoringSnapshot["allRooms"]
   snapshot: CampusScoringSnapshot
-  onSelectRoom?: (room: AssessedRoomRecord) => void
+  onSelectRoom?: (roomId: string) => void
 }) {
   const [openRoom, setOpenRoom] = useState<Set<string>>(() => new Set())
 
@@ -257,7 +256,7 @@ export function RoomScoreCards({
                 if (next.has(room.roomId)) next.delete(room.roomId)
                 else next.add(room.roomId)
                 setOpenRoom(next)
-                onSelectRoom?.(room)
+                onSelectRoom?.(room.roomId)
               }}
               className="flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left transition-colors active:bg-slate-50"
             >
@@ -294,7 +293,6 @@ export function RoomScoreCards({
                   roomIds={[room.roomId]}
                   session={session}
                   surveyType={room.surveyType}
-                  schoolClass={snapshot.schoolClass}
                   roomScoreDetails={snapshot.roomScoreDetailsBySurveyType[room.surveyType]}
                 />
               </div>
@@ -314,11 +312,7 @@ export function NeighborhoodScoreCards({
   const [openNeighborhood, setOpenNeighborhood] = useState<Set<string>>(() => new Set())
   const [openRoom, setOpenRoom] = useState<Set<string>>(() => new Set())
 
-  const scorableNeighborhoods = snapshot.neighborhoods.filter(
-    (n) => n.neighborhoodId !== UNASSIGNED_NEIGHBORHOOD_ID,
-  )
-
-  if (!scorableNeighborhoods.length) {
+  if (!snapshot.neighborhoods.length) {
     return (
       <p className="rounded-2xl border border-slate-200/90 bg-white px-4 py-8 text-center text-sm text-slate-500">
         No neighborhood scores yet.
@@ -328,7 +322,7 @@ export function NeighborhoodScoreCards({
 
   return (
     <div className="space-y-2">
-      {scorableNeighborhoods.map((n) => {
+      {snapshot.neighborhoods.map((n) => {
         const nOpen = openNeighborhood.has(n.neighborhoodId)
 
         return (
@@ -417,7 +411,6 @@ export function NeighborhoodScoreCards({
                                 roomIds={[room.roomId]}
                                 session={session}
                                 surveyType={assessed.surveyType}
-                                schoolClass={snapshot.schoolClass}
                                 roomScoreDetails={
                                   snapshot.roomScoreDetailsBySurveyType[assessed.surveyType]
                                 }

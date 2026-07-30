@@ -1,4 +1,4 @@
-import type { GradeType, SurveySession, SurveyType } from "../types/survey"
+import type { GradeType, SurveyType } from "../types/survey"
 import {
   SCORING_FOCUS_AREAS_FROM_TABLE,
   SURVEY_MODULE_ORDER,
@@ -9,16 +9,11 @@ import {
   requiredSurveyTypesForSchool,
   scoringFocusAreaForRoomFromTable,
   scoringFocusAreaLabel,
-  spaceTypeDisplayLabel,
   spaceTypesForSurveyModule,
   surveyFocusForSurveyType,
   surveyTypeAvailableForSchoolFromTable,
   surveyTypesForSchool,
   surveyTypesInSameNavGroup,
-  questionSetStatusForSpaceType,
-  isPendingQuestionSet,
-  isPlaceholderQuestionSet,
-  type QuestionSetStatus,
   type ScoringFocusAreaId,
   type TableOfSurveyEntry,
 } from "../data/table-of-surveys"
@@ -119,8 +114,7 @@ import {
   OUTDOOR_SPACES_RUBRIC_VERSION,
   OUTDOOR_SPACES_SUBCATEGORIES,
 } from "../data/outdoor-rubric"
-import { ensureSyntheticQuestionOptions } from "../data/not-able-to-assess"
-import { roomRubricForSpaceType } from "../data/room-rubric-map"
+import { ensureNotAbleToAssessOptions } from "../data/not-able-to-assess"
 
 export {
   TRADITIONAL_STUDIOS_RUBRIC_VERSION,
@@ -287,7 +281,6 @@ const OPEN_COLLAB_RUBRIC: SurveyRubric = {
 
 const RUBRICS: Record<SurveyType, SurveyRubric | null> = {
   studios: STUDIOS_RUBRIC,
-  special_education: null,
   /** Close Out reuses Studios questions for deferred unfinished items */
   closeout: STUDIOS_RUBRIC,
   outdoor: OUTDOOR_SPACES_RUBRIC,
@@ -302,7 +295,7 @@ const RUBRICS: Record<SurveyType, SurveyRubric | null> = {
 
 export function getSurveyRubric(type: SurveyType): SurveyRubric | null {
   const rubric = RUBRICS[type]
-  return rubric ? ensureSyntheticQuestionOptions(rubric) : null
+  return rubric ? ensureNotAbleToAssessOptions(rubric) : null
 }
 
 export function isElementaryGrade(grade: string | null | undefined): boolean {
@@ -471,13 +464,6 @@ export function getRoomSurveyRubric(
     surveyType === "closeout" && sourceSurveyType ? sourceSurveyType : surveyType
   let rubric: SurveyRubric | null = null
 
-  if (
-    roomType &&
-    isPendingQuestionSet(effectiveType, roomType, schoolClass)
-  ) {
-    return null
-  }
-
   if (effectiveType === "neighborhoods") {
     let base: SurveyRubric | null = null
     if (roomType === "Neighborhood") base = NEIGHBORHOOD_SPACE_RUBRIC
@@ -502,61 +488,50 @@ export function getRoomSurveyRubric(
     if (roomType === "Outdoor Spaces") {
       rubric = filterRubricBySchoolLevel(OUTDOOR_SPACES_RUBRIC, schoolClass)
     } else if (roomType === "Outdoor Athletics") {
-      const parts = roomRubricForSpaceType("Outdoor Athletics")
-      rubric = parts
-        ? filterRubricBySchoolLevel(
-            {
-              assessmentArea: parts.assessmentArea,
-              categories: parts.categories,
-              subcategories: parts.subcategories,
-              questions: parts.questions as SurveyRubric["questions"],
-              options: parts.options as SurveyRubric["options"],
-            },
-            schoolClass,
-          )
-        : null
+      rubric = filterRubricBySchoolLevel(OUTDOOR_SPACES_RUBRIC, schoolClass)
     } else {
       return null
     }
   } else if (
-    effectiveType === "studios" ||
-    effectiveType === "special_education" ||
     effectiveType === "athletics" ||
     effectiveType === "performing_arts" ||
     effectiveType === "cte" ||
-    effectiveType === "shared_spaces" ||
-    effectiveType === "closeout"
+    effectiveType === "shared_spaces"
   ) {
-    const parts = roomType ? roomRubricForSpaceType(roomType) : null
-    if (parts) {
-      rubric = filterRubricBySchoolLevel(
-        {
-          assessmentArea: parts.assessmentArea,
-          categories: parts.categories,
-          subcategories: parts.subcategories,
-          questions: parts.questions as SurveyRubric["questions"],
-          options: parts.options as SurveyRubric["options"],
-        },
-        schoolClass,
-      )
-    } else if (effectiveType === "studios" || effectiveType === "closeout") {
-      rubric = STUDIOS_RUBRIC
-    } else {
-      return null
-    }
-  } else {
+    rubric = filterRubricBySchoolLevel(TRADITIONAL_STUDIOS_RUBRIC, schoolClass)
+  } else if (effectiveType !== "studios" && effectiveType !== "closeout") {
     rubric = RUBRICS[effectiveType]
+  } else if (roomType === "Traditional studio") {
+    rubric = filterRubricBySchoolLevel(TRADITIONAL_STUDIOS_RUBRIC, schoolClass)
+  } else if (roomType === "Sensory Lab") {
+    rubric = filterRubricBySchoolLevel(SENSORY_LAB_RUBRIC, schoolClass)
+  } else if (roomType === "Vocational Lab" || roomType === "Vocational lab") {
+    rubric = filterRubricBySchoolLevel(VOCATIONAL_LAB_RUBRIC, schoolClass)
+  } else if (roomType === "Life Skills Room") {
+    rubric = filterRubricBySchoolLevel(LIFE_SKILLS_RUBRIC, schoolClass)
+  } else if (roomType === "Sped flex studio") {
+    rubric = filterRubricBySchoolLevel(SPED_FLEX_RUBRIC, schoolClass)
+  } else if (roomType === "Maker space") {
+    rubric = filterRubricBySchoolLevel(MAKER_SPACE_RUBRIC, schoolClass)
+  } else if (
+    roomType === "Early childhood studio" ||
+    roomType === "Early childhood special education studio" ||
+    roomType === "Art" ||
+    roomType === "Music" ||
+    roomType === "Science"
+  ) {
+    rubric = filterRubricBySchoolLevel(TRADITIONAL_STUDIOS_RUBRIC, schoolClass)
+  } else {
+    rubric = STUDIOS_RUBRIC
   }
 
-  return rubric ? ensureSyntheticQuestionOptions(rubric) : null
+  return rubric ? ensureNotAbleToAssessOptions(rubric) : null
 }
 
 export function surveyTypeLabel(type: SurveyType): string {
   switch (type) {
     case "studios":
       return "Studios"
-    case "special_education":
-      return "Special Education"
     case "outdoor":
       return "Outdoor Elements"
     case "neighborhoods":
@@ -752,95 +727,6 @@ export function isOutdoorSpaceType(value: string): value is OutdoorSpaceType {
   return (OUTDOOR_SPACE_TYPE_OPTIONS as readonly string[]).includes(value)
 }
 
-/** Outdoor and Traditional studio skip the "does this space exist?" gate. */
-export function spaceTypeRequiresExistenceGate(spaceType: string | null | undefined): boolean {
-  if (!spaceType?.trim()) return false
-  if (spaceType === "Traditional studio") return false
-  if (isOutdoorSpaceType(spaceType) || spaceType === "Outdoor Athletics") return false
-  return true
-}
-
-/** Composite key when existence is scoped to a neighborhood (Neighborhoods survey). */
-export function spaceTypeExistenceKey(
-  spaceType: string,
-  neighborhood?: string | null,
-): string {
-  const nh = neighborhood?.trim()
-  return nh ? `${spaceType}::${nh}` : spaceType
-}
-
-export function readSpaceTypeExistsAtSchool(
-  session: Pick<SurveySession, "spaceTypeExistsAtSchool"> | null | undefined,
-  spaceType: string,
-  neighborhood?: string | null,
-): boolean | null {
-  const record = session?.spaceTypeExistsAtSchool
-  if (!record) return null
-  const scopedKey = spaceTypeExistenceKey(spaceType, neighborhood)
-  if (scopedKey in record) return record[scopedKey] ?? null
-  if (!neighborhood?.trim() && spaceType in record) return record[spaceType] ?? null
-  return null
-}
-
-export function isSpaceTypeMarkedAbsentAtSchool(
-  session: Pick<SurveySession, "spaceTypeExistsAtSchool"> | null | undefined,
-  spaceType: string,
-  neighborhood?: string | null,
-): boolean {
-  return readSpaceTypeExistsAtSchool(session, spaceType, neighborhood) === false
-}
-
-export function isSpaceTypeConfirmedAtSchool(
-  session: Pick<SurveySession, "spaceTypeExistsAtSchool"> | null | undefined,
-  spaceType: string,
-  neighborhood?: string | null,
-): boolean {
-  return readSpaceTypeExistsAtSchool(session, spaceType, neighborhood) === true
-}
-
-/** Synthetic session key for a space type marked not present (scores 0). */
-export const ABSENT_SPACE_TYPE_ROOM_PREFIX = "__absent-space-type__:" as const
-
-export function absentSpaceTypeRoomId(
-  spaceType: string,
-  neighborhood?: string | null,
-): string {
-  const type = spaceType.trim()
-  const nh = neighborhood?.trim()
-  return nh
-    ? `${ABSENT_SPACE_TYPE_ROOM_PREFIX}${type}::${nh}`
-    : `${ABSENT_SPACE_TYPE_ROOM_PREFIX}${type}`
-}
-
-export function isAbsentSpaceTypeRoomId(roomId: string | null | undefined): boolean {
-  return !!roomId?.startsWith(ABSENT_SPACE_TYPE_ROOM_PREFIX)
-}
-
-export function parseAbsentSpaceTypeRoomId(
-  roomId: string,
-): { spaceType: string; neighborhood?: string } | null {
-  if (!isAbsentSpaceTypeRoomId(roomId)) return null
-  const rest = roomId.slice(ABSENT_SPACE_TYPE_ROOM_PREFIX.length)
-  const sep = rest.indexOf("::")
-  if (sep >= 0) {
-    return {
-      spaceType: rest.slice(0, sep),
-      neighborhood: rest.slice(sep + 2) || undefined,
-    }
-  }
-  return { spaceType: rest }
-}
-
-export function absentSpaceTypeRoomDisplayName(
-  spaceType: string,
-  neighborhood?: string | null,
-): string {
-  const nh = neighborhood?.trim()
-  return nh
-    ? `${spaceType} — not present (Neighborhood ${nh})`
-    : `${spaceType} — not present`
-}
-
 /** Synthetic session key for campus-wide Outdoor Elements scoring (not a floor-plan room). */
 export const OUTDOOR_SURVEY_ROOM_ID = "__outdoor-spaces__" as const
 
@@ -872,38 +758,6 @@ export function neighborhoodFromSurveyRoomId(roomId: string): string | null {
 export function neighborhoodSurveyRoomDisplayName(neighborhood: string): string {
   const trimmed = neighborhood.trim()
   return trimmed ? `Neighborhood ${trimmed}` : "Neighborhood"
-}
-
-/** Synthetic session key when a space type is assessed without a specific floor-plan room. */
-export const NA_SURVEY_ROOM_PREFIX = "__na-room__:" as const
-
-export function naSurveyRoomId(spaceType: string, neighborhood?: string | null): string {
-  const type = spaceType.trim()
-  const nh = neighborhood?.trim()
-  return nh ? `${NA_SURVEY_ROOM_PREFIX}${type}::${nh}` : `${NA_SURVEY_ROOM_PREFIX}${type}`
-}
-
-export function isNaSurveyRoomId(roomId: string | null | undefined): boolean {
-  return !!roomId?.startsWith(NA_SURVEY_ROOM_PREFIX)
-}
-
-export function parseNaSurveyRoomId(
-  roomId: string,
-): { spaceType: string; neighborhood?: string } | null {
-  if (!isNaSurveyRoomId(roomId)) return null
-  const rest = roomId.slice(NA_SURVEY_ROOM_PREFIX.length)
-  const sep = rest.indexOf("::")
-  if (sep >= 0) {
-    return {
-      spaceType: rest.slice(0, sep),
-      neighborhood: rest.slice(sep + 2) || undefined,
-    }
-  }
-  return { spaceType: rest }
-}
-
-export function naSurveyRoomDisplayName(): string {
-  return "N/A — no room assigned"
 }
 
 /** Neighborhoods module: the Neighborhood space type is scored per neighborhood, not per room. */
@@ -1001,7 +855,7 @@ export function gradeOptionsForSchool(
 }
 
 /** Campus rollup buckets aligned with ESA scoring focus areas (Table of Surveys). */
-export type { ScoringFocusAreaDef, ScoringFocusAreaId, QuestionSetStatus } from "../data/table-of-surveys"
+export type { ScoringFocusAreaDef, ScoringFocusAreaId } from "../data/table-of-surveys"
 
 /** Ordered list shown on the campus results rollup. */
 export const SCORING_FOCUS_AREAS = SCORING_FOCUS_AREAS_FROM_TABLE
@@ -1045,8 +899,4 @@ export {
   spaceTypesForSurveyModule,
   surveyTypesForSchool,
   surveyTypesInSameNavGroup,
-  spaceTypeDisplayLabel,
-  questionSetStatusForSpaceType,
-  isPendingQuestionSet,
-  isPlaceholderQuestionSet,
 }

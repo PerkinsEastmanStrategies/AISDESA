@@ -20,7 +20,7 @@ export default function CloseOutPanel() {
   const campusSubmittedAt = state.session?.campusSubmittedAt ?? state.submission?.session.campusSubmittedAt
 
   const pendingSummary = useMemo(() => {
-    const pending = countCloseOutPendingItems(state.session, state.school?.schoolClass)
+    const pending = countCloseOutPendingItems(state.session)
     if (pending.rooms === 0) {
       return "No unanswered questions from other surveys."
     }

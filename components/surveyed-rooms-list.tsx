@@ -77,7 +77,7 @@ export default function SurveyedRoomsList() {
                 {room.complete && (
                   <Check className="h-4 w-4 shrink-0 text-green-600" aria-label="Complete" />
                 )}
-                {room.overallScore !== null && <ScoreBadge score={room.overallScore} />}
+                <ScoreBadge score={room.overallScore} />
                 <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
               </button>
             </li>

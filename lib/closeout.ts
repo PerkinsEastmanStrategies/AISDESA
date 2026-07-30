@@ -44,25 +44,19 @@ export function effectiveCloseOutPendingQuestionIds(
   return (room.pendingQuestionIds ?? []).filter((id) => {
     if (isSkippedDependentQuestion(id, room.responses, rubric?.questions)) return false
     const question = rubric?.questions.find((item) => item.questionId === id)
-    if (!question) return false
+    if (!question) return true
     return !isQuestionFullyAnswered(question, responseMap.get(id))
   })
 }
 
 /** True when this Close Out room still has unanswered, non-skipped work. */
-export function roomNeedsCloseOut(
-  room: RoomSurveySession,
-  schoolClass?: string | null,
-): boolean {
-  return effectiveCloseOutPendingQuestionIds(room, schoolClass).length > 0 || !!room.pendingGrade
+export function roomNeedsCloseOut(room: RoomSurveySession): boolean {
+  return effectiveCloseOutPendingQuestionIds(room).length > 0 || !!room.pendingGrade
 }
 
 /** Drop auto-skipped IDs from the pending list so completed rooms clear out. */
-export function pruneCloseOutRoomPending(
-  room: RoomSurveySession,
-  schoolClass?: string | null,
-): RoomSurveySession {
-  const pendingQuestionIds = effectiveCloseOutPendingQuestionIds(room, schoolClass)
+export function pruneCloseOutRoomPending(room: RoomSurveySession): RoomSurveySession {
+  const pendingQuestionIds = effectiveCloseOutPendingQuestionIds(room)
   const unchanged =
     pendingQuestionIds.length === (room.pendingQuestionIds?.length ?? 0) &&
     pendingQuestionIds.every((id, i) => id === room.pendingQuestionIds![i])
@@ -79,32 +73,23 @@ export function pruneCloseOutRoomPending(
   }
 }
 
-function roomHasCloseOutWork(room: RoomSurveySession, schoolClass?: string | null): boolean {
-  return roomNeedsCloseOut(room, schoolClass)
+function roomHasCloseOutWork(room: RoomSurveySession): boolean {
+  return roomNeedsCloseOut(room)
 }
 
-export function closeOutSessionHasWork(
-  session: SurveySession | null | undefined,
-  schoolClass?: string | null,
-): boolean {
+export function closeOutSessionHasWork(session: SurveySession | null | undefined): boolean {
   if (!session) return false
-  return Object.values(session.rooms).some((room) => roomHasCloseOutWork(room, schoolClass))
+  return Object.values(session.rooms).some(roomHasCloseOutWork)
 }
 
-export function isCloseOutSurveyComplete(
-  session: SurveySession | null | undefined,
-  schoolClass?: string | null,
-): boolean {
+export function isCloseOutSurveyComplete(session: SurveySession | null | undefined): boolean {
   if (!session) return false
   const rooms = Object.values(session.rooms)
   if (rooms.length === 0) return true
-  return !rooms.some((room) => roomHasCloseOutWork(room, schoolClass))
+  return !rooms.some(roomHasCloseOutWork)
 }
 
-export function countCloseOutPendingItems(
-  session: SurveySession | null | undefined,
-  schoolClass?: string | null,
-): {
+export function countCloseOutPendingItems(session: SurveySession | null | undefined): {
   rooms: number
   questions: number
   grades: number
@@ -114,9 +99,9 @@ export function countCloseOutPendingItems(
   let grades = 0
   let rooms = 0
   for (const room of Object.values(session.rooms)) {
-    if (!roomHasCloseOutWork(room, schoolClass)) continue
+    if (!roomHasCloseOutWork(room)) continue
     rooms += 1
-    questions += effectiveCloseOutPendingQuestionIds(room, schoolClass).length
+    questions += effectiveCloseOutPendingQuestionIds(room).length
     if (room.pendingGrade) grades += 1
   }
   return { rooms, questions, grades }
@@ -156,7 +141,9 @@ function mergeIncompleteFromSourceSurvey(
     )
 
     if (result.complete) {
-      delete next[roomId]
+      if (next[roomId] && !roomHasCloseOutWork(next[roomId])) {
+        delete next[roomId]
+      }
       continue
     }
 
@@ -238,8 +225,8 @@ export function refreshCloseOutDraftFromSources(params: {
   }
 
   for (const [roomId, room] of Object.entries(closeRooms)) {
-    const pruned = pruneCloseOutRoomPending(room, params.schoolClass)
-    if (roomHasCloseOutWork(pruned, params.schoolClass)) {
+    const pruned = pruneCloseOutRoomPending(room)
+    if (roomHasCloseOutWork(pruned)) {
       closeRooms[roomId] = pruned
     } else {
       delete closeRooms[roomId]
@@ -282,8 +269,8 @@ export function rebuildCloseOutFromSourceSurveys(params: {
   }
 
   for (const [roomId, room] of Object.entries(closeRooms)) {
-    const pruned = pruneCloseOutRoomPending(room, params.schoolClass)
-    if (roomHasCloseOutWork(pruned, params.schoolClass)) {
+    const pruned = pruneCloseOutRoomPending(room)
+    if (roomHasCloseOutWork(pruned)) {
       closeRooms[roomId] = pruned
     } else {
       delete closeRooms[roomId]
@@ -422,43 +409,19 @@ export function syncCloseOutProgressToSource(
 export function syncSourceProgressToCloseOut(
   sourceSession: SurveySession,
   closeOutSession: SurveySession,
-  schoolClass?: string | null,
 ): SurveySession {
   const rooms = { ...closeOutSession.rooms }
   let changed = false
 
   for (const [roomId, sourceRoom] of Object.entries(sourceSession.rooms)) {
     const closeRoom = rooms[roomId]
-    if (!closeRoom) continue
-
-    const sourceRubric = getRoomSurveyRubric(
-      sourceSession.surveyType,
-      sourceRoom.roomType,
-      sourceRoom.gradeType,
-      schoolClass,
-    )
-    if (sourceRubric) {
-      const sourceComplete = validateRoomSession(
-        roomId,
-        roomId,
-        sourceRoom,
-        sourceRubric.questions,
-        { schoolClass },
-      ).complete
-      if (sourceComplete) {
-        delete rooms[roomId]
-        changed = true
-        continue
-      }
-    }
-
-    if (!roomHasCloseOutWork(closeRoom, schoolClass)) continue
+    if (!closeRoom || !roomHasCloseOutWork(closeRoom)) continue
 
     const rubric = getRoomSurveyRubric(
       "closeout",
       sourceRoom.roomType,
       sourceRoom.gradeType,
-      schoolClass,
+      undefined,
       closeRoom.sourceSurveyType,
     )
     const questions = rubric?.questions ?? []
@@ -478,23 +441,14 @@ export function syncSourceProgressToCloseOut(
     }
 
     const pendingGrade = closeRoom.pendingGrade && !sourceRoom.gradeType
-    const nextRoom = pruneCloseOutRoomPending(
-      {
-        ...closeRoom,
-        gradeType: sourceRoom.gradeType || closeRoom.gradeType,
-        schoolRoomNumber: sourceRoom.schoolRoomNumber ?? closeRoom.schoolRoomNumber,
-        responses: [...closeResponses.values()],
-        pendingQuestionIds,
-        pendingGrade,
-      },
-      schoolClass,
-    )
-
-    if (!roomHasCloseOutWork(nextRoom, schoolClass)) {
-      delete rooms[roomId]
-      changed = true
-      continue
-    }
+    const nextRoom = pruneCloseOutRoomPending({
+      ...closeRoom,
+      gradeType: sourceRoom.gradeType || closeRoom.gradeType,
+      schoolRoomNumber: sourceRoom.schoolRoomNumber ?? closeRoom.schoolRoomNumber,
+      responses: [...closeResponses.values()],
+      pendingQuestionIds,
+      pendingGrade,
+    })
 
     if (
       nextRoom.pendingQuestionIds?.length !== (closeRoom.pendingQuestionIds ?? []).length ||
@@ -557,7 +511,10 @@ export function deferIncompleteToCloseOut(
     )
 
     if (result.complete) {
-      delete closeRooms[roomId]
+      // Clear any prior close-out residue for finished rooms
+      if (closeRooms[roomId] && !roomHasCloseOutWork(closeRooms[roomId])) {
+        delete closeRooms[roomId]
+      }
       sourceRooms[roomId] = {
         ...roomSession,
         deferredQuestionIds: [],

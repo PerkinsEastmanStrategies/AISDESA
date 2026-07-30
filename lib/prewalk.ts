@@ -1,11 +1,4 @@
-import type {
-  ParsedPlanRoom,
-  PreWalkRoomMapping,
-  PreWalkState,
-  RoomSurveySession,
-  SurveyType,
-} from "@aisd/shared"
-import { isNaSurveyRoomId } from "@aisd/shared"
+import type { PreWalkRoomMapping, PreWalkState, RoomSurveySession, SurveyType } from "@aisd/shared"
 import {
   isSpaceTypeForSurveyModule,
   spaceTypeOptionsForSurvey,
@@ -153,51 +146,6 @@ export function migratePreWalkState(
   }
 }
 
-/** Combine pre-walk data from multiple sources (school storage, module drafts, live state, remote). */
-export function mergePreWalkStates(
-  ...sources: (PreWalkState | null | undefined)[]
-): PreWalkState {
-  let mappings: PreWalkState["mappings"] = {}
-  let spaceTypePhotos: NonNullable<PreWalkState["spaceTypePhotos"]> = {}
-  let completedAt: string | null | undefined
-  let skippedAt: string | null | undefined
-
-  for (const source of sources) {
-    if (!source) continue
-    for (const [key, mapping] of Object.entries(source.mappings ?? {})) {
-      if (!mapping?.spaceType) continue
-      const existing = mappings[key]
-      if (!existing) {
-        mappings[key] = mapping
-        continue
-      }
-      const existingAt = existing.mappedAt ? Date.parse(existing.mappedAt) : 0
-      const incomingAt = mapping.mappedAt ? Date.parse(mapping.mappedAt) : 0
-      mappings[key] =
-        incomingAt >= existingAt && Number.isFinite(incomingAt) ? mapping : existing
-    }
-    spaceTypePhotos = { ...spaceTypePhotos, ...(source.spaceTypePhotos ?? {}) }
-    completedAt = latestPreWalkTimestamp(completedAt, source.completedAt)
-    skippedAt = latestPreWalkTimestamp(skippedAt, source.skippedAt)
-  }
-
-  return {
-    mappings,
-    spaceTypePhotos,
-    completedAt: completedAt ?? null,
-    skippedAt: skippedAt ?? null,
-  }
-}
-
-function latestPreWalkTimestamp(
-  current: string | null | undefined,
-  incoming: string | null | undefined,
-): string | null | undefined {
-  if (!incoming) return current
-  if (!current) return incoming
-  return Date.parse(incoming) >= Date.parse(current) ? incoming : current
-}
-
 export function preWalkSurveyTypesForSchool(schoolClass?: string | null): SurveyType[] {
   return surveyNavTypesForSchool(schoolClass).filter((surveyType) =>
     surveyModuleUsesSpaceTypePicker(surveyType, schoolClass),
@@ -303,33 +251,6 @@ export function preWalkMappingList(
   return Object.values(mappings).filter(
     (mapping) => mapping.spaceType && (!surveyType || mapping.surveyType === surveyType),
   )
-}
-
-/** Pre-walk mapped rooms that are missing from parsed floor plan data (fallback for load/parse gaps). */
-export function mergePreWalkPlanRooms(
-  planRooms: ParsedPlanRoom[],
-  mappings: Record<string, PreWalkRoomMapping>,
-  surveyType: SurveyType,
-  levelId: string,
-): ParsedPlanRoom[] {
-  const byId = new Map(planRooms.map((room) => [room.id.toUpperCase(), room]))
-  const extras: ParsedPlanRoom[] = []
-  for (const mapping of preWalkMappingList(mappings, surveyType)) {
-    const key = mapping.roomId.toUpperCase()
-    if (byId.has(key)) continue
-    byId.set(key, {
-      id: mapping.roomId,
-      name: mapping.roomId,
-      x: 0,
-      y: 0,
-      area: 1,
-      levelId,
-      points: [],
-      overlayKind: "hotspot",
-    })
-    extras.push(byId.get(key)!)
-  }
-  return extras.length ? [...planRooms, ...extras] : planRooms
 }
 
 export function hasPreWalkMappings(
@@ -445,7 +366,6 @@ export function canSelectRoomForSurvey(args: {
   schoolClass?: string | null
 }): boolean {
   const { roomId, preWalkMappings, schoolClass, surveyType, ...rest } = args
-  if (isNaSurveyRoomId(roomId)) return true
   if (!surveyUsesSpaceTypePicker(surveyType, schoolClass)) return true
 
   const mappedType = preWalkSpaceTypeForRoom(preWalkMappings, roomId, surveyType, schoolClass)

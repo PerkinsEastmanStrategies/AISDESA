@@ -1,6 +1,6 @@
-﻿/**
+/**
  * Prepare floor-plan SVGs for display:
- * high-contrast schematic ΓÇö white background, consistent hairline black walls
+ * high-contrast schematic — white background, consistent hairline black walls
  * (matches the thin Boone-style reference look across every school/floor).
  *
  * Especially important for Lively, which ships colored building/room fills

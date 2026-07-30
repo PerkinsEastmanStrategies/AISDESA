@@ -3,12 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Maximize2, Minimize2, Scan, ZoomIn, ZoomOut, RotateCcw, X } from "lucide-react"
-import {
-  floorPlanSvgDataUrl,
-  floorPlanSvgInlineFragment,
-  getFloorPlanDisplaySvg,
-  isInlineFloorPlanSrc,
-} from "@/lib/floor-plan-loader"
 import { useSurvey } from "@/lib/survey-store"
 import { useSelectRoomWithConfirm } from "@/components/use-select-room-with-confirm"
 import { overlayPointsForRoom, viewBoxString, type ParsedPlanRoom } from "@aisd/shared"
@@ -39,6 +33,12 @@ import {
 import { programTypeFillColor, programTypeLegendColors } from "@/lib/program-type-colors"
 import NeighborhoodLegend from "@/components/neighborhood-legend"
 import { cn, scoreFillRgba, scoreStrokeRgba } from "@/lib/utils"
+import {
+  floorPlanSvgDataUrl,
+  floorPlanSvgInlineFragment,
+  getFloorPlanDisplaySvg,
+  isInlineFloorPlanSrc,
+} from "@/lib/floor-plan-loader"
 import { neighborhoodGroupId, NEIGHBORHOOD_OPTIONS } from "@aisd/shared"
 
 function colorWithAlpha(color: string, alpha: number): string {
@@ -355,16 +355,15 @@ export default function SurveyFloorPlan({
     }
     let cancelled = false
     void (async () => {
-      const school = state.school!
-      const [useMap, nbhMap, csvDeviation] = await Promise.all([
-        loadRoomUseMap(school),
-        loadRoomNeighborhoodMap(school),
-        loadRoomSizeDeviationMap(school),
+      const [useMap, nbhMap, deviationMap] = await Promise.all([
+        loadRoomUseMap(state.school),
+        loadRoomNeighborhoodMap(state.school),
+        loadRoomSizeDeviationMap(state.school),
       ])
       if (cancelled) return
       setRoomUseMap(useMap)
       setNeighborhoodMap(nbhMap)
-      setSizeDeviationMap(csvDeviation)
+      setSizeDeviationMap(deviationMap)
     })()
     return () => {
       cancelled = true

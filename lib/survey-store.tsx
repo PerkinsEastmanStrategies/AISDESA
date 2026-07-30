@@ -40,18 +40,8 @@ import {
   isElementaryGrade,
   isNeighborhoodSpaceType,
   isOutdoorSpaceType,
-  isNeighborhoodOnlySpaceType,
   isNeighborhoodSurveyRoomId,
   isOutdoorSurveyRoomId,
-  isAbsentSpaceTypeRoomId,
-  isNaSurveyRoomId,
-  naSurveyRoomDisplayName,
-  parseNaSurveyRoomId,
-  absentSpaceTypeRoomId,
-  absentSpaceTypeRoomDisplayName,
-  parseAbsentSpaceTypeRoomId,
-  spaceTypeExistenceKey,
-  neighborhoodSurveyRoomId,
   isRoomComplete,
   isSecondaryGrade,
   neighborhoodFromSurveyRoomId,
@@ -62,10 +52,8 @@ import {
   toFloorPlanRoom,
   isClassroomRoom,
   isStudioType,
-  isSpaceTypeForSurveyModule,
   studioTypeRequiresGrade,
   surveyTypeAvailableForSchool,
-  surveyTypeLabel,
   usesDedicatedSpaceRubric,
   type WeightOverrides,
 } from "@aisd/shared"
@@ -76,10 +64,8 @@ import {
   loadDraft,
   loadDraftsForSchool,
   loadResumableDraft,
-  resolveSchoolPreWalk,
   saveAssessors,
   saveDraft,
-  syncSchoolPreWalkToDrafts,
   markActiveVisit,
   hasActiveVisit,
   type AssessorBySurveyType,
@@ -101,7 +87,7 @@ import {
 } from "@/lib/assessor"
 import { getSurveyTypeInfo, type SurveyTypeInfo } from "@/lib/survey-status"
 import { SURVEY_TYPES } from "@aisd/shared"
-import { validateSurveyBeforeDeferral, validateRoomSession, type SubmitValidationResult } from "@/lib/survey-validation"
+import { validateSurveyBeforeDeferral, type SubmitValidationResult } from "@/lib/survey-validation"
 import { scrollSurveyRootToTopAfterPaint } from "@/lib/survey-scroll"
 import {
   loadFloorPlanLevelDisplay,
@@ -111,7 +97,6 @@ import {
   restoreFloorPlanLevelFromCache,
   revokeFloorPlanBlobUrls,
 } from "@/lib/floor-plan-loader"
-import { resolveSelectedLevelId } from "@/lib/floor-plan-manifest"
 import { loadAisdSchoolOptions } from "@/lib/load-aisd-schools"
 import {
   deferIncompleteToCloseOut,
@@ -126,17 +111,15 @@ import {
   withPendingUpdatedForResponse,
 } from "@/lib/closeout"
 import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
-import { EMPTY_PREWALK, getPreWalkMappingForSurveyModule, mergePreWalkStates, migratePreWalkState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypeForRoom, preWalkSpaceTypePhotoKey, shouldPromptPreWalkOnSchoolSelect } from "@/lib/prewalk"
+import { EMPTY_PREWALK, getPreWalkMappingForSurveyModule, migratePreWalkState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypeForRoom, preWalkSpaceTypePhotoKey, shouldPromptPreWalkOnSchoolSelect } from "@/lib/prewalk"
 import { applyTraditionalStudioCopyToRoom, getTraditionalStudioCopyOffer } from "@/lib/traditional-studio-copy"
-import { scoreRoomSessionWithMetadata, scoreAbsentSpaceTypeRoom } from "@/lib/traditional-studio-room-score"
+import { scoreRoomSessionWithMetadata } from "@/lib/traditional-studio-room-score"
 import {
   fetchRemoteSurveyStatusClient,
   flushSurveySyncQueue,
   isBrowserOnline,
   pullRemoteDraftClient,
   pullRemoteDraftsForSchoolClient,
-  pullRemoteSchoolPreWalkClient,
-  pushSchoolPreWalkClient,
   pushSurveyDraftClient,
   getPendingSyncCount,
 } from "@/lib/survey-remote-sync"
@@ -177,7 +160,6 @@ interface SurveyState {
   assessorByType: AssessorBySurveyType
   submitValidation: SubmitValidationResult | null
   pendingStudioType: string | null
-  pendingNeighborhood: string | null
   preWalk: PreWalkState
   preWalkPromptPending: boolean
   preWalkRequested: boolean
@@ -212,11 +194,8 @@ type Action =
   | { type: "COMPLETE_PREWALK" }
   | { type: "SKIP_PREWALK" }
   | { type: "ANSWER_PREWALK_PROMPT"; choice: "map" | "skip" }
-  | { type: "MERGE_REMOTE_PREWALK"; preWalk: PreWalkState }
   | { type: "SET_ROOM_TYPE"; roomId: string; roomType: string }
   | { type: "SET_PENDING_STUDIO_TYPE"; roomType: string | null }
-  | { type: "SET_PENDING_NEIGHBORHOOD"; neighborhood: string | null }
-  | { type: "SET_SPACE_TYPE_EXISTS"; spaceType: string; exists: boolean }
   | { type: "SET_RESPONSE"; roomId: string; response: RoomQuestionResponse }
   | { type: "APPLY_TRADITIONAL_STUDIO_COPY"; roomId: string }
   | { type: "ACK_TRADITIONAL_STUDIO_COPY_REVIEW"; roomId: string }
@@ -280,36 +259,16 @@ function lookupNeighborhoodFromPlan(
   return planRoom?.neighborhood?.trim().toUpperCase() ?? ""
 }
 
-/** Space type string we track in pendingStudioType for the active survey module. */
-function isPendingSpaceType(
-  value: string | null | undefined,
-  surveyType?: SurveyType,
-  schoolClass?: string | null,
-): boolean {
-  if (!value) return false
-  if (
-    isStudioType(value) ||
-    isAdminSpaceType(value) ||
-    isArrivalSpaceType(value) ||
-    isNeighborhoodSpaceType(value) ||
-    isOutdoorSpaceType(value)
-  ) {
-    return true
-  }
-  if (surveyType && isSpaceTypeForSurveyModule(surveyType, value, schoolClass)) {
-    return true
-  }
-  return false
-}
-
-function resolvePendingStudioType(state: SurveyState, ensuredRoomType: string): string | null {
-  if (isPendingSpaceType(ensuredRoomType, state.surveyType, state.school?.schoolClass)) {
-    return ensuredRoomType
-  }
-  if (isPendingSpaceType(state.pendingStudioType, state.surveyType, state.school?.schoolClass)) {
-    return state.pendingStudioType
-  }
-  return null
+/** Space type covers Studios types plus the dedicated Admin/Arrival/Neighborhoods space types. */
+function isPendingSpaceType(value: string | null | undefined): boolean {
+  return (
+    !!value &&
+    (isStudioType(value) ||
+      isAdminSpaceType(value) ||
+      isArrivalSpaceType(value) ||
+      isNeighborhoodSpaceType(value) ||
+      isOutdoorSpaceType(value))
+  )
 }
 
 function roomHasSurveyStarted(session: RoomSurveySession): boolean {
@@ -331,10 +290,6 @@ function resolveRoomType(
   if (isNeighborhoodSurveyRoomId(roomId) && state.surveyType === "neighborhoods") {
     return "Neighborhood"
   }
-  const naParsed = parseNaSurveyRoomId(roomId)
-  if (naParsed) {
-    return state.pendingStudioType ?? naParsed.spaceType
-  }
 
   const preWalkType = preWalkSpaceTypeForRoom(
     state.preWalk.mappings,
@@ -344,23 +299,18 @@ function resolveRoomType(
   )
   const canApplyPreWalk =
     !!preWalkType &&
-    isPendingSpaceType(preWalkType, state.surveyType, state.school?.schoolClass) &&
+    isPendingSpaceType(preWalkType) &&
     (!existing || !roomHasSurveyStarted(existing))
 
   if (canApplyPreWalk) return preWalkType
 
   if (existing) {
-    if (isPendingSpaceType(existing.roomType, state.surveyType, state.school?.schoolClass)) {
-      return existing.roomType
-    }
+    if (isPendingSpaceType(existing.roomType)) return existing.roomType
     if (existing.roomType === "Studios") return state.pendingStudioType ?? ""
     return existing.roomType
   }
 
-  if (
-    state.pendingStudioType &&
-    isPendingSpaceType(state.pendingStudioType, state.surveyType, state.school?.schoolClass)
-  ) {
+  if (state.pendingStudioType && isPendingSpaceType(state.pendingStudioType)) {
     return state.pendingStudioType
   }
   return ""
@@ -442,9 +392,6 @@ function bootstrapCampusScopedSurvey(state: SurveyState): SurveyState {
 
 function roomDisplayName(state: SurveyState, roomId: string): string {
   if (isOutdoorSurveyRoomId(roomId)) return outdoorSurveyRoomDisplayName()
-  if (isNaSurveyRoomId(roomId)) return naSurveyRoomDisplayName()
-  const absent = parseAbsentSpaceTypeRoomId(roomId)
-  if (absent) return absentSpaceTypeRoomDisplayName(absent.spaceType, absent.neighborhood)
   const neighborhoodLabel = neighborhoodFromSurveyRoomId(roomId)
   if (neighborhoodLabel) return neighborhoodSurveyRoomDisplayName(neighborhoodLabel)
   const parsed = state.allRooms.find((r) => r.id === roomId)
@@ -511,24 +458,6 @@ function ensureRoomSession(
   roomId: string,
   existing?: RoomSurveySession,
 ): RoomSurveySession {
-  const absentParsed = parseAbsentSpaceTypeRoomId(roomId)
-  if (absentParsed) {
-    const label = absentSpaceTypeRoomDisplayName(absentParsed.spaceType, absentParsed.neighborhood)
-    return {
-      ...(existing ?? {}),
-      roomId,
-      roomNumber: label,
-      roomType: absentParsed.spaceType,
-      gradeType: existing?.gradeType ?? "",
-      neighborhood: absentParsed.neighborhood ?? existing?.neighborhood ?? "",
-      preWalkNote1: existing?.preWalkNote1 ?? "",
-      preWalkNote2: existing?.preWalkNote2 ?? "",
-      levelId: "campus",
-      responses: existing?.spaceTypeMarkedAbsent ? existing.responses : [],
-      spaceTypeMarkedAbsent: true,
-    }
-  }
-
   if (isOutdoorSurveyRoomId(roomId) && state.surveyType === "outdoor") {
     if (existing) {
       return {
@@ -575,40 +504,8 @@ function ensureRoomSession(
     }
   }
 
-  const naParsed = parseNaSurveyRoomId(roomId)
-  if (naParsed) {
-    const label = naSurveyRoomDisplayName()
-    const spaceType = state.pendingStudioType ?? naParsed.spaceType
-    const neighborhood =
-      naParsed.neighborhood ??
-      state.pendingNeighborhood?.trim() ??
-      existing?.neighborhood ??
-      ""
-    if (existing) {
-      return {
-        ...existing,
-        roomType: spaceType,
-        roomNumber: label,
-        neighborhood,
-        levelId: "campus",
-      }
-    }
-    return {
-      roomId,
-      roomNumber: label,
-      roomType: spaceType,
-      gradeType: "",
-      neighborhood,
-      preWalkNote1: "",
-      preWalkNote2: "",
-      levelId: "campus",
-      responses: [],
-    }
-  }
-
   const planRoom = state.allRooms.find((r) => r.id === roomId)
   const lookupNeighborhood = lookupNeighborhoodFromPlan(planRoom)
-  const pendingNeighborhood = state.pendingNeighborhood?.trim() ?? ""
   const preWalkMapping = getPreWalkMappingForSurveyModule(
     state.preWalk.mappings,
     state.surveyType,
@@ -628,7 +525,7 @@ function ensureRoomSession(
       areaSqft,
       neighborhood: existing.neighborhood?.trim()
         ? existing.neighborhood
-        : pendingNeighborhood || lookupNeighborhood || existing.neighborhood || "",
+        : lookupNeighborhood || existing.neighborhood || "",
       preWalkNote1: existing.preWalkNote1 ?? preWalkMapping?.note1 ?? "",
       preWalkNote2: existing.preWalkNote2 ?? preWalkMapping?.note2 ?? "",
     }
@@ -638,7 +535,7 @@ function ensureRoomSession(
     roomNumber: roomId,
     roomType,
     gradeType: "",
-    neighborhood: pendingNeighborhood || lookupNeighborhood,
+    neighborhood: lookupNeighborhood,
     areaSqft: lookupAreaFromPlan(planRoom),
     preWalkNote1: preWalkMapping?.note1 ?? "",
     preWalkNote2: preWalkMapping?.note2 ?? "",
@@ -717,11 +614,13 @@ function stateFromDraft(
   const levelFromSession = selectedRoomId
     ? draft.session.rooms[selectedRoomId]?.levelId
     : undefined
-  const resolvedLevelId = resolveSelectedLevelId(
-    draft.selectedLevelId ?? levelFromSession ?? null,
-    existingFloorPlan,
-    existingRooms,
-  )
+  const resolvedLevelId =
+    draft.selectedLevelId ??
+    levelFromSession ??
+    existingFloorPlan?.defaultLevelId ??
+    existingRooms.find((r) => r.id === selectedRoomId)?.levelId ??
+    existingRooms[0]?.levelId ??
+    null
   const base: SurveyState = {
     surveyType: draft.surveyType,
     school,
@@ -741,8 +640,7 @@ function stateFromDraft(
     assessorByType: stamped.assessorByType,
     submitValidation: null,
     pendingStudioType: draft.pendingStudioType ?? null,
-    pendingNeighborhood: draft.pendingNeighborhood ?? null,
-    preWalk: resolveSchoolPreWalk(school.id, school.schoolClass, draft.preWalk),
+    preWalk: migratePreWalkState(draft.preWalk, school.schoolClass),
     preWalkPromptPending: false,
     preWalkRequested: false,
     ...emptyScoreState(),
@@ -793,7 +691,9 @@ function buildCampusSubmission(state: SurveyState): SurveySubmission | null {
     schoolName: state.school.displayName,
     campusId: state.school.campusId,
     schoolClass: state.school.schoolClass,
-    drafts: loadDraftsForSchool(state.school.id),
+    liveSurveyType: state.surveyType,
+    liveSession: state.session,
+    liveRoomScoreDetails: state.roomScoreDetails,
   })
 
   const submittedAt = new Date().toISOString()
@@ -827,8 +727,6 @@ function buildSubmission(state: SurveyState): SurveySubmission | null {
     .filter(([, roomSession]) => roomHasAssessmentProgress(roomSession))
     .map(([roomId, roomSession]) => {
     const detail = state.roomScoreDetails[roomId]
-    const absent = roomSession.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(roomId)
-    const overallScore = absent ? (detail?.overallScore ?? 0) : (detail?.overallScore ?? null)
     return {
       roomId,
       roomName: roomDisplayName(state, roomId),
@@ -839,13 +737,11 @@ function buildSubmission(state: SurveyState): SurveySubmission | null {
       neighborhood: resolveRoomNeighborhood(state, roomId, roomSession),
       levelId: roomSession.levelId,
       gradeType: roomSession.gradeType,
-      overallScore,
+      overallScore: detail?.overallScore ?? null,
       categoryScores: detail?.categoryScores ?? [],
-      answeredCount: absent ? (detail?.answeredCount ?? 1) : (detail?.answeredCount ?? 0),
-      totalCount: absent ? (detail?.totalCount ?? 1) : (detail?.totalCount ?? 0),
-      complete: absent
-        ? true
-        : detail
+      answeredCount: detail?.answeredCount ?? 0,
+      totalCount: detail?.totalCount ?? 0,
+      complete: detail
           ? isRoomComplete(
               detail,
               roomSession.gradeType,
@@ -1028,25 +924,18 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       const assessor = resolveCampusAssessor(state.assessorByType, action.surveyType)
       const session = newSession(state.school, action.surveyType, assessor)
       const stamped = withCampusAssessorOnSession(session, state.assessorByType, action.surveyType)
-      const preWalk = resolveSchoolPreWalk(
-        state.school.id,
-        state.school.schoolClass,
-        state.preWalk,
-      )
       return bootstrapCampusScopedSurvey({
         ...state,
         surveyType: action.surveyType,
         session: stamped.session,
         assessorByType: stamped.assessorByType,
         selectedRoomId: null,
-        selectedLevelId: resolveSelectedLevelId(null, state.floorPlan, state.allRooms),
         view: "survey",
         submission: null,
         showResumeBanner: false,
         weightOverrides: EMPTY_WEIGHT_OVERRIDES,
         pendingStudioType: action.pendingStudioType ?? null,
-        pendingNeighborhood: null,
-        preWalk,
+        preWalk: EMPTY_PREWALK,
         ...emptyScoreState(),
       })
     }
@@ -1082,7 +971,6 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       const assessor = resolveCampusAssessor(state.assessorByType, state.surveyType)
       const session = newSession(action.school, state.surveyType, assessor)
       const stamped = withCampusAssessorOnSession(session, state.assessorByType, state.surveyType)
-      const preWalk = resolveSchoolPreWalk(action.school.id, action.school.schoolClass)
       return bootstrapCampusScopedSurvey({
         ...state,
         school: action.school,
@@ -1099,9 +987,9 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         showResumeBanner: false,
         weightOverrides: EMPTY_WEIGHT_OVERRIDES,
         pendingStudioType: null,
-        preWalk,
+        preWalk: EMPTY_PREWALK,
         preWalkPromptPending: shouldPromptPreWalkOnSchoolSelect(
-          preWalk,
+          EMPTY_PREWALK,
           action.school.schoolClass,
         ),
         preWalkRequested: false,
@@ -1125,8 +1013,8 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         floorPlanLoading: false,
         allRooms: mergedRooms,
         selectedLevelId: levelStillValidForRoom
-          ? roomLevel!
-          : resolveSelectedLevelId(state.selectedLevelId, action.plan, mergedRooms),
+          ? roomLevel
+          : (action.plan?.defaultLevelId ?? null),
       }
     }
     case "SET_FLOOR_PLAN_LOADING":
@@ -1217,12 +1105,11 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         isOutdoorSurveyRoomId(action.roomId) && state.surveyType === "outdoor"
       const neighborhoodSurveyRoom =
         isNeighborhoodSurveyRoomId(action.roomId) && state.surveyType === "neighborhoods"
-      const naSurveyRoom = isNaSurveyRoomId(action.roomId)
       const room =
-        campusRoom || neighborhoodSurveyRoom || naSurveyRoom
+        campusRoom || neighborhoodSurveyRoom
           ? undefined
           : state.allRooms.find((r) => r.id === action.roomId)
-      if (!campusRoom && !neighborhoodSurveyRoom && !naSurveyRoom && !room && state.session) {
+      if (!campusRoom && !neighborhoodSurveyRoom && !room && state.session) {
         return state
       }
       if (!state.session) {
@@ -1248,8 +1135,8 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         selectedRoomId: action.roomId,
         selectedLevelId: room?.levelId ?? state.selectedLevelId,
         view: "survey",
-        submitValidation: null,
-        pendingStudioType: resolvePendingStudioType(state, ensured.roomType),
+        // Only keep the pending space type if this room already has one (or pending was just applied).
+        pendingStudioType: isPendingSpaceType(ensured.roomType) ? ensured.roomType : null,
         session: {
           ...state.session,
           updatedAt: new Date().toISOString(),
@@ -1258,21 +1145,6 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       }
     }
     case "SET_PENDING_STUDIO_TYPE": {
-      const clearNeighborhood = action.roomType !== state.pendingStudioType
-      if (state.selectedRoomId && isNaSurveyRoomId(state.selectedRoomId)) {
-        const naParsed = parseNaSurveyRoomId(state.selectedRoomId)
-        if (!action.roomType || !naParsed || naParsed.spaceType !== action.roomType) {
-          return {
-            ...state,
-            pendingStudioType: action.roomType,
-            pendingNeighborhood: clearNeighborhood ? null : state.pendingNeighborhood,
-            selectedRoomId: null,
-            ...(clearNeighborhood && state.surveyType === "neighborhoods"
-              ? { selectedRoomId: null }
-              : {}),
-          }
-        }
-      }
       if (state.selectedRoomId && state.session && action.roomType) {
         const existing = state.session.rooms[state.selectedRoomId]
         const updated = ensureRoomSession(state, state.selectedRoomId, existing)
@@ -1284,7 +1156,6 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         return {
           ...state,
           pendingStudioType: action.roomType,
-          pendingNeighborhood: clearNeighborhood ? null : state.pendingNeighborhood,
           session: {
             ...state.session,
             updatedAt: new Date().toISOString(),
@@ -1305,106 +1176,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
           },
         }
       }
-      return {
-        ...state,
-        pendingStudioType: action.roomType,
-        pendingNeighborhood: clearNeighborhood ? null : state.pendingNeighborhood,
-        ...(clearNeighborhood && state.surveyType === "neighborhoods"
-          ? { selectedRoomId: null }
-          : {}),
-      }
-    }
-    case "SET_PENDING_NEIGHBORHOOD": {
-      const neighborhood = action.neighborhood?.trim() ?? ""
-      const nextNeighborhood = neighborhood || null
-      const neighborhoodOnly =
-        state.surveyType === "neighborhoods" &&
-        isNeighborhoodOnlySpaceType(state.surveyType, state.pendingStudioType)
-      return {
-        ...state,
-        pendingNeighborhood: nextNeighborhood,
-        ...(neighborhoodOnly ? { selectedRoomId: null } : {}),
-      }
-    }
-    case "SET_SPACE_TYPE_EXISTS": {
-      if (!state.session) return state
-      const neighborhood =
-        state.surveyType === "neighborhoods" ? state.pendingNeighborhood?.trim() ?? "" : ""
-      const existenceKey = spaceTypeExistenceKey(action.spaceType, neighborhood || null)
-      const spaceTypeExistsAtSchool = {
-        ...(state.session.spaceTypeExistsAtSchool ?? {}),
-        [existenceKey]: action.exists,
-      }
-      let selectedRoomId = state.selectedRoomId
-      const absentRoomId = absentSpaceTypeRoomId(action.spaceType, neighborhood || null)
-
-      let session: SurveySession = {
-        ...state.session,
-        spaceTypeExistsAtSchool,
-        updatedAt: new Date().toISOString(),
-        rooms: { ...state.session.rooms },
-      }
-
-      if (!action.exists) {
-        const clearSelection =
-          !!selectedRoomId &&
-          (state.pendingStudioType === action.spaceType ||
-            state.session.rooms[selectedRoomId]?.roomType === action.spaceType ||
-            (isNeighborhoodSurveyRoomId(selectedRoomId) &&
-              action.spaceType === "Neighborhood"))
-        if (clearSelection) selectedRoomId = null
-
-        const ensured = ensureRoomSession({ ...state, session }, absentRoomId)
-        session = {
-          ...session,
-          rooms: {
-            ...session.rooms,
-            [absentRoomId]: {
-              ...ensured,
-              roomType: action.spaceType,
-              neighborhood: neighborhood || ensured.neighborhood || "",
-              spaceTypeMarkedAbsent: true,
-              responses: [],
-            },
-          },
-        }
-      } else {
-        if (session.rooms[absentRoomId]?.spaceTypeMarkedAbsent) {
-          const { [absentRoomId]: _removed, ...restRooms } = session.rooms
-          session = { ...session, rooms: restRooms }
-        }
-
-        const activeSpaceType =
-          state.pendingStudioType ??
-          (selectedRoomId ? session.rooms[selectedRoomId]?.roomType : null) ??
-          action.spaceType
-
-        if (
-          state.surveyType === "neighborhoods" &&
-          neighborhood &&
-          isNeighborhoodOnlySpaceType(state.surveyType, activeSpaceType)
-        ) {
-          const roomId = neighborhoodSurveyRoomId(neighborhood)
-          selectedRoomId = roomId
-          const ensured = ensureRoomSession({ ...state, session }, roomId, session.rooms[roomId])
-          session = {
-            ...session,
-            rooms: {
-              ...session.rooms,
-              [roomId]: { ...ensured, neighborhood, roomType: "Neighborhood" },
-            },
-          }
-        }
-      }
-
-      return reducer(
-        {
-          ...state,
-          selectedRoomId,
-          session,
-        },
-        { type: "RECALC_SCORES" },
-      )
+      return { ...state, pendingStudioType: action.roomType }
     }
     case "SET_ROOM_TYPE": {
       if (!state.session) return state
@@ -1427,11 +1199,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       }
       return {
         ...state,
-        pendingStudioType: isPendingSpaceType(
-          action.roomType,
-          state.surveyType,
-          state.school?.schoolClass,
-        )
+        pendingStudioType: isPendingSpaceType(action.roomType)
           ? action.roomType
           : state.pendingStudioType,
         session: {
@@ -1466,7 +1234,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       const clearSelection =
         state.surveyType === "closeout" &&
         state.selectedRoomId === action.roomId &&
-        !roomNeedsCloseOut(graded, state.school?.schoolClass)
+        !roomNeedsCloseOut(graded)
       return {
         ...state,
         selectedRoomId: clearSelection ? null : state.selectedRoomId,
@@ -1537,6 +1305,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       }
     }
     case "SET_PREWALK_MAPPING": {
+      if (!state.session) return state
       const mappingKey = preWalkMappingKey(action.surveyType, action.roomId)
       const prev = state.preWalk.mappings[mappingKey]
       const mapping = {
@@ -1552,7 +1321,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         mappings: { ...state.preWalk.mappings, [mappingKey]: mapping },
       }
       const nextState = { ...state, preWalk }
-      if (!state.session || action.surveyType !== state.surveyType) {
+      if (action.surveyType !== state.surveyType) {
         return { ...nextState, submitValidation: null }
       }
       const existing = state.session.rooms[action.roomId]
@@ -1713,15 +1482,6 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         preWalkRequested: true,
       }
     }
-    case "MERGE_REMOTE_PREWALK": {
-      if (!state.school) return state
-      const merged = migratePreWalkState(
-        mergePreWalkStates(state.preWalk, action.preWalk),
-        state.school.schoolClass,
-      )
-      if (JSON.stringify(merged) === JSON.stringify(state.preWalk)) return state
-      return { ...state, preWalk: merged }
-    }
     case "APPLY_TRADITIONAL_STUDIO_COPY": {
       return applyTraditionalStudioCopyForRoom(state, action.roomId)
     }
@@ -1779,7 +1539,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       const clearSelection =
         state.surveyType === "closeout" &&
         state.selectedRoomId === action.roomId &&
-        !roomNeedsCloseOut(nextRoom, state.school?.schoolClass)
+        !roomNeedsCloseOut(nextRoom)
       return {
         ...state,
         selectedRoomId: clearSelection ? null : state.selectedRoomId,
@@ -1806,20 +1566,8 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       for (const [roomId, roomSession] of Object.entries(state.session.rooms)) {
         const campusRoom = isOutdoorSurveyRoomId(roomId)
         const neighborhoodSurveyRoom = isNeighborhoodSurveyRoomId(roomId)
-        const absentRoom = isAbsentSpaceTypeRoomId(roomId) || roomSession.spaceTypeMarkedAbsent
-        const parsed =
-          campusRoom || neighborhoodSurveyRoom || absentRoom
-            ? undefined
-            : state.allRooms.find((r) => r.id === roomId)
-        if (!parsed && !campusRoom && !neighborhoodSurveyRoom && !absentRoom) continue
-
-        if (absentRoom) {
-          const result = scoreAbsentSpaceTypeRoom(roomId)
-          roomScoreDetails[roomId] = result
-          roomScores[roomId] = 0
-          continue
-        }
-
+        const parsed = campusRoom || neighborhoodSurveyRoom ? undefined : state.allRooms.find((r) => r.id === roomId)
+        if (!parsed && !campusRoom && !neighborhoodSurveyRoom) continue
         const rubric = getRoomSurveyRubric(
           state.surveyType,
           roomSession.roomType,
@@ -1874,8 +1622,8 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       let submitState = state
       if (rubric && hasActiveWeightOverrides(state.weightOverrides)) {
         submitState = reducer(state, { type: "RESET_WEIGHT_OVERRIDES" })
+        submitState = reducer(submitState, { type: "RECALC_SCORES" })
       }
-      submitState = reducer(submitState, { type: "RECALC_SCORES" })
       const submission = buildSubmission(submitState)
       if (!submission || !submitState.session) return state
 
@@ -1883,7 +1631,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
 
       return {
         ...submitState,
-        view: "survey",
+        view: "results",
         submission,
         selectedRoomId: null,
         submitValidation: null,
@@ -1910,9 +1658,9 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         weightOverrides: EMPTY_WEIGHT_OVERRIDES,
         pendingStudioType: null,
         manualRooms: [],
-        preWalk: resolveSchoolPreWalk(state.school.id, state.school.schoolClass, state.preWalk),
+        preWalk: EMPTY_PREWALK,
         preWalkPromptPending: shouldPromptPreWalkOnSchoolSelect(
-          resolveSchoolPreWalk(state.school.id, state.school.schoolClass, state.preWalk),
+          EMPTY_PREWALK,
           state.school.schoolClass,
         ),
         preWalkRequested: false,
@@ -1985,7 +1733,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
     }
     case "SUBMIT_CAMPUS": {
       if (state.surveyType !== "closeout" || !state.session || !state.school) return state
-      if (!isCloseOutSurveyComplete(state.session, state.school?.schoolClass)) return state
+      if (!isCloseOutSurveyComplete(state.session)) return state
       const submission = buildCampusSubmission(state)
       if (!submission) return state
 
@@ -2013,14 +1761,10 @@ interface SurveyContextValue {
   schoolsLoadError: string | null
   reloadSchools: () => void
   lastSavedAt: string | null
-  setSurveyType: (
-    t: SurveyType,
-    options?: { pendingStudioType?: string | null; skipLeaveGuard?: boolean },
-  ) => void
+  setSurveyType: (t: SurveyType, options?: { pendingStudioType?: string | null }) => void
   setSchool: (s: AisdSchoolOption | null) => void
   setLevel: (levelId: string) => void
   selectRoom: (roomId: string | null) => void
-  editRoomFromResults: (roomId: string, surveyType: SurveyType) => void
   addManualRoom: (roomNumber: string, building?: string) => void
   setGrade: (roomId: string, grade: string) => void
   setNeighborhood: (roomId: string, neighborhood: string) => void
@@ -2040,8 +1784,6 @@ interface SurveyContextValue {
   answerPreWalkPrompt: (choice: "map" | "skip") => void
   setRoomType: (roomId: string, roomType: string) => void
   setPendingStudioType: (roomType: string | null) => void
-  setPendingNeighborhood: (neighborhood: string | null) => void
-  setSpaceTypeExists: (spaceType: string, exists: boolean) => void
   setResponse: (roomId: string, response: RoomQuestionResponse) => void
   applyTraditionalStudioCopy: (roomId: string) => void
   acknowledgeTraditionalStudioCopyReview: (roomId: string) => void
@@ -2091,7 +1833,6 @@ interface SurveyContextValue {
   remoteDraftsConfigured: boolean
   remoteSchoolDraftsLoading: boolean
   refreshRemoteSchoolDrafts: () => Promise<void>
-  refreshRemotePreWalk: () => Promise<void>
   scoringDrafts: PersistedSurveyDraft[] | undefined
   schoolHasResults: boolean
   schoolScoredRoomCount: number
@@ -2103,100 +1844,42 @@ interface SurveyContextValue {
   requestFloorPlanDisplay: () => void
   releaseFloorPlanDisplay: () => void
   ensureFloorPlanLevel: (levelId: string) => Promise<void>
-  leavePromptOpen: boolean
-  leavePromptSurveyLabel: string
-  confirmLeaveKeepDraft: () => void
-  confirmLeaveDiscard: () => void
-  cancelLeavePrompt: () => void
 }
 
 const SurveyContext = createContext<SurveyContextValue | null>(null)
-
-type PendingLeaveNavigation =
-  | { kind: "surveyType"; surveyType: SurveyType; options?: { pendingStudioType?: string | null } }
-  | { kind: "school"; school: AisdSchoolOption | null }
-  | { kind: "view"; view: SurveyView }
-
-function shouldPromptLeaveSurvey(_state: SurveyState): boolean {
-  return false
-}
-
-function roomSurveyComplete(
-  state: SurveyState,
-  roomId: string,
-  roomSession: RoomSurveySession,
-): boolean {
-  if (roomSession.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(roomId)) return true
-  const pendingDone = !roomNeedsCloseOut(roomSession, state.school?.schoolClass)
-  const rubric = getRoomSurveyRubric(
-    state.surveyType,
-    roomSession.roomType,
-    roomSession.gradeType,
-    state.school?.schoolClass,
-    roomSession.sourceSurveyType,
-  )
-  if (!rubric) return false
-  const validation = validateRoomSession(roomId, roomId, roomSession, rubric.questions, {
-    schoolClass: state.school?.schoolClass,
-  })
-  return validation.complete && (state.surveyType !== "closeout" || pendingDone)
-}
 
 function buildScoredRoomEntries(state: SurveyState): ScoredRoomEntry[] {
   if (!state.session) return []
   return Object.entries(state.session.rooms)
     .filter(([, rs]) => {
-      if (rs.spaceTypeMarkedAbsent) return true
-      if (roomHasAssessmentProgress(rs)) return true
-      return roomNeedsCloseOut(rs, state.school?.schoolClass)
+      if (rs.responses.length > 0 || !!rs.gradeType) return true
+      return roomNeedsCloseOut(rs)
     })
     .map(([roomId, roomSession]) => {
-      const campusRoom = isOutdoorSurveyRoomId(roomId)
-      const neighborhoodSurveyRoom = isNeighborhoodSurveyRoomId(roomId)
-      const absentRoom = isAbsentSpaceTypeRoomId(roomId) || roomSession.spaceTypeMarkedAbsent
-      const parsed =
-        campusRoom || neighborhoodSurveyRoom || absentRoom
-          ? undefined
-          : state.allRooms.find((r) => r.id === roomId)
-      const rubric = getRoomSurveyRubric(
-        state.surveyType,
-        roomSession.roomType,
-        roomSession.gradeType,
-        state.school?.schoolClass,
-        roomSession.sourceSurveyType,
-      )
-      let answeredCount = 0
-      let totalCount = 0
-      if (absentRoom) {
-        const detail = state.roomScoreDetails[roomId]
-        answeredCount = detail?.answeredCount ?? 1
-        totalCount = detail?.totalCount ?? 1
-      } else if (rubric) {
-        const progress = scoreRoomSessionWithMetadata(
-          roomSession,
-          rubric,
-          state.weightOverrides,
-          parsed,
-        )
-        answeredCount = progress.answeredCount
-        totalCount = progress.totalCount
-      }
       const detail = state.roomScoreDetails[roomId]
+      const pendingDone = !roomNeedsCloseOut(roomSession)
       return {
         roomId,
         roomName: roomDisplayName(state, roomId),
         schoolRoomNumber: roomSession.schoolRoomNumber?.trim() || undefined,
-        building: campusRoom
+        building: isOutdoorSurveyRoomId(roomId)
           ? undefined
           : roomSession.building ?? state.allRooms.find((r) => r.id === roomId)?.building,
         neighborhood: resolveRoomNeighborhood(state, roomId, roomSession),
         levelId: roomSession.levelId,
         gradeType: roomSession.gradeType,
-        overallScore: absentRoom ? (detail?.overallScore ?? 0) : null,
+        overallScore: detail?.overallScore ?? null,
         categoryScores: detail?.categoryScores ?? [],
-        answeredCount,
-        totalCount,
-        complete: roomSurveyComplete(state, roomId, roomSession),
+        answeredCount: detail?.answeredCount ?? 0,
+        totalCount: detail?.totalCount ?? 0,
+        complete: detail
+          ? isRoomComplete(
+              detail,
+              roomSession.gradeType,
+              roomSession.roomType,
+              state.school?.schoolClass,
+            ) && (state.surveyType !== "closeout" || pendingDone)
+          : false,
       }
     })
     .sort((a, b) => a.roomName.localeCompare(b.roomName))
@@ -2213,7 +1896,6 @@ function persistDraftFromState(state: SurveyState): string | null {
     selectedLevelId: state.selectedLevelId,
     selectedRoomId: state.selectedRoomId,
     pendingStudioType: state.pendingStudioType,
-    pendingNeighborhood: state.pendingNeighborhood,
     preWalk: state.preWalk,
     view: state.view === "admin" || state.view === "landing" ? "survey" : state.view,
     manualRooms: state.manualRooms,
@@ -2245,11 +1927,7 @@ function persistDraftFromState(state: SurveyState): string | null {
   } else {
     const closeDraft = loadDraft(state.school.id, "closeout")
     if (closeDraft?.session) {
-      const synced = syncSourceProgressToCloseOut(
-        state.session,
-        closeDraft.session,
-        state.school?.schoolClass,
-      )
+      const synced = syncSourceProgressToCloseOut(state.session, closeDraft.session)
       saveDraft(
         {
           ...closeDraft,
@@ -2282,10 +1960,8 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const [floorPlanDisplayRequests, setFloorPlanDisplayRequests] = useState(0)
   const [floorPlanDisplayLoading, setFloorPlanDisplayLoading] = useState(false)
   const lastSyncedSubmissionRef = useRef<string | null>(null)
-  const lastPushedPreWalkRef = useRef<string>("")
   const floorPlanLevelInflightRef = useRef(new Map<string, Promise<void>>())
   const surveyTypeBeforeConflictRef = useRef<SurveyType>("studios")
-  const [leavePrompt, setLeavePrompt] = useState<PendingLeaveNavigation | null>(null)
   const [state, dispatch] = useReducer(reducer, {
     surveyType: "studios",
     school: null,
@@ -2308,13 +1984,10 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     assessorByType: {},
     submitValidation: null,
     pendingStudioType: null,
-    pendingNeighborhood: null,
     preWalk: EMPTY_PREWALK,
     preWalkPromptPending: false,
     preWalkRequested: false,
   })
-  const stateRef = useRef(state)
-  stateRef.current = state
 
   useEffect(() => {
     let cancelled = false
@@ -2386,46 +2059,13 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "UPDATE_SCHOOL", school: full })
   }, [schools, schoolsLoading, state.hydrated, state.school])
 
-  // Flush draft to localStorage when Safari/iOS suspends or kills the tab.
-  useEffect(() => {
-    const flush = () => {
-      const current = stateRef.current
-      if (!current.hydrated || !current.school || !current.session) return
-      persistDraftFromState(current)
-    }
-    window.addEventListener("pagehide", flush)
-    const onVisibility = () => {
-      if (document.visibilityState === "hidden") flush()
-    }
-    document.addEventListener("visibilitychange", onVisibility)
-    return () => {
-      window.removeEventListener("pagehide", flush)
-      document.removeEventListener("visibilitychange", onVisibility)
-    }
-  }, [])
-
-  // Save when school or survey module changes — yield first so Safari can paint the survey UI.
-  useEffect(() => {
-    if (!state.hydrated || !state.school || !state.session) return
-    const timer = window.setTimeout(() => {
-      const savedAt = persistDraftFromState(stateRef.current)
-      if (!savedAt) return
-      dispatch({ type: "MARK_SAVED", savedAt })
-    }, 0)
-    return () => window.clearTimeout(timer)
-  }, [state.hydrated, state.school?.id, state.surveyType])
-
-  // Auto-save draft on change — debounced to avoid Safari localStorage pressure while typing notes.
+  // Auto-save draft on every change (survives submit + browser close)
   useEffect(() => {
     if (!state.hydrated || !state.school || !state.session) return
 
-    const timer = window.setTimeout(() => {
-      const savedAt = persistDraftFromState(stateRef.current)
-      if (!savedAt) return
-      dispatch({ type: "MARK_SAVED", savedAt })
-    }, 800)
-
-    return () => window.clearTimeout(timer)
+    const savedAt = persistDraftFromState(state)
+    if (!savedAt) return
+    dispatch({ type: "MARK_SAVED", savedAt })
   }, [
     state.hydrated,
     state.school,
@@ -2434,39 +2074,11 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     state.selectedLevelId,
     state.selectedRoomId,
     state.pendingStudioType,
-    state.pendingNeighborhood,
+    state.preWalk,
     state.view,
     state.manualRooms,
     state.submission,
   ])
-
-  // Pre-walk is school-scoped — persist even before a survey session exists.
-  useEffect(() => {
-    if (!state.hydrated || !state.school) return
-    syncSchoolPreWalkToDrafts(state.school.id, state.preWalk, {
-      activeSurveyType: state.surveyType,
-    })
-  }, [state.hydrated, state.school, state.surveyType, state.preWalk])
-
-  // Push pre-walk assignments to Supabase so other assessors see remote mappings.
-  useEffect(() => {
-    if (!state.hydrated || !state.school) return
-
-    const serialized = JSON.stringify(state.preWalk)
-    if (serialized === lastPushedPreWalkRef.current) return
-
-    const school = state.school
-    const preWalk = state.preWalk
-    const timer = window.setTimeout(() => {
-      void pushSchoolPreWalkClient({ school, preWalk }).then((result) => {
-        if (result === "pushed") {
-          lastPushedPreWalkRef.current = serialized
-        }
-      })
-    }, 2500)
-
-    return () => window.clearTimeout(timer)
-  }, [state.hydrated, state.school, state.preWalk])
 
   // Alert when another assessor has started/submitted this survey module online.
   useEffect(() => {
@@ -2484,16 +2096,6 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       }
     })
   }, [state.hydrated, state.school?.id, state.surveyType, state.assessorByType])
-
-  const refreshRemotePreWalk = useCallback(async () => {
-    const school = state.school
-    if (!school || !isBrowserOnline()) return
-
-    const result = await pullRemoteSchoolPreWalkClient(school.id)
-    if (!result.configured || !result.preWalk) return
-
-    dispatch({ type: "MERGE_REMOTE_PREWALK", preWalk: result.preWalk })
-  }, [state.school])
 
   const refreshRemoteSchoolDrafts = useCallback(async () => {
     if (!state.school || !isBrowserOnline()) {
@@ -2514,24 +2116,11 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         for (const draft of merged) {
           saveDraft(draft, { setActive: false })
         }
-        if (merged.length > 0 && state.school) {
-          const preWalk = resolveSchoolPreWalk(
-            state.school.id,
-            state.school.schoolClass,
-            ...merged.map((draft) => draft.preWalk),
-          )
-          syncSchoolPreWalkToDrafts(state.school.id, preWalk)
-        }
         setRemoteDraftsConfigured(true)
         setRemoteSchoolDrafts(merged)
       } else {
         setRemoteDraftsConfigured(false)
         setRemoteSchoolDrafts(null)
-      }
-
-      const preWalkResult = await pullRemoteSchoolPreWalkClient(state.school.id)
-      if (preWalkResult.configured && preWalkResult.preWalk) {
-        dispatch({ type: "MERGE_REMOTE_PREWALK", preWalk: preWalkResult.preWalk })
       }
     } finally {
       setRemoteSchoolDraftsLoading(false)
@@ -2674,9 +2263,6 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!state.school) return
-    // Defer floor-plan parsing until a survey session exists (after assessor gate or restore).
-    // Parsing on school select alone was spiking Safari memory before the user opened a survey.
-    if (!state.session) return
     if (!state.school.hasFloorPlan) {
       const manualsOnly = mergeManualRooms([], state.manualRooms)
       if (state.floorPlan || state.allRooms.length !== manualsOnly.length) {
@@ -2703,7 +2289,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       cancelled = true
     }
     // Re-run when the school object is upgraded (campus/name/hasFloorPlan) so rooms reload.
-  }, [state.school, state.session])
+  }, [state.school])
 
   const requestFloorPlanDisplay = useCallback(() => {
     setFloorPlanDisplayRequests((count) => count + 1)
@@ -2775,6 +2361,10 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     ensureFloorPlanLevel,
   ])
 
+  useEffect(() => {
+    dispatch({ type: "RECALC_SCORES" })
+  }, [state.session, state.allRooms, state.surveyType, state.weightOverrides])
+
   const hasCustomWeights = hasActiveWeightOverrides(state.weightOverrides)
 
   const levelRooms = useMemo(
@@ -2787,9 +2377,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     if (state.surveyType !== "closeout" || !state.session) return rooms
     return rooms.filter((r) => {
       const rs = state.session!.rooms[r.id]
-      return !!rs && roomNeedsCloseOut(rs, state.school?.schoolClass)
+      return !!rs && roomNeedsCloseOut(rs)
     })
-  }, [levelRooms, state.surveyType, state.session, state.school?.schoolClass])
+  }, [levelRooms, state.surveyType, state.session])
 
   const surveyedRooms = useMemo(() => buildScoredRoomEntries(state), [state])
 
@@ -2812,9 +2402,29 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
             campusId: state.school.campusId,
             schoolClass: state.school.schoolClass,
             drafts: scoringDrafts,
+            ...(state.view === "results"
+              ? {}
+              : {
+                  liveSurveyType: state.surveyType,
+                  liveSession: state.session,
+                  liveRoomScoreDetails: state.roomScoreDetails,
+                  liveNeighborhoodResolver: (roomId: string, roomSession: RoomSurveySession) => {
+                    const fromSession = roomSession.neighborhood?.trim()
+                    if (fromSession) return fromSession
+                    return state.allRooms.find((r) => r.id === roomId)?.neighborhood?.trim()
+                  },
+                }),
           }
         : null,
-    [state.school, scoringDrafts],
+    [
+      state.school,
+      state.view,
+      scoringDrafts,
+      state.surveyType,
+      state.session,
+      state.roomScoreDetails,
+      state.allRooms,
+    ],
   )
 
   const schoolHasResultsFlag = useMemo(
@@ -2864,63 +2474,28 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     currentRoomSession,
   ])
 
-  const currentRoomScore = useMemo(() => {
-    if (!state.selectedRoomId || !currentRoomSession) return null
-    const campusRoom = isOutdoorSurveyRoomId(state.selectedRoomId)
-    const neighborhoodSurveyRoom = isNeighborhoodSurveyRoomId(state.selectedRoomId)
-    const parsed =
-      campusRoom || neighborhoodSurveyRoom
-        ? undefined
-        : state.allRooms.find((r) => r.id === state.selectedRoomId)
-    const rubric = getRoomSurveyRubric(
-      state.surveyType,
-      currentRoomSession.roomType,
-      currentRoomSession.gradeType,
-      state.school?.schoolClass,
-      currentRoomSession.sourceSurveyType,
-    )
-    if (!rubric) return null
-    const progress = scoreRoomSessionWithMetadata(
-      currentRoomSession,
-      rubric,
-      state.weightOverrides,
-      parsed,
-    )
-    return {
-      ...progress,
-      roomId: state.selectedRoomId,
-      overallScore: null,
-      categoryScores: [],
-      subcategoryScores: [],
-      questionScores: [],
-    }
-  }, [
-    state.selectedRoomId,
-    currentRoomSession,
-    state.surveyType,
-    state.school?.schoolClass,
-    state.allRooms,
-    state.weightOverrides,
-  ])
+  const currentRoomScore = state.selectedRoomId
+    ? state.roomScoreDetails[state.selectedRoomId] ?? null
+    : null
 
-  const canSubmit = surveyedRooms.some((room) => room.answeredCount > 0)
+  const canSubmit = surveyedRooms.length > 0
   const completeCount = surveyedRooms.filter((r) => r.complete).length
   const submitHint = canSubmit
     ? state.surveyType === "outdoor"
       ? `${completeCount ? "Outdoor survey complete" : "Outdoor survey in progress"} · auto-saved`
-      : `${surveyedRooms.filter((r) => r.answeredCount > 0).length} room${surveyedRooms.filter((r) => r.answeredCount > 0).length === 1 ? "" : "s"} in progress${completeCount ? ` · ${completeCount} complete` : ""} · auto-saved`
+      : `${surveyedRooms.length} room${surveyedRooms.length === 1 ? "" : "s"} in progress${completeCount ? ` · ${completeCount} complete` : ""} · auto-saved`
     : state.surveyType === "outdoor"
       ? "Answer outdoor questions to save progress"
       : state.surveyType === "closeout"
         ? "Finish deferred questions below, then submit the campus assessment"
-        : "Answer at least one question to save progress"
+        : "Score at least one room to save progress"
 
   const closeOutPending = useMemo(() => {
     if (state.surveyType !== "closeout" || !state.session) {
       return { roomIds: [] as string[], roomLabels: [] as string[] }
     }
     const roomIds = Object.values(state.session.rooms)
-      .filter((room) => roomNeedsCloseOut(room, state.school?.schoolClass))
+      .filter((room) => roomNeedsCloseOut(room))
       .map((room) => room.roomId)
       .sort((a, b) => roomDisplayName(state, a).localeCompare(roomDisplayName(state, b)))
     return {
@@ -2932,7 +2507,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const canSubmitCampus = useMemo(() => {
     if (state.surveyType !== "closeout" || !state.session || !state.school) return false
     if (state.session.campusSubmittedAt) return false
-    if (!isCloseOutSurveyComplete(state.session, state.school?.schoolClass)) return false
+    if (!isCloseOutSurveyComplete(state.session)) return false
     const hasSourceProgress = loadDraftsForSchool(state.school.id).some(
       (draft) =>
         draft.surveyType !== "closeout" &&
@@ -2946,7 +2521,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
   const submitCampusHint = useMemo(() => {
     if (state.session?.campusSubmittedAt) return "Campus assessment submitted"
-    const pending = countCloseOutPendingItems(state.session, state.school?.schoolClass)
+    const pending = countCloseOutPendingItems(state.session)
     if (pending.rooms > 0) {
       return `Answer remaining Close Out items before submitting (${pending.questions} unanswered question${pending.questions === 1 ? "" : "s"})`
     }
@@ -2971,7 +2546,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     return room?.missingQuestionIds ?? []
   }, [state.submitValidation, state.selectedRoomId])
 
-  const currentResults = useMemo(() => state.submission, [state.submission])
+  const currentResults = useMemo(() => buildSubmission(state) ?? state.submission, [state])
 
   const peekSubmitValidation = useCallback((): SubmitValidationResult | null => {
     if (!canSubmit || !state.session) return null
@@ -3046,13 +2621,6 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         return true
       }
 
-      // No active room (e.g. space type marked not present) — save module progress as-is.
-      if (!state.selectedRoomId) {
-        dispatch({ type: "CLEAR_SUBMIT_VALIDATION" })
-        dispatch({ type: "SUBMIT" })
-        return true
-      }
-
       const validation = validateSurveyBeforeDeferral(state.session, state.allRooms, state.surveyType, {
         roomId: state.selectedRoomId,
         schoolClass: state.school?.schoolClass,
@@ -3116,15 +2684,10 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "SET_FINAL_COMMENT", comment })
   }, [])
 
-  const executeSetSurveyType = useCallback(
-    (
-      t: SurveyType,
-      options?: { pendingStudioType?: string | null },
-      navOptions?: { persistCurrent?: boolean },
-    ) => {
-      const persistCurrent = navOptions?.persistCurrent ?? true
+  const setSurveyType = useCallback(
+    (t: SurveyType, options?: { pendingStudioType?: string | null }) => {
       if (state.school) {
-        if (persistCurrent && t !== state.surveyType && state.session) {
+        if (t !== state.surveyType && state.session) {
           persistDraftFromState(state)
         }
         if (t !== state.surveyType) {
@@ -3145,23 +2708,14 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         })
       }
     },
-    [state],
+    [state.school, state.session, state.surveyType],
   )
 
-  const executeSetSchool = useCallback(
-    (s: AisdSchoolOption | null, navOptions?: { persistCurrent?: boolean }) => {
-      const persistCurrent = navOptions?.persistCurrent ?? true
+  const setSchool = useCallback(
+    (s: AisdSchoolOption | null) => {
       if (!s) {
         dispatch({ type: "SET_SCHOOL", school: null })
         return
-      }
-      if (
-        persistCurrent &&
-        state.school &&
-        state.school.id !== s.id &&
-        state.session
-      ) {
-        persistDraftFromState(state)
       }
       const nextType = surveyTypeAvailableForSchool(state.surveyType, s.schoolClass)
         ? state.surveyType
@@ -3174,134 +2728,11 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       dispatch({ type: "SET_SCHOOL", school: s })
       dispatch({ type: "SET_SURVEY_TYPE", surveyType: nextType, draft })
     },
-    [state],
+    [state.surveyType],
   )
-
-  const executeSetView = useCallback((view: SurveyView) => {
-    dispatch({ type: "SET_VIEW", view })
-  }, [])
-
-  const runPendingLeaveNavigation = useCallback(
-    (pending: PendingLeaveNavigation, navOptions?: { persistCurrent?: boolean }) => {
-      switch (pending.kind) {
-        case "surveyType":
-          executeSetSurveyType(pending.surveyType, pending.options, navOptions)
-          break
-        case "school":
-          executeSetSchool(pending.school, navOptions)
-          break
-        case "view":
-          executeSetView(pending.view)
-          break
-      }
-    },
-    [executeSetSurveyType, executeSetSchool, executeSetView],
-  )
-
-  const setSurveyType = useCallback(
-    (
-      t: SurveyType,
-      options?: { pendingStudioType?: string | null; skipLeaveGuard?: boolean },
-    ) => {
-      if (
-        !options?.skipLeaveGuard &&
-        t !== state.surveyType &&
-        shouldPromptLeaveSurvey(state)
-      ) {
-        setLeavePrompt({ kind: "surveyType", surveyType: t, options })
-        return
-      }
-      executeSetSurveyType(t, options)
-    },
-    [state, executeSetSurveyType],
-  )
-
-  const setSchool = useCallback(
-    (s: AisdSchoolOption | null) => {
-      if (s?.id === state.school?.id) {
-        executeSetSchool(s)
-        return
-      }
-      if (shouldPromptLeaveSurvey(state)) {
-        setLeavePrompt({ kind: "school", school: s })
-        return
-      }
-      executeSetSchool(s)
-    },
-    [state, executeSetSchool],
-  )
-
-  const setView = useCallback(
-    (view: SurveyView) => {
-      if (
-        view !== state.view &&
-        (view === "landing" || view === "admin") &&
-        state.view === "survey" &&
-        shouldPromptLeaveSurvey(state)
-      ) {
-        setLeavePrompt({ kind: "view", view })
-        return
-      }
-      executeSetView(view)
-    },
-    [state, executeSetView],
-  )
-
-  const confirmLeaveKeepDraft = useCallback(() => {
-    if (!leavePrompt) return
-    const pending = leavePrompt
-    setLeavePrompt(null)
-    runPendingLeaveNavigation(pending)
-  }, [leavePrompt, runPendingLeaveNavigation])
-
-  const confirmLeaveDiscard = useCallback(() => {
-    if (!leavePrompt || !state.school) return
-    const pending = leavePrompt
-    setLeavePrompt(null)
-    clearDraft(state.school.id, state.surveyType)
-    runPendingLeaveNavigation(pending, { persistCurrent: false })
-  }, [leavePrompt, state.school, state.surveyType, runPendingLeaveNavigation])
-
-  const cancelLeavePrompt = useCallback(() => {
-    setLeavePrompt(null)
-  }, [])
 
   const setLevel = useCallback((levelId: string) => dispatch({ type: "SET_LEVEL", levelId }), [])
   const selectRoom = useCallback((roomId: string | null) => dispatch({ type: "SELECT_ROOM", roomId }), [])
-
-  const editRoomFromResults = useCallback(
-    (roomId: string, surveyType: SurveyType) => {
-      if (!state.school) return
-
-      const roomSession =
-        (surveyType === state.surveyType
-          ? state.session?.rooms[roomId]
-          : loadDraft(state.school.id, surveyType)?.session?.rooms[roomId]) ?? null
-      const pendingStudioType =
-        roomSession?.roomType &&
-        isPendingSpaceType(roomSession.roomType, surveyType, state.school?.schoolClass)
-          ? roomSession.roomType
-          : null
-
-      if (surveyType !== state.surveyType) {
-        if (state.session) persistDraftFromState(state)
-        surveyTypeBeforeConflictRef.current = state.surveyType
-        dispatch({
-          type: "SET_SURVEY_TYPE",
-          surveyType,
-          draft: loadDraft(state.school.id, surveyType),
-          pendingStudioType,
-        })
-      } else if (pendingStudioType && state.pendingStudioType !== pendingStudioType) {
-        dispatch({ type: "SET_PENDING_STUDIO_TYPE", roomType: pendingStudioType })
-      }
-
-      dispatch({ type: "SELECT_ROOM", roomId })
-      dispatch({ type: "CLEAR_SUBMIT_VALIDATION" })
-      scrollSurveyRootToTopAfterPaint()
-    },
-    [state.school, state.surveyType, state.session, state.pendingStudioType],
-  )
   const addManualRoom = useCallback(
     (roomNumber: string, building?: string) =>
       dispatch({ type: "ADD_MANUAL_ROOM", roomNumber, building }),
@@ -3360,16 +2791,6 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     (roomType: string | null) => dispatch({ type: "SET_PENDING_STUDIO_TYPE", roomType }),
     [],
   )
-  const setPendingNeighborhood = useCallback(
-    (neighborhood: string | null) =>
-      dispatch({ type: "SET_PENDING_NEIGHBORHOOD", neighborhood }),
-    [],
-  )
-  const setSpaceTypeExists = useCallback(
-    (spaceType: string, exists: boolean) =>
-      dispatch({ type: "SET_SPACE_TYPE_EXISTS", spaceType, exists }),
-    [],
-  )
   const setResponse = useCallback(
     (roomId: string, response: RoomQuestionResponse) => dispatch({ type: "SET_RESPONSE", roomId, response }),
     [],
@@ -3382,6 +2803,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     (roomId: string) => dispatch({ type: "APPLY_TRADITIONAL_STUDIO_COPY", roomId }),
     [],
   )
+  const setView = useCallback((view: SurveyView) => dispatch({ type: "SET_VIEW", view }), [])
   const openResults = useCallback(
     (tab: "campus" | "room" | "neighborhood" | "compare" | "photos" = "campus") => {
       setResultsInitialTab(tab)
@@ -3424,19 +2846,10 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
   const resetWeightOverrides = useCallback(() => dispatch({ type: "RESET_WEIGHT_OVERRIDES" }), [])
 
-  const hasAssessorRegistered = (() => {
-    const campusAssessor = resolveCampusAssessor(state.assessorByType, state.surveyType)
-    const hasAssessorInfo =
-      isAssessorRegistered(campusAssessor) ||
-      (state.surveyType === "closeout" && isAssessorRegistered(state.assessorByType.studios))
-    if (!hasAssessorInfo) return false
-    // After iOS tab kill, sessionStorage is cleared but localStorage draft/session remains.
-    return (
-      hasActiveVisit() ||
-      (state.session != null && sessionHasRegisteredAssessor(state.session)) ||
-      !!state.lastSavedAt
-    )
-  })()
+  const hasAssessorRegistered =
+    hasActiveVisit() &&
+    (!!resolveCampusAssessor(state.assessorByType) ||
+      (state.surveyType === "closeout" && isAssessorRegistered(state.assessorByType.studios)))
 
   const registerAssessor = useCallback((name: string, email: string) => {
     markActiveVisit()
@@ -3487,7 +2900,6 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         setSchool,
         setLevel,
         selectRoom,
-        editRoomFromResults,
         addManualRoom,
         setGrade,
         setNeighborhood,
@@ -3502,8 +2914,6 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         answerPreWalkPrompt,
         setRoomType,
         setPendingStudioType,
-        setPendingNeighborhood,
-        setSpaceTypeExists,
         setResponse,
         applyTraditionalStudioCopy,
         acknowledgeTraditionalStudioCopyReview,
@@ -3552,7 +2962,6 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         remoteDraftsConfigured,
         remoteSchoolDraftsLoading,
         refreshRemoteSchoolDrafts,
-        refreshRemotePreWalk,
         scoringDrafts,
         schoolHasResults: schoolHasResultsFlag,
         schoolScoredRoomCount: schoolScoredRoomCountValue,
@@ -3564,11 +2973,6 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         requestFloorPlanDisplay,
         releaseFloorPlanDisplay,
         ensureFloorPlanLevel,
-        leavePromptOpen: !!leavePrompt,
-        leavePromptSurveyLabel: surveyTypeLabel(state.surveyType),
-        confirmLeaveKeepDraft,
-        confirmLeaveDiscard,
-        cancelLeavePrompt,
       }}
     >
       {children}

@@ -76,8 +76,6 @@ function surveyModuleFromFocusArea(focusArea, spaceTypeRaw) {
   switch (focusArea) {
     case "Studios":
       return "studios"
-    case "Special Education":
-      return "special_education"
     case "Neighborhoods":
       return "neighborhoods"
     case "Athletics and Wellness":
@@ -131,16 +129,11 @@ function canonicalSpaceType(name) {
     "Admin Offices": "Admin Office",
     "Mental Wellness and Counseling Suite": "Counseling Suite",
     "Sped Flex Studio": "Sped flex studio",
-    "SPED Flex Studio": "Sped flex studio",
-    "Sensory Motor Lab": "Sensory Lab",
-    "Life Skills Studio": "Life Skills Room",
     "Maker Space": "Maker space",
     "Open Collaboration": "Open Collaboration Space",
     "Small Group Room": "Group Room",
     "Large Group Room": "Large Group Room",
     "Rehersal Hall": "Rehearsal Hall",
-    "Theater Arts Studio": "Theater Arts",
-    "Theater Arts Suite": "Theater Arts Suite",
     "Theater Arts": "Theater Arts",
     "Black Box": "Black Box",
     "Auditorium": "Auditorium",
@@ -148,31 +141,11 @@ function canonicalSpaceType(name) {
     "Outdoor Athletics": "Outdoor Athletics",
     Gym: "Gym",
     "Multi-Purpose Gym": "Multi-Purpose Gym",
-    "Multipurpose Gym": "Multi-Purpose Gym",
     "Practice Gym": "Practice Gym",
     "Competition Gym": "Competition Gym",
     "PE Fitness Room": "PE Fitness Room",
-    "Library Media Center": "Media Center",
-    "2D Art Studio": "2D Art Studio",
-    "3D Art Studio": "3D Art Studio",
-    "Art Studio": "Art Studio",
-    "Digital Art Studio": "Digital Art Studio",
-    "Digital Arts Studio": "Digital Art Studio",
-    "Music Studio": "Music Studio",
-    "Music Suite": "Music Suite",
-    "Science Prep Room": "Science Prep Room",
-    "Special Education Suite": "Special Education Suite",
-    "Locker Room": "Locker Room",
-    "Locker rooms": "Locker Room",
   }
   return map[name] ?? name
-}
-
-function normalizeQuestionSetStatus(raw) {
-  const s = String(raw ?? "ready").trim().toLowerCase()
-  if (s === "placeholder") return "placeholder"
-  if (s === "pending") return "pending"
-  return "ready"
 }
 
 function normalizeScoreCode(spaceTypeRaw, scoreCode) {
@@ -204,7 +177,6 @@ const entries = dataRows.map((r) => {
   const spaceTypeWeight = Number.parseInt(r[5], 10) || 0
   const focusAreaWeight = Number.parseInt(r[6], 10) || 0
   const scoreCode = normalizeScoreCode(spaceTypeRaw, r[7]?.trim() ?? "")
-  const questionSetStatus = normalizeQuestionSetStatus(r[8])
   const surveyType = surveyModuleFromFocusArea(surveyFocus, spaceTypeRaw)
   const scoringFocusAreaId = scoringFocusAreaIdFromLabel(scoringFocusLabel)
   const spaceType = canonicalSpaceType(spaceTypeRaw)
@@ -225,7 +197,6 @@ const entries = dataRows.map((r) => {
     spaceTypeWeight,
     focusAreaWeight,
     scoreCode,
-    questionSetStatus,
   }
 })
 
@@ -265,7 +236,6 @@ const surveyOrder = [
   "arrival",
   "administration",
   "studios",
-  "special_education",
   "neighborhoods",
   "shared_spaces",
   "athletics",
@@ -283,8 +253,6 @@ export type TableSchoolLevel = "ES" | "MS" | "HS"
 export type ScoringFocusAreaId =
 ${scoringFocusAreas.map((a) => `  | ${esc(a.id)}`).join("\n")}
 
-export type QuestionSetStatus = "ready" | "pending" | "placeholder"
-
 export interface TableOfSurveyEntry {
   surveyFocus: string
   surveyType: SurveyType
@@ -297,7 +265,6 @@ export interface TableOfSurveyEntry {
   spaceTypeWeight: number
   focusAreaWeight: number
   scoreCode: string
-  questionSetStatus: QuestionSetStatus
 }
 
 export interface ScoringFocusAreaDef {
@@ -310,7 +277,7 @@ export const TABLE_OF_SURVEY_ENTRIES: TableOfSurveyEntry[] = [
 ${entries
   .map(
     (e) =>
-      `  { surveyFocus: ${esc(e.surveyFocus)}, surveyType: ${esc(e.surveyType)}, spaceType: ${esc(e.spaceType)}, spaceTypeRaw: ${esc(e.spaceTypeRaw)}, schoolLevel: ${esc(e.schoolLevel)}, required: ${e.required}, scoringFocusLabel: ${esc(e.scoringFocusLabel)}, scoringFocusAreaId: ${esc(e.scoringFocusAreaId)}, spaceTypeWeight: ${e.spaceTypeWeight}, focusAreaWeight: ${e.focusAreaWeight}, scoreCode: ${esc(e.scoreCode)}, questionSetStatus: ${esc(e.questionSetStatus)} },`,
+      `  { surveyFocus: ${esc(e.surveyFocus)}, surveyType: ${esc(e.surveyType)}, spaceType: ${esc(e.spaceType)}, spaceTypeRaw: ${esc(e.spaceTypeRaw)}, schoolLevel: ${esc(e.schoolLevel)}, required: ${e.required}, scoringFocusLabel: ${esc(e.scoringFocusLabel)}, scoringFocusAreaId: ${esc(e.scoringFocusAreaId)}, spaceTypeWeight: ${e.spaceTypeWeight}, focusAreaWeight: ${e.focusAreaWeight}, scoreCode: ${esc(e.scoreCode)} },`,
   )
   .join("\n")}
 ]
@@ -547,46 +514,6 @@ export function surveyNavTypesForSchool(
   }
 
   return navTypes
-}
-
-export function questionSetStatusForSpaceType(
-  surveyType: SurveyType,
-  spaceType: string,
-  schoolClass: string | null | undefined,
-): QuestionSetStatus {
-  return lookupTableEntry(surveyType, spaceType, schoolClass)?.questionSetStatus ?? "ready"
-}
-
-export function spaceTypeDisplayLabel(
-  surveyType: SurveyType,
-  spaceType: string,
-  schoolClass: string | null | undefined,
-): string {
-  const entry = lookupTableEntry(surveyType, spaceType, schoolClass)
-  if (!entry) return spaceType
-  if (entry.questionSetStatus === "placeholder") {
-    return \`\${spaceType} (placeholder questions)\`
-  }
-  if (entry.questionSetStatus === "pending") {
-    return \`\${spaceType} (pending)\`
-  }
-  return spaceType
-}
-
-export function isPendingQuestionSet(
-  surveyType: SurveyType,
-  spaceType: string,
-  schoolClass: string | null | undefined,
-): boolean {
-  return questionSetStatusForSpaceType(surveyType, spaceType, schoolClass) === "pending"
-}
-
-export function isPlaceholderQuestionSet(
-  surveyType: SurveyType,
-  spaceType: string,
-  schoolClass: string | null | undefined,
-): boolean {
-  return questionSetStatusForSpaceType(surveyType, spaceType, schoolClass) === "placeholder"
 }
 
 export function lookupTableEntryBySpaceType(

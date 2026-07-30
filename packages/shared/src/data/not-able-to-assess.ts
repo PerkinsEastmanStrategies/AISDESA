@@ -1,19 +1,7 @@
 import type { EsaQuestionOption, RoomQuestionResponse } from "../types/survey"
 
-/** Canonical label for multi-select when none of the listed items apply (scores 0). */
-export const NONE_OF_THE_ABOVE_OPTION = "None of the Above"
-
 /** Canonical label for the unable / not-able-to-assess exclusion choice. */
 export const NOT_ABLE_TO_ASSESS_OPTION = "Not Able to Assess"
-
-function isMultiSelectQuestionType(questionType: string): boolean {
-  return questionType === "MultiSelect" || questionType.startsWith("MultiSelect")
-}
-
-export function isNoneOfTheAboveOption(optionLabel: string | null | undefined): boolean {
-  if (!optionLabel) return false
-  return optionLabel.trim().toLowerCase() === "none of the above"
-}
 
 /**
  * True for current and legacy wordings.
@@ -61,9 +49,7 @@ export function hasRequiredUnableToAssessNote(
 
 function optionMatchesValue(optionLabel: string, value: string): boolean {
   if (optionLabel === value) return true
-  if (isNotAbleToAssessOption(optionLabel) && isNotAbleToAssessOption(value)) return true
-  if (isNoneOfTheAboveOption(optionLabel) && isNoneOfTheAboveOption(value)) return true
-  return false
+  return isNotAbleToAssessOption(optionLabel) && isNotAbleToAssessOption(value)
 }
 
 /** Whether a rubric option is selected given a stored response value (supports legacy labels). */
@@ -139,72 +125,4 @@ export function ensureNotAbleToAssessOptions<
 
   if (!optionsChanged) return rubric
   return { ...rubric, options: [...deduped, ...additions] }
-}
-
-/** Inject "None of the Above" on multi-select questions, immediately before Not Able to Assess. */
-export function ensureNoneOfTheAboveOptions<
-  T extends { questions: { questionId: string; questionType: string }[]; options: EsaQuestionOption[] },
->(rubric: T): T {
-  const options = [...rubric.options]
-  const additions: EsaQuestionOption[] = []
-
-  for (const q of rubric.questions) {
-    if (!isMultiSelectQuestionType(q.questionType)) continue
-    if (options.some((o) => o.questionId === q.questionId && isNoneOfTheAboveOption(o.option))) {
-      continue
-    }
-
-    const qOpts = options.filter((o) => o.questionId === q.questionId)
-    const template =
-      qOpts.find((o) => !isNotAbleToAssessOption(o.option) && !isNoneOfTheAboveOption(o.option)) ??
-      qOpts[0]
-    const naOpt = qOpts.find((o) => isNotAbleToAssessOption(o.option))
-    const maxOrder = qOpts.reduce((max, o) => Math.max(max, o.displayOrder), 0)
-    const displayOrder = naOpt ? naOpt.displayOrder - 1 : maxOrder + 1
-
-    additions.push({
-      questionId: q.questionId,
-      option: NONE_OF_THE_ABOVE_OPTION,
-      normalizedScore: 0,
-      displayOrder,
-      scoreId: template?.scoreId ?? `${q.questionId}a`,
-      ...(template?.scoreGroupId ? { scoreGroupId: template.scoreGroupId } : {}),
-      itemScoringMode: template?.itemScoringMode,
-      isExclusionOption: false,
-    })
-  }
-
-  if (!additions.length) return rubric
-  return { ...rubric, options: [...options, ...additions] }
-}
-
-/** Normalize rubric options (Not Able to Assess + None of the Above for multi-select). */
-export function ensureSyntheticQuestionOptions<
-  T extends { questions: { questionId: string; questionType: string }[]; options: EsaQuestionOption[] },
->(rubric: T): T {
-  return ensureNoneOfTheAboveOptions(ensureNotAbleToAssessOptions(rubric))
-}
-
-/** Apply multi-select toggle rules including mutual exclusion for synthetic options. */
-export function applyMultiSelectOptionToggle(
-  optionLabel: string,
-  currentlySelected: boolean,
-  current: string[],
-): string[] {
-  if (isNoneOfTheAboveOption(optionLabel)) {
-    return currentlySelected ? [] : [NONE_OF_THE_ABOVE_OPTION]
-  }
-  if (isNotAbleToAssessOption(optionLabel)) {
-    return currentlySelected
-      ? current.filter((v) => !isNotAbleToAssessOption(v))
-      : [NOT_ABLE_TO_ASSESS_OPTION]
-  }
-
-  const withoutExclusive = current.filter(
-    (v) => !isNoneOfTheAboveOption(v) && !isNotAbleToAssessOption(v),
-  )
-  if (currentlySelected) {
-    return withoutExclusive.filter((v) => !optionMatchesValue(optionLabel, v))
-  }
-  return [...withoutExclusive, optionLabel]
 }

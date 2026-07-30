@@ -25,7 +25,6 @@ export function roomHasAssessmentProgress(
     return true
   }
   if (!roomSession) return false
-  if (roomSession.spaceTypeMarkedAbsent) return true
   return (
     roomSession.responses.length > 0 ||
     !!roomSession.gradeType ||
@@ -108,5 +107,10 @@ export function schoolScoredRoomCount(input: Parameters<typeof buildSchoolCampus
 }
 
 export function schoolHasResults(input: Parameters<typeof buildSchoolCampusSnapshot>[0]): boolean {
-  return schoolHasAnySubmission(input.schoolId, input.drafts)
+  const drafts = input.drafts
+  if (schoolHasAnySubmission(input.schoolId, drafts)) return true
+  const snapshot = buildSchoolCampusSnapshot(input)
+  return snapshot.allRooms.some(
+    (room) => room.overallScore !== null || room.answeredCount > 0,
+  )
 }

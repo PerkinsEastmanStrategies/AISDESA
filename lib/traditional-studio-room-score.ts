@@ -25,19 +25,6 @@ export function resolveRoomAreaSqft(
   return null
 }
 
-/** Zero score for a space type marked not present at the school or neighborhood. */
-export function scoreAbsentSpaceTypeRoom(roomId: string): RoomScoreResult {
-  return {
-    roomId,
-    overallScore: 0,
-    categoryScores: [],
-    subcategoryScores: [],
-    questionScores: [],
-    answeredCount: 1,
-    totalCount: 1,
-  }
-}
-
 export function scoreRoomSessionWithMetadata(
   roomSession: RoomSurveySession,
   rubric: {

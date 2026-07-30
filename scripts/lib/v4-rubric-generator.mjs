@@ -71,8 +71,8 @@ export function numOrNull(v) {
 }
 
 export function parseWeight(v) {
-  const s = String(v ?? "").trim().toLowerCase()
-  if (s === "" || s === "i") return 0
+  const s = String(v ?? "").trim()
+  if (s === "") return 0
   const n = Number(s)
   return Number.isFinite(n) ? n : 0
 }

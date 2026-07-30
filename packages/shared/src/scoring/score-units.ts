@@ -1,5 +1,5 @@
 import type { EsaQuestion, EsaQuestionOption } from "../types/survey"
-import { isNotAbleToAssessOption, isNoneOfTheAboveOption } from "../data/not-able-to-assess"
+import { isNotAbleToAssessOption } from "../data/not-able-to-assess"
 
 /** Score IDs ending in "i" are inventory-only and excluded from scoring. */
 export function isInventoryScoreId(scoreId: string): boolean {
@@ -101,10 +101,6 @@ export function scoreForScoreId(
   if (isMultiSelectQuestionType(question.questionType)) {
     const selected = Array.isArray(response.value) ? response.value : []
     if (!selected.length) return null
-
-    if (selected.some((v) => isNoneOfTheAboveOption(v))) {
-      return 0
-    }
 
     const selectedInGroup = groupOpts.filter((o) =>
       selected.some(

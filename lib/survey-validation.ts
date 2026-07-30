@@ -11,8 +11,6 @@ import {
   hasRequiredUnableToAssessNote,
   isMultiSelectQuestionType,
   isOutdoorSurveyRoomId,
-  isNaSurveyRoomId,
-  naSurveyRoomDisplayName,
   neighborhoodFromSurveyRoomId,
   neighborhoodSurveyRoomDisplayName,
   outdoorSurveyRoomDisplayName,
@@ -23,7 +21,6 @@ import { isSkippedDependentQuestion } from "@/lib/question-dependencies"
 
 function validationRoomDisplayName(roomId: string, parsedName?: string): string {
   if (isOutdoorSurveyRoomId(roomId)) return outdoorSurveyRoomDisplayName()
-  if (isNaSurveyRoomId(roomId)) return naSurveyRoomDisplayName()
   const neighborhoodLabel = neighborhoodFromSurveyRoomId(roomId)
   if (neighborhoodLabel) return neighborhoodSurveyRoomDisplayName(neighborhoodLabel)
   return parsedName ?? roomId
@@ -228,7 +225,6 @@ export function validateSurveyBeforeDeferral(
         (roomSession.pendingQuestionIds?.length ?? 0) > 0 || !!roomSession.pendingGrade
       if (!hasPending) continue
     } else {
-      if (roomSession.spaceTypeMarkedAbsent) continue
       const started = roomSession.responses.length > 0 || !!roomSession.gradeType
       if (!started) continue
     }

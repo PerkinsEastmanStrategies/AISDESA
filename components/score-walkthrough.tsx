@@ -43,9 +43,8 @@ export default function ScoreWalkthrough({
       state.roomScoreDetails,
       state.surveyType,
       roomIds,
-      state.school?.schoolClass,
     )
-  }, [session, state.roomScoreDetails, state.surveyType, state.school?.schoolClass, roomIds])
+  }, [session, state.roomScoreDetails, state.surveyType, roomIds])
 
   const subcategories = useMemo(() => {
     if (focus.level === "campus") return []
@@ -62,9 +61,8 @@ export default function ScoreWalkthrough({
       focus.subcategory,
       state.surveyType,
       session,
-      state.school?.schoolClass,
     )
-  }, [focus, details, roomIds, session, state.surveyType, state.school?.schoolClass])
+  }, [focus, details, roomIds, session, state.surveyType])
 
   const roomRows = useMemo(() => {
     if (!session) return []
@@ -76,9 +74,8 @@ export default function ScoreWalkthrough({
       state.surveyType,
       state.allRooms,
       focusRoomId,
-      state.school?.schoolClass,
     )
-  }, [focus, campus, details, session, state.surveyType, state.allRooms, state.school?.schoolClass, focusRoomId])
+  }, [focus, campus, details, session, state.surveyType, state.allRooms, focusRoomId])
 
   const focusRoomName = focusRoomId
     ? campus.rooms.find((r) => r.roomId === focusRoomId)?.roomName ?? focusRoomId
