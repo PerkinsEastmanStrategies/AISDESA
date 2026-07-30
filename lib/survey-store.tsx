@@ -111,6 +111,7 @@ import {
   restoreFloorPlanLevelFromCache,
   revokeFloorPlanBlobUrls,
 } from "@/lib/floor-plan-loader"
+import { resolveSelectedLevelId } from "@/lib/floor-plan-manifest"
 import { loadAisdSchoolOptions } from "@/lib/load-aisd-schools"
 import {
   deferIncompleteToCloseOut,
@@ -716,13 +717,11 @@ function stateFromDraft(
   const levelFromSession = selectedRoomId
     ? draft.session.rooms[selectedRoomId]?.levelId
     : undefined
-  const resolvedLevelId =
-    draft.selectedLevelId ??
-    levelFromSession ??
-    existingFloorPlan?.defaultLevelId ??
-    existingRooms.find((r) => r.id === selectedRoomId)?.levelId ??
-    existingRooms[0]?.levelId ??
-    null
+  const resolvedLevelId = resolveSelectedLevelId(
+    draft.selectedLevelId ?? levelFromSession ?? null,
+    existingFloorPlan,
+    existingRooms,
+  )
   const base: SurveyState = {
     surveyType: draft.surveyType,
     school,
@@ -1040,6 +1039,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         session: stamped.session,
         assessorByType: stamped.assessorByType,
         selectedRoomId: null,
+        selectedLevelId: resolveSelectedLevelId(null, state.floorPlan, state.allRooms),
         view: "survey",
         submission: null,
         showResumeBanner: false,
@@ -1125,8 +1125,8 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         floorPlanLoading: false,
         allRooms: mergedRooms,
         selectedLevelId: levelStillValidForRoom
-          ? roomLevel
-          : (action.plan?.defaultLevelId ?? null),
+          ? roomLevel!
+          : resolveSelectedLevelId(state.selectedLevelId, action.plan, mergedRooms),
       }
     }
     case "SET_FLOOR_PLAN_LOADING":

@@ -1,4 +1,4 @@
-import type { AisdSchoolOption } from "@aisd/shared"
+import type { AisdSchoolOption, ParsedPlanRoom, SchoolFloorPlanConfig } from "@aisd/shared"
 
 /** Live Google Sheet (published CSV) — updated as floor plans are uploaded to Supabase. */
 export const DEFAULT_FLOOR_PLAN_MANIFEST_URL =
@@ -256,4 +256,20 @@ export async function getAvailableFloors(school: AisdSchoolOption): Promise<Floo
 
 export function isManifestLoaded(): boolean {
   return manifestLoadedSuccessfully
+}
+
+/** Drop stale level ids (e.g. old bundled LBJ floors) that are not on the current plan. */
+export function resolveSelectedLevelId(
+  selectedLevelId: string | null | undefined,
+  plan: SchoolFloorPlanConfig | null,
+  rooms: ParsedPlanRoom[] = [],
+): string | null {
+  if (!plan?.levels.length) {
+    return selectedLevelId ?? rooms[0]?.levelId ?? null
+  }
+  const levelIds = new Set(plan.levels.map((level) => level.id))
+  if (selectedLevelId && levelIds.has(selectedLevelId as FloorLevelId)) {
+    return selectedLevelId
+  }
+  return plan.defaultLevelId ?? plan.levels[0]?.id ?? null
 }

@@ -44,8 +44,10 @@ import {
   canSelectRoomForSurvey,
   effectiveSpaceTypeForSelection,
   hasPreWalkMappings,
+  mergePreWalkPlanRooms,
   preWalkSpaceTypeForRoom,
 } from "@/lib/prewalk"
+import { resolveSelectedLevelId } from "@/lib/floor-plan-manifest"
 import {
   formatRoomPickerLabel,
   neighborhoodFillColor,
@@ -83,6 +85,7 @@ export default function RoomSelector({
     setSpaceTypeExists,
     setSurveyType,
     selectRoom,
+    setLevel,
     currentRoomSession,
     submitValidation,
     traditionalStudioCopyOffer,
@@ -91,8 +94,33 @@ export default function RoomSelector({
   const { requestSelectRoom, completedRoomDialog } = useSelectRoomWithConfirm()
   const selectedId = state.selectedRoomId
   const plan = state.floorPlan
-  const effectiveLevelId =
-    state.selectedLevelId ?? plan?.defaultLevelId ?? state.allRooms[0]?.levelId ?? null
+  const effectiveLevelId = resolveSelectedLevelId(
+    state.selectedLevelId,
+    plan,
+    state.allRooms,
+  )
+  const selectableRooms = useMemo(
+    () =>
+      mergePreWalkPlanRooms(
+        state.allRooms,
+        state.preWalk.mappings,
+        state.surveyType,
+        effectiveLevelId ?? plan?.defaultLevelId ?? "floor-1",
+      ),
+    [
+      state.allRooms,
+      state.preWalk.mappings,
+      state.surveyType,
+      effectiveLevelId,
+      plan?.defaultLevelId,
+    ],
+  )
+
+  useEffect(() => {
+    if (!plan || !effectiveLevelId || effectiveLevelId === state.selectedLevelId) return
+    setLevel(effectiveLevelId)
+  }, [plan, state.selectedLevelId, effectiveLevelId, setLevel])
+
   const showStudioType = state.surveyType === "studios"
   const showSpaceType = surveyModuleUsesSpaceTypePicker(
     state.surveyType,
@@ -203,11 +231,11 @@ export default function RoomSelector({
   )
   const buildingOptions = useMemo(() => {
     const set = new Set<string>()
-    const level = state.floorPlan?.levels.find((l) => l.id === state.selectedLevelId)
+    const level = state.floorPlan?.levels.find((l) => l.id === effectiveLevelId)
     for (const b of level?.buildings ?? []) {
       if (b.trim()) set.add(b.trim())
     }
-    for (const room of state.allRooms) {
+    for (const room of selectableRooms) {
       if (room.building?.trim() && (!effectiveLevelId || room.levelId === effectiveLevelId)) {
         set.add(room.building.trim())
       }
@@ -219,12 +247,12 @@ export default function RoomSelector({
           if (b.trim()) set.add(b.trim())
         }
       }
-      for (const room of state.allRooms) {
+      for (const room of selectableRooms) {
         if (room.building?.trim()) set.add(room.building.trim())
       }
     }
     return [...set].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-  }, [state.allRooms, state.floorPlan, effectiveLevelId])
+  }, [selectableRooms, state.floorPlan, effectiveLevelId])
 
   const requiresManualBuilding = buildingOptions.length > 1
   const canAddManualRoom =
@@ -244,11 +272,11 @@ export default function RoomSelector({
     const mappedTypeForRoom = (roomId: string) =>
       preWalkSpaceTypeForRoom(state.preWalk.mappings, roomId, state.surveyType, schoolClass)
 
-    let onFloor = state.allRooms.filter((r) => {
+    let onFloor = selectableRooms.filter((r) => {
       if (effectiveLevelId && r.levelId !== effectiveLevelId) return false
       return isClassroomRoom(r) || !!mappedTypeForRoom(r.id)
     })
-    const eligibleForPreWalk = (r: (typeof state.allRooms)[number]) =>
+    const eligibleForPreWalk = (r: (typeof selectableRooms)[number]) =>
       isClassroomRoom(r) || !!mappedTypeForRoom(r.id)
     if (state.surveyType === "closeout" && state.session) {
       onFloor = onFloor.filter((r) => {
@@ -261,7 +289,7 @@ export default function RoomSelector({
     let pinned: typeof onFloor = []
 
     if (preWalkMapped) {
-      const pinnedSource = state.allRooms.filter(eligibleForPreWalk)
+      const pinnedSource = selectableRooms.filter(eligibleForPreWalk)
       if (selectedSpaceType) {
         pinned = pinnedSource.filter((r) => mappedTypeForRoom(r.id) === selectedSpaceType)
       } else {
@@ -280,14 +308,14 @@ export default function RoomSelector({
     other = sortRoomsByName(other)
 
     if (selectedId) {
-      const selected = state.allRooms.find((r) => r.id === selectedId)
+      const selected = selectableRooms.find((r) => r.id === selectedId)
       if (selected && !pinnedIds.has(selectedId) && !other.some((r) => r.id === selectedId)) {
         other = sortRoomsByName([selected, ...other])
       }
     }
 
     if (state.surveyType === "closeout" && state.session) {
-      const floorPlanIds = new Set(state.allRooms.map((room) => room.id))
+      const floorPlanIds = new Set(selectableRooms.map((room) => room.id))
       const syntheticCloseOutRooms = Object.values(state.session.rooms)
         .filter(
           (room) =>
@@ -321,8 +349,7 @@ export default function RoomSelector({
 
     return { pinnedRoomOptions: pinned, otherRoomOptions: other }
   }, [
-    state.allRooms,
-    state.selectedLevelId,
+    selectableRooms,
     selectedId,
     effectiveLevelId,
     state.surveyType,
@@ -330,7 +357,6 @@ export default function RoomSelector({
     state.preWalk.mappings,
     preWalkMapped,
     selectedSpaceType,
-    effectiveLevelId,
     state.school?.schoolClass,
   ])
 
@@ -458,7 +484,7 @@ export default function RoomSelector({
   )
 
   const selectedRoom = selectedId
-    ? state.allRooms.find((r) => r.id === selectedId) ?? roomOptions.find((r) => r.id === selectedId)
+    ? selectableRooms.find((r) => r.id === selectedId) ?? roomOptions.find((r) => r.id === selectedId)
     : null
 
   const handleSelectNaRoom = () => {

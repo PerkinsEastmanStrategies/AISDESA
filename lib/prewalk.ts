@@ -1,4 +1,10 @@
-import type { PreWalkRoomMapping, PreWalkState, RoomSurveySession, SurveyType } from "@aisd/shared"
+import type {
+  ParsedPlanRoom,
+  PreWalkRoomMapping,
+  PreWalkState,
+  RoomSurveySession,
+  SurveyType,
+} from "@aisd/shared"
 import { isNaSurveyRoomId } from "@aisd/shared"
 import {
   isSpaceTypeForSurveyModule,
@@ -297,6 +303,33 @@ export function preWalkMappingList(
   return Object.values(mappings).filter(
     (mapping) => mapping.spaceType && (!surveyType || mapping.surveyType === surveyType),
   )
+}
+
+/** Pre-walk mapped rooms that are missing from parsed floor plan data (fallback for load/parse gaps). */
+export function mergePreWalkPlanRooms(
+  planRooms: ParsedPlanRoom[],
+  mappings: Record<string, PreWalkRoomMapping>,
+  surveyType: SurveyType,
+  levelId: string,
+): ParsedPlanRoom[] {
+  const byId = new Map(planRooms.map((room) => [room.id.toUpperCase(), room]))
+  const extras: ParsedPlanRoom[] = []
+  for (const mapping of preWalkMappingList(mappings, surveyType)) {
+    const key = mapping.roomId.toUpperCase()
+    if (byId.has(key)) continue
+    byId.set(key, {
+      id: mapping.roomId,
+      name: mapping.roomId,
+      x: 0,
+      y: 0,
+      area: 1,
+      levelId,
+      points: [],
+      overlayKind: "hotspot",
+    })
+    extras.push(byId.get(key)!)
+  }
+  return extras.length ? [...planRooms, ...extras] : planRooms
 }
 
 export function hasPreWalkMappings(
