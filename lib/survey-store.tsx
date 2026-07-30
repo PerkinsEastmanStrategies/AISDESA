@@ -2404,12 +2404,15 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Save immediately when school or survey module changes (don't wait for debounce).
+  // Save when school or survey module changes — yield first so Safari can paint the survey UI.
   useEffect(() => {
     if (!state.hydrated || !state.school || !state.session) return
-    const savedAt = persistDraftFromState(stateRef.current)
-    if (!savedAt) return
-    dispatch({ type: "MARK_SAVED", savedAt })
+    const timer = window.setTimeout(() => {
+      const savedAt = persistDraftFromState(stateRef.current)
+      if (!savedAt) return
+      dispatch({ type: "MARK_SAVED", savedAt })
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [state.hydrated, state.school?.id, state.surveyType])
 
   // Auto-save draft on change — debounced to avoid Safari localStorage pressure while typing notes.
@@ -2671,6 +2674,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!state.school) return
+    // Defer floor-plan parsing until a survey session exists (after assessor gate or restore).
+    // Parsing on school select alone was spiking Safari memory before the user opened a survey.
+    if (!state.session) return
     if (!state.school.hasFloorPlan) {
       const manualsOnly = mergeManualRooms([], state.manualRooms)
       if (state.floorPlan || state.allRooms.length !== manualsOnly.length) {
@@ -2697,7 +2703,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       cancelled = true
     }
     // Re-run when the school object is upgraded (campus/name/hasFloorPlan) so rooms reload.
-  }, [state.school])
+  }, [state.school, state.session])
 
   const requestFloorPlanDisplay = useCallback(() => {
     setFloorPlanDisplayRequests((count) => count + 1)

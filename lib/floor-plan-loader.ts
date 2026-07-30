@@ -410,9 +410,20 @@ export async function loadSchoolRoomsForSchool(
   if (!floors.length) return { plan: null, rooms: [] }
 
   const preferMobile = preferMobileFloorPlan()
-  const results = await Promise.all(
-    floors.map((floor) => loadLevelRoomsOnly(school.id, floor, preferMobile)),
-  )
+  const results: (LevelLoadResult | null)[] = []
+
+  // On iPad/iPhone load one floor at a time to avoid Safari memory spikes.
+  if (preferMobile) {
+    for (const floor of floors) {
+      results.push(await loadLevelRoomsOnly(school.id, floor, preferMobile))
+    }
+  } else {
+    results.push(
+      ...(await Promise.all(
+        floors.map((floor) => loadLevelRoomsOnly(school.id, floor, preferMobile)),
+      )),
+    )
+  }
 
   const loadedById = new Map<string, LevelLoadResult>()
   floors.forEach((floor, i) => {

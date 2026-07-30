@@ -94,6 +94,7 @@ export default function RoomSelector({
   const { requestSelectRoom, completedRoomDialog } = useSelectRoomWithConfirm()
   const selectedId = state.selectedRoomId
   const plan = state.floorPlan
+  const roomsLoading = Boolean(state.floorPlanLoading && state.school?.hasFloorPlan)
   const effectiveLevelId = resolveSelectedLevelId(
     state.selectedLevelId,
     plan,
@@ -806,9 +807,11 @@ export default function RoomSelector({
                     ? naSurveyRoomDisplayName()
                     : selectedRoom
                       ? formatRoomPickerLabel(selectedRoom)
-                      : roomOptions.length
-                        ? "Select a room"
-                        : "No rooms on this floor"}
+                      : roomsLoading
+                        ? "Loading rooms…"
+                        : roomOptions.length
+                          ? "Select a room"
+                          : "No rooms on this floor"}
                 </span>
                 <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
               </button>
@@ -1217,7 +1220,9 @@ export default function RoomSelector({
                 <li className="px-3 py-8 text-center text-sm text-[var(--color-muted-foreground)]">
                   {roomQuery.trim()
                     ? `No rooms match “${roomQuery.trim()}”`
-                    : "No rooms on this floor"}
+                    : roomsLoading
+                      ? "Loading rooms…"
+                      : "No rooms on this floor"}
                 </li>
               ) : (
                 <>
