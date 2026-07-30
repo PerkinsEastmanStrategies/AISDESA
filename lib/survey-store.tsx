@@ -62,6 +62,7 @@ import {
   toFloorPlanRoom,
   isClassroomRoom,
   isStudioType,
+  isSpaceTypeForSurveyModule,
   studioTypeRequiresGrade,
   surveyTypeAvailableForSchool,
   surveyTypeLabel,
@@ -75,8 +76,10 @@ import {
   loadDraft,
   loadDraftsForSchool,
   loadResumableDraft,
+  resolveSchoolPreWalk,
   saveAssessors,
   saveDraft,
+  syncSchoolPreWalkToDrafts,
   markActiveVisit,
   hasActiveVisit,
   type AssessorBySurveyType,
@@ -96,7 +99,7 @@ import {
   sessionHasRegisteredAssessor,
   withCampusAssessorOnSession,
 } from "@/lib/assessor"
-import { getSurveyTypeInfo, surveyModuleHasDraftWork, type SurveyTypeInfo } from "@/lib/survey-status"
+import { getSurveyTypeInfo, type SurveyTypeInfo } from "@/lib/survey-status"
 import { SURVEY_TYPES } from "@aisd/shared"
 import { validateSurveyBeforeDeferral, validateRoomSession, type SubmitValidationResult } from "@/lib/survey-validation"
 import { scrollSurveyRootToTopAfterPaint } from "@/lib/survey-scroll"
@@ -122,7 +125,7 @@ import {
   withPendingUpdatedForResponse,
 } from "@/lib/closeout"
 import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
-import { EMPTY_PREWALK, getPreWalkMappingForSurveyModule, migratePreWalkState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypeForRoom, preWalkSpaceTypePhotoKey, shouldPromptPreWalkOnSchoolSelect } from "@/lib/prewalk"
+import { EMPTY_PREWALK, getPreWalkMappingForSurveyModule, mergePreWalkStates, migratePreWalkState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypeForRoom, preWalkSpaceTypePhotoKey, shouldPromptPreWalkOnSchoolSelect } from "@/lib/prewalk"
 import { applyTraditionalStudioCopyToRoom, getTraditionalStudioCopyOffer } from "@/lib/traditional-studio-copy"
 import { scoreRoomSessionWithMetadata, scoreAbsentSpaceTypeRoom } from "@/lib/traditional-studio-room-score"
 import {
@@ -131,6 +134,8 @@ import {
   isBrowserOnline,
   pullRemoteDraftClient,
   pullRemoteDraftsForSchoolClient,
+  pullRemoteSchoolPreWalkClient,
+  pushSchoolPreWalkClient,
   pushSurveyDraftClient,
   getPendingSyncCount,
 } from "@/lib/survey-remote-sync"
@@ -206,6 +211,7 @@ type Action =
   | { type: "COMPLETE_PREWALK" }
   | { type: "SKIP_PREWALK" }
   | { type: "ANSWER_PREWALK_PROMPT"; choice: "map" | "skip" }
+  | { type: "MERGE_REMOTE_PREWALK"; preWalk: PreWalkState }
   | { type: "SET_ROOM_TYPE"; roomId: string; roomType: string }
   | { type: "SET_PENDING_STUDIO_TYPE"; roomType: string | null }
   | { type: "SET_PENDING_NEIGHBORHOOD"; neighborhood: string | null }
@@ -273,16 +279,36 @@ function lookupNeighborhoodFromPlan(
   return planRoom?.neighborhood?.trim().toUpperCase() ?? ""
 }
 
-/** Space type covers Studios types plus the dedicated Admin/Arrival/Neighborhoods space types. */
-function isPendingSpaceType(value: string | null | undefined): boolean {
-  return (
-    !!value &&
-    (isStudioType(value) ||
-      isAdminSpaceType(value) ||
-      isArrivalSpaceType(value) ||
-      isNeighborhoodSpaceType(value) ||
-      isOutdoorSpaceType(value))
-  )
+/** Space type string we track in pendingStudioType for the active survey module. */
+function isPendingSpaceType(
+  value: string | null | undefined,
+  surveyType?: SurveyType,
+  schoolClass?: string | null,
+): boolean {
+  if (!value) return false
+  if (
+    isStudioType(value) ||
+    isAdminSpaceType(value) ||
+    isArrivalSpaceType(value) ||
+    isNeighborhoodSpaceType(value) ||
+    isOutdoorSpaceType(value)
+  ) {
+    return true
+  }
+  if (surveyType && isSpaceTypeForSurveyModule(surveyType, value, schoolClass)) {
+    return true
+  }
+  return false
+}
+
+function resolvePendingStudioType(state: SurveyState, ensuredRoomType: string): string | null {
+  if (isPendingSpaceType(ensuredRoomType, state.surveyType, state.school?.schoolClass)) {
+    return ensuredRoomType
+  }
+  if (isPendingSpaceType(state.pendingStudioType, state.surveyType, state.school?.schoolClass)) {
+    return state.pendingStudioType
+  }
+  return null
 }
 
 function roomHasSurveyStarted(session: RoomSurveySession): boolean {
@@ -317,18 +343,23 @@ function resolveRoomType(
   )
   const canApplyPreWalk =
     !!preWalkType &&
-    isPendingSpaceType(preWalkType) &&
+    isPendingSpaceType(preWalkType, state.surveyType, state.school?.schoolClass) &&
     (!existing || !roomHasSurveyStarted(existing))
 
   if (canApplyPreWalk) return preWalkType
 
   if (existing) {
-    if (isPendingSpaceType(existing.roomType)) return existing.roomType
+    if (isPendingSpaceType(existing.roomType, state.surveyType, state.school?.schoolClass)) {
+      return existing.roomType
+    }
     if (existing.roomType === "Studios") return state.pendingStudioType ?? ""
     return existing.roomType
   }
 
-  if (state.pendingStudioType && isPendingSpaceType(state.pendingStudioType)) {
+  if (
+    state.pendingStudioType &&
+    isPendingSpaceType(state.pendingStudioType, state.surveyType, state.school?.schoolClass)
+  ) {
     return state.pendingStudioType
   }
   return ""
@@ -712,7 +743,7 @@ function stateFromDraft(
     submitValidation: null,
     pendingStudioType: draft.pendingStudioType ?? null,
     pendingNeighborhood: draft.pendingNeighborhood ?? null,
-    preWalk: migratePreWalkState(draft.preWalk, school.schoolClass),
+    preWalk: resolveSchoolPreWalk(school.id, school.schoolClass, draft.preWalk),
     preWalkPromptPending: false,
     preWalkRequested: false,
     ...emptyScoreState(),
@@ -998,6 +1029,11 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       const assessor = resolveCampusAssessor(state.assessorByType, action.surveyType)
       const session = newSession(state.school, action.surveyType, assessor)
       const stamped = withCampusAssessorOnSession(session, state.assessorByType, action.surveyType)
+      const preWalk = resolveSchoolPreWalk(
+        state.school.id,
+        state.school.schoolClass,
+        state.preWalk,
+      )
       return bootstrapCampusScopedSurvey({
         ...state,
         surveyType: action.surveyType,
@@ -1010,7 +1046,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         weightOverrides: EMPTY_WEIGHT_OVERRIDES,
         pendingStudioType: action.pendingStudioType ?? null,
         pendingNeighborhood: null,
-        preWalk: EMPTY_PREWALK,
+        preWalk,
         ...emptyScoreState(),
       })
     }
@@ -1046,6 +1082,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       const assessor = resolveCampusAssessor(state.assessorByType, state.surveyType)
       const session = newSession(action.school, state.surveyType, assessor)
       const stamped = withCampusAssessorOnSession(session, state.assessorByType, state.surveyType)
+      const preWalk = resolveSchoolPreWalk(action.school.id, action.school.schoolClass)
       return bootstrapCampusScopedSurvey({
         ...state,
         school: action.school,
@@ -1062,9 +1099,9 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         showResumeBanner: false,
         weightOverrides: EMPTY_WEIGHT_OVERRIDES,
         pendingStudioType: null,
-        preWalk: EMPTY_PREWALK,
+        preWalk,
         preWalkPromptPending: shouldPromptPreWalkOnSchoolSelect(
-          EMPTY_PREWALK,
+          preWalk,
           action.school.schoolClass,
         ),
         preWalkRequested: false,
@@ -1212,8 +1249,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         selectedLevelId: room?.levelId ?? state.selectedLevelId,
         view: "survey",
         submitValidation: null,
-        // Only keep the pending space type if this room already has one (or pending was just applied).
-        pendingStudioType: isPendingSpaceType(ensured.roomType) ? ensured.roomType : null,
+        pendingStudioType: resolvePendingStudioType(state, ensured.roomType),
         session: {
           ...state.session,
           updatedAt: new Date().toISOString(),
@@ -1391,7 +1427,11 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       }
       return {
         ...state,
-        pendingStudioType: isPendingSpaceType(action.roomType)
+        pendingStudioType: isPendingSpaceType(
+          action.roomType,
+          state.surveyType,
+          state.school?.schoolClass,
+        )
           ? action.roomType
           : state.pendingStudioType,
         session: {
@@ -1497,7 +1537,6 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       }
     }
     case "SET_PREWALK_MAPPING": {
-      if (!state.session) return state
       const mappingKey = preWalkMappingKey(action.surveyType, action.roomId)
       const prev = state.preWalk.mappings[mappingKey]
       const mapping = {
@@ -1513,7 +1552,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         mappings: { ...state.preWalk.mappings, [mappingKey]: mapping },
       }
       const nextState = { ...state, preWalk }
-      if (action.surveyType !== state.surveyType) {
+      if (!state.session || action.surveyType !== state.surveyType) {
         return { ...nextState, submitValidation: null }
       }
       const existing = state.session.rooms[action.roomId]
@@ -1673,6 +1712,15 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         preWalkPromptPending: false,
         preWalkRequested: true,
       }
+    }
+    case "MERGE_REMOTE_PREWALK": {
+      if (!state.school) return state
+      const merged = migratePreWalkState(
+        mergePreWalkStates(state.preWalk, action.preWalk),
+        state.school.schoolClass,
+      )
+      if (JSON.stringify(merged) === JSON.stringify(state.preWalk)) return state
+      return { ...state, preWalk: merged }
     }
     case "APPLY_TRADITIONAL_STUDIO_COPY": {
       return applyTraditionalStudioCopyForRoom(state, action.roomId)
@@ -1862,9 +1910,9 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         weightOverrides: EMPTY_WEIGHT_OVERRIDES,
         pendingStudioType: null,
         manualRooms: [],
-        preWalk: EMPTY_PREWALK,
+        preWalk: resolveSchoolPreWalk(state.school.id, state.school.schoolClass, state.preWalk),
         preWalkPromptPending: shouldPromptPreWalkOnSchoolSelect(
-          EMPTY_PREWALK,
+          resolveSchoolPreWalk(state.school.id, state.school.schoolClass, state.preWalk),
           state.school.schoolClass,
         ),
         preWalkRequested: false,
@@ -2043,6 +2091,7 @@ interface SurveyContextValue {
   remoteDraftsConfigured: boolean
   remoteSchoolDraftsLoading: boolean
   refreshRemoteSchoolDrafts: () => Promise<void>
+  refreshRemotePreWalk: () => Promise<void>
   scoringDrafts: PersistedSurveyDraft[] | undefined
   schoolHasResults: boolean
   schoolScoredRoomCount: number
@@ -2068,9 +2117,8 @@ type PendingLeaveNavigation =
   | { kind: "school"; school: AisdSchoolOption | null }
   | { kind: "view"; view: SurveyView }
 
-function shouldPromptLeaveSurvey(state: SurveyState): boolean {
-  if (!state.school || state.view === "results") return false
-  return surveyModuleHasDraftWork(state.session)
+function shouldPromptLeaveSurvey(_state: SurveyState): boolean {
+  return false
 }
 
 function roomSurveyComplete(
@@ -2172,6 +2220,9 @@ function persistDraftFromState(state: SurveyState): string | null {
     lastSubmission: state.submission,
     savedAt,
   })
+  syncSchoolPreWalkToDrafts(state.school.id, state.preWalk, {
+    activeSurveyType: state.surveyType,
+  })
 
   if (state.surveyType === "closeout") {
     const sourceTypes = new Set(
@@ -2234,6 +2285,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const [floorPlanDisplayRequests, setFloorPlanDisplayRequests] = useState(0)
   const [floorPlanDisplayLoading, setFloorPlanDisplayLoading] = useState(false)
   const lastSyncedSubmissionRef = useRef<string | null>(null)
+  const lastPushedPreWalkRef = useRef<string>("")
   const floorPlanLevelInflightRef = useRef(new Map<string, Promise<void>>())
   const surveyTypeBeforeConflictRef = useRef<SurveyType>("studios")
   const [leavePrompt, setLeavePrompt] = useState<PendingLeaveNavigation | null>(null)
@@ -2351,11 +2403,38 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     state.selectedRoomId,
     state.pendingStudioType,
     state.pendingNeighborhood,
-    state.preWalk,
     state.view,
     state.manualRooms,
     state.submission,
   ])
+
+  // Pre-walk is school-scoped — persist even before a survey session exists.
+  useEffect(() => {
+    if (!state.hydrated || !state.school) return
+    syncSchoolPreWalkToDrafts(state.school.id, state.preWalk, {
+      activeSurveyType: state.surveyType,
+    })
+  }, [state.hydrated, state.school, state.surveyType, state.preWalk])
+
+  // Push pre-walk assignments to Supabase so other assessors see remote mappings.
+  useEffect(() => {
+    if (!state.hydrated || !state.school) return
+
+    const serialized = JSON.stringify(state.preWalk)
+    if (serialized === lastPushedPreWalkRef.current) return
+
+    const school = state.school
+    const preWalk = state.preWalk
+    const timer = window.setTimeout(() => {
+      void pushSchoolPreWalkClient({ school, preWalk }).then((result) => {
+        if (result === "pushed") {
+          lastPushedPreWalkRef.current = serialized
+        }
+      })
+    }, 2500)
+
+    return () => window.clearTimeout(timer)
+  }, [state.hydrated, state.school, state.preWalk])
 
   // Alert when another assessor has started/submitted this survey module online.
   useEffect(() => {
@@ -2373,6 +2452,16 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       }
     })
   }, [state.hydrated, state.school?.id, state.surveyType, state.assessorByType])
+
+  const refreshRemotePreWalk = useCallback(async () => {
+    const school = state.school
+    if (!school || !isBrowserOnline()) return
+
+    const result = await pullRemoteSchoolPreWalkClient(school.id)
+    if (!result.configured || !result.preWalk) return
+
+    dispatch({ type: "MERGE_REMOTE_PREWALK", preWalk: result.preWalk })
+  }, [state.school])
 
   const refreshRemoteSchoolDrafts = useCallback(async () => {
     if (!state.school || !isBrowserOnline()) {
@@ -2393,11 +2482,24 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         for (const draft of merged) {
           saveDraft(draft, { setActive: false })
         }
+        if (merged.length > 0 && state.school) {
+          const preWalk = resolveSchoolPreWalk(
+            state.school.id,
+            state.school.schoolClass,
+            ...merged.map((draft) => draft.preWalk),
+          )
+          syncSchoolPreWalkToDrafts(state.school.id, preWalk)
+        }
         setRemoteDraftsConfigured(true)
         setRemoteSchoolDrafts(merged)
       } else {
         setRemoteDraftsConfigured(false)
         setRemoteSchoolDrafts(null)
+      }
+
+      const preWalkResult = await pullRemoteSchoolPreWalkClient(state.school.id)
+      if (preWalkResult.configured && preWalkResult.preWalk) {
+        dispatch({ type: "MERGE_REMOTE_PREWALK", preWalk: preWalkResult.preWalk })
       }
     } finally {
       setRemoteSchoolDraftsLoading(false)
@@ -3142,8 +3244,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
           : loadDraft(state.school.id, surveyType)?.session?.rooms[roomId]) ?? null
       const pendingStudioType =
         roomSession?.roomType &&
-        (isPendingSpaceType(roomSession.roomType) ||
-          (surveyType === "studios" && isStudioType(roomSession.roomType)))
+        isPendingSpaceType(roomSession.roomType, surveyType, state.school?.schoolClass)
           ? roomSession.roomType
           : null
 
@@ -3407,6 +3508,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         remoteDraftsConfigured,
         remoteSchoolDraftsLoading,
         refreshRemoteSchoolDrafts,
+        refreshRemotePreWalk,
         scoringDrafts,
         schoolHasResults: schoolHasResultsFlag,
         schoolScoredRoomCount: schoolScoredRoomCountValue,

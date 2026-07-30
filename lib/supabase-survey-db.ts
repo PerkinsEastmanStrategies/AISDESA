@@ -775,6 +775,28 @@ export async function pullSurveyDraft(input: {
   return drafts.find((draft) => draft.surveyType === input.surveyType) ?? null
 }
 
+/** School-level pre-walk assignments (independent of survey session drafts). */
+export async function pullSchoolPreWalk(schoolId: string): Promise<PreWalkState> {
+  if (!isSupabaseServerConfigured()) {
+    return { mappings: {}, completedAt: null, skippedAt: null, spaceTypePhotos: {} }
+  }
+  const shared = await loadSchoolSharedDraftData(schoolId)
+  return shared.preWalk
+}
+
+export async function pushSchoolPreWalk(input: {
+  school: AisdSchoolOption
+  preWalk: PreWalkState
+}): Promise<{ updatedAt: string }> {
+  const updatedAt = new Date().toISOString()
+  if (!isSupabaseServerConfigured()) {
+    return { updatedAt }
+  }
+  await upsertSchool(input.school)
+  await syncPrewalk(input.school, input.preWalk)
+  return { updatedAt }
+}
+
 export function isSurveyDbConfigured(): boolean {
   return isSupabaseServerConfigured()
 }

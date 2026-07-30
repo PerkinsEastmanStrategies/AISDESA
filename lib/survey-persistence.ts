@@ -8,6 +8,7 @@ import type {
   PreWalkState,
 } from "@aisd/shared"
 import { SURVEY_TYPES } from "@aisd/shared"
+import { EMPTY_PREWALK, mergePreWalkStates, migratePreWalkState } from "@/lib/prewalk"
 import {
   LIFE_SKILLS_RUBRIC_VERSION,
   SENSORY_LAB_RUBRIC_VERSION,
@@ -20,7 +21,69 @@ const ACTIVE_KEY = "aisd-survey-active"
 const ASSESSOR_KEY = "aisd-survey-assessors"
 /** Survives reloads in the same tab; cleared when the tab/app is closed. */
 const VISIT_KEY = "aisd-survey-visit"
+const PREWALK_SCHOOL_KEY_PREFIX = "aisd-survey-prewalk-"
 const DRAFT_VERSION = 1
+
+function preWalkSchoolKey(schoolId: string): string {
+  return `${PREWALK_SCHOOL_KEY_PREFIX}${schoolId}`
+}
+
+/** School-scoped pre-walk store (shared across all survey modules for one school). */
+export function saveSchoolPreWalk(schoolId: string, preWalk: PreWalkState): void {
+  if (typeof window === "undefined") return
+  try {
+    localStorage.setItem(preWalkSchoolKey(schoolId), JSON.stringify(preWalk))
+  } catch {
+    /* quota or private browsing */
+  }
+}
+
+export function loadSchoolPreWalk(schoolId: string): PreWalkState | null {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = localStorage.getItem(preWalkSchoolKey(schoolId))
+    if (!raw) return null
+    return JSON.parse(raw) as PreWalkState
+  } catch {
+    return null
+  }
+}
+
+/** Merge pre-walk from the school store and every module draft for this school. */
+export function collectSchoolPreWalkFromDrafts(schoolId: string): PreWalkState {
+  const fromDrafts = loadDraftsForSchool(schoolId).map((draft) => draft.preWalk)
+  return mergePreWalkStates(...fromDrafts)
+}
+
+export function resolveSchoolPreWalk(
+  schoolId: string,
+  schoolClass?: string | null,
+  ...extra: (PreWalkState | null | undefined)[]
+): PreWalkState {
+  return migratePreWalkState(
+    mergePreWalkStates(loadSchoolPreWalk(schoolId), collectSchoolPreWalkFromDrafts(schoolId), ...extra),
+    schoolClass,
+  )
+}
+
+/** Keep every module draft aligned with the school-level pre-walk map. */
+export function syncSchoolPreWalkToDrafts(
+  schoolId: string,
+  preWalk: PreWalkState,
+  options?: { activeSurveyType?: SurveyType },
+): void {
+  saveSchoolPreWalk(schoolId, preWalk)
+  const savedAt = new Date().toISOString()
+  for (const surveyType of SURVEY_TYPES) {
+    if (surveyType === "closeout") continue
+    const draft = loadDraft(schoolId, surveyType)
+    if (!draft) continue
+    saveDraft(
+      { ...draft, preWalk, savedAt },
+      { setActive: options?.activeSurveyType ? surveyType === options.activeSurveyType : false },
+    )
+  }
+}
 
 export type AssessorBySurveyType = Partial<Record<SurveyType, AssessorInfo>>
 

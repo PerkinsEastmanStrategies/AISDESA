@@ -96,33 +96,6 @@ function categoryChip(category: string): string {
   }
 }
 
-/** After a tall question collapses, keep the next question (or this one) fully inside the scroll window. */
-function keepWithinScrollWindow(el: HTMLElement) {
-  const scrollRoot = el.closest(".overflow-y-auto") as HTMLElement | null
-  if (!scrollRoot) return
-
-  const maxScroll = Math.max(0, scrollRoot.scrollHeight - scrollRoot.clientHeight)
-  if (scrollRoot.scrollTop > maxScroll) {
-    scrollRoot.scrollTop = maxScroll
-  }
-
-  const target = (el.nextElementSibling as HTMLElement | null) ?? el
-  const rootRect = scrollRoot.getBoundingClientRect()
-  const targetRect = target.getBoundingClientRect()
-  const stickyBottom = scrollRoot.querySelector(".sticky.bottom-0") as HTMLElement | null
-  const topPad = 12
-  const bottomPad = (stickyBottom?.offsetHeight ?? 0) + 16
-
-  // Pull into view if any part sits outside the visible scroll window
-  if (targetRect.top < rootRect.top + topPad) {
-    scrollRoot.scrollBy({ top: targetRect.top - rootRect.top - topPad, behavior: "smooth" })
-    return
-  }
-  if (targetRect.bottom > rootRect.bottom - bottomPad) {
-    scrollRoot.scrollBy({ top: targetRect.bottom - rootRect.bottom + bottomPad, behavior: "smooth" })
-  }
-}
-
 export default function QuestionForm() {
   const {
     state,
@@ -506,10 +479,8 @@ function QuestionField({
   const answered = isQuestionFullyAnswered(question, { value: value ?? "", comment })
   const noteRequired = responseRequiresUnableToAssessNote(value)
   const multiSelect = isMultiSelectQuestionType(question.questionType)
-  const [collapsed, setCollapsed] = useState(() => answered && !highlighted && !noteRequired && !autoAnswered)
+  const [collapsed, setCollapsed] = useState(false)
   const [userExpanded, setUserExpanded] = useState(false)
-  const wasAnsweredRef = useRef(answered)
-  const prevCollapsedRef = useRef(collapsed)
 
   useEffect(() => {
     if (autoAnswered || highlighted || noteRequired) {
@@ -519,61 +490,10 @@ function QuestionField({
   }, [autoAnswered, highlighted, noteRequired])
 
   useEffect(() => {
-    const justAnswered = answered && !wasAnsweredRef.current
-    wasAnsweredRef.current = answered
-
-    if (!answered || noteRequired || autoAnswered) {
-      setCollapsed(false)
-      if (noteRequired) setUserExpanded(true)
-      if (!answered) setUserExpanded(false)
-      return
+    if (!answered) {
+      setUserExpanded(false)
     }
-    if (!justAnswered || highlighted || userExpanded || multiSelect) return
-
-    const timer = window.setTimeout(() => setCollapsed(true), 400)
-    return () => window.clearTimeout(timer)
-  }, [answered, highlighted, userExpanded, multiSelect, value, noteRequired, autoAnswered])
-
-  // When a question is manually collapsed, keep following content inside the scroll window.
-  useEffect(() => {
-    const justCollapsed = collapsed && !prevCollapsedRef.current
-    prevCollapsedRef.current = collapsed
-    if (!justCollapsed) return
-
-    const el = rootRef.current
-    if (!el) return
-
-    const frame = window.requestAnimationFrame(() => keepWithinScrollWindow(el))
-    return () => window.cancelAnimationFrame(frame)
-  }, [collapsed])
-
-  // Collapse answered questions once they scroll mostly out of view.
-  useEffect(() => {
-    const el = rootRef.current
-    if (!el || autoAnswered) return
-
-    const scrollRoot = el.closest(".overflow-y-auto") as Element | null
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!answered) {
-          setCollapsed(false)
-          return
-        }
-        if (!entry.isIntersecting || entry.intersectionRatio < 0.35) {
-          setCollapsed(true)
-          setUserExpanded(false)
-        }
-      },
-      {
-        root: scrollRoot,
-        threshold: [0, 0.35, 0.6, 1],
-        rootMargin: "-8% 0px -8% 0px",
-      },
-    )
-
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [answered, autoAnswered])
+  }, [answered])
 
   const expand = useCallback(() => {
     setCollapsed(false)
