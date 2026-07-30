@@ -23,50 +23,13 @@ export interface SchoolFloorPlanConfig {
   buildingSqft: number
 }
 
-/** LBJ Early College High School — bundled CAFM floor plans in /public/floor-plans. */
-export const LBJ_FLOOR_PLAN: SchoolFloorPlanConfig = {
-  schoolId: "lbj",
-  buildingSqft: 350_000,
-  defaultLevelId: "floor-1",
-  levels: [
-    {
-      id: "floor-1",
-      label: "Floor 1",
-      src: "/floor-plans/LBJ_1_CT_uncolored.svg",
-      viewBox: { x: 0, y: 0, w: 10800, h: 7200 },
-    },
-    {
-      id: "floor-2",
-      label: "Floor 2",
-      src: "/floor-plans/LBJ_2_CT_uncolored.svg",
-      viewBox: { x: 0, y: 0, w: 10800, h: 7200 },
-    },
-    {
-      id: "ground",
-      label: "Ground Floor",
-      src: "/floor-plans/LBJ_G_CT_uncolored.svg",
-      viewBox: { x: 0, y: 0, w: 9934, h: 14044 },
-    },
-    {
-      id: "athletics",
-      label: "Athletics",
-      src: "/floor-plans/LBJ_New_Athletics_uncolored.svg",
-      viewBox: { x: 0, y: 0, w: 10800, h: 7200 },
-    },
-  ],
-}
-
-const FLOOR_PLANS: Record<string, SchoolFloorPlanConfig> = {
-  lbj: LBJ_FLOOR_PLAN,
-}
+const FLOOR_PLANS: Record<string, SchoolFloorPlanConfig> = {}
 
 export function getFloorPlanForSchool(schoolId: string): SchoolFloorPlanConfig | null {
   return FLOOR_PLANS[schoolId] ?? null
 }
 
-export function schoolNameToId(name: string): string | null {
-  const normalized = name.toUpperCase().replace(/\s+/g, " ").trim()
-  if (normalized === "LBJ" || normalized.startsWith("LBJ ")) return "lbj"
+export function schoolNameToId(_name: string): string | null {
   return null
 }
 

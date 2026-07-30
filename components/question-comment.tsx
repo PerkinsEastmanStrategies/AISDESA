@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useId, useState } from "react"
+import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { MessageSquare, MessageSquarePlus, Mic, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { isSpeechRecognitionSupported, useSpeechToText } from "@/lib/use-speech-to-text"
@@ -10,27 +10,63 @@ interface QuestionCommentProps {
   onChange: (comment: string) => void
   /** When true, the note field stays open and must be filled. */
   required?: boolean
+  /** Fired when the note field gains or loses focus — used to defer question collapse. */
+  onEditingChange?: (editing: boolean) => void
+}
+
+function normalizeComment(value: string): string | undefined {
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
 }
 
 export default function QuestionComment({
   comment,
   onChange,
   required = false,
+  onEditingChange,
 }: QuestionCommentProps) {
   const [open, setOpen] = useState(required)
   const noteId = useId()
   const text = comment ?? ""
+  const editingRef = useRef(false)
+  const draftRef = useRef(text)
+  const [draft, setDraft] = useState(text)
   const hasComment = !!text.trim()
-  const missingRequired = required && !hasComment
+  const missingRequired = required && !hasComment && !draft.trim()
+
+  const setDraftValue = useCallback((next: string) => {
+    draftRef.current = next
+    setDraft(next)
+  }, [])
+
+  const commitDraft = useCallback(() => {
+    const next = normalizeComment(draftRef.current)
+    const prev = normalizeComment(text)
+    if (next !== prev) onChange(next ?? "")
+  }, [onChange, text])
+
+  useEffect(() => {
+    if (editingRef.current) return
+    draftRef.current = text
+    setDraft(text)
+  }, [text])
 
   const speech = useSpeechToText({
     value: text,
-    onChange,
+    onChange: (next) => {
+      setDraftValue(next)
+      onChange(next)
+    },
   })
 
   useEffect(() => {
     if (required) setOpen(true)
   }, [required])
+
+  useEffect(() => {
+    onEditingChange?.(open)
+    if (!open) editingRef.current = false
+  }, [open, onEditingChange])
 
   const handleStop = (e: React.SyntheticEvent) => {
     e.preventDefault()
@@ -40,20 +76,35 @@ export default function QuestionComment({
 
   const handleClose = () => {
     speech.stop()
+    commitDraft()
     if (required) return
-    if (!hasComment && !speech.displayValue.trim()) setOpen(false)
+    if (!hasComment && !draftRef.current.trim() && !speech.displayValue.trim()) setOpen(false)
   }
 
   const handleClear = () => {
     if (required) return
     speech.stop()
+    setDraftValue("")
     onChange("")
     setOpen(false)
   }
 
   const handleTextChange = (next: string) => {
     if (speech.isActive) speech.stop()
-    onChange(next)
+    setDraftValue(next)
+  }
+
+  const handleFocus = () => {
+    editingRef.current = true
+  }
+
+  const handleBlur = () => {
+    editingRef.current = false
+    commitDraft()
+  }
+
+  const stopKeyPropagation = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    e.stopPropagation()
   }
 
   if (!open) {
@@ -84,6 +135,7 @@ export default function QuestionComment({
   }
 
   const speechSupported = isSpeechRecognitionSupported()
+  const displayText = speech.isActive ? speech.displayValue : draft
 
   return (
     <div className="w-full basis-full border-t border-dashed border-slate-200 pt-2.5">
@@ -97,7 +149,7 @@ export default function QuestionComment({
           {required ? "Required note" : "Note"}
         </span>
         <div className="flex items-center gap-1">
-          {!required && (hasComment || speech.displayValue.trim()) && (
+          {!required && (hasComment || draft.trim() || speech.displayValue.trim()) && (
             <button
               type="button"
               onClick={handleClear}
@@ -143,8 +195,12 @@ export default function QuestionComment({
         <textarea
           id={noteId}
           name={noteId}
-          value={speech.isActive ? speech.displayValue : text}
+          value={displayText}
           onChange={(e) => handleTextChange(e.target.value)}
+          onInput={(e) => handleTextChange(e.currentTarget.value)}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          onKeyDown={stopKeyPropagation}
           rows={3}
           required={required}
           aria-invalid={missingRequired || undefined}

@@ -217,6 +217,30 @@ export function loadActiveDraftMeta(): ActiveDraftMeta | null {
   }
 }
 
+export function setActiveDraftMeta(meta: ActiveDraftMeta): void {
+  if (typeof window === "undefined") return
+  try {
+    localStorage.setItem(ACTIVE_KEY, JSON.stringify(meta))
+  } catch {
+    /* quota or private browsing */
+  }
+}
+
+/** True when a saved draft has enough state to resume after an iOS tab kill. */
+export function draftHasResumeContent(draft: PersistedSurveyDraft): boolean {
+  if (!draft.session || !draft.schoolId) return false
+  if (draft.savedAt) return true
+  if (Object.keys(draft.session.rooms).length > 0) return true
+  if (draft.selectedRoomId) return true
+  if (draft.lastSubmission) return true
+  const preWalk = draft.preWalk ?? loadSchoolPreWalk(draft.schoolId)
+  if (preWalk && Object.keys(preWalk.mappings ?? {}).length > 0) return true
+  const name = draft.session.assessorName?.trim()
+  const email = draft.session.assessorEmail?.trim()
+  if (name && email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return true
+  return false
+}
+
 /**
  * Last in-progress survey from localStorage — used on every app open so iOS tab
  * kills (which clear sessionStorage) still restore the same school, room, and answers.
@@ -226,10 +250,24 @@ export function loadResumableDraft(): {
   draft: PersistedSurveyDraft
 } | null {
   const meta = loadActiveDraftMeta()
-  if (!meta) return null
-  const draft = loadDraft(meta.schoolId, meta.surveyType)
-  if (!draft?.session) return null
-  return { meta, draft }
+  if (meta) {
+    const draft = loadDraft(meta.schoolId, meta.surveyType)
+    if (draft?.session && draftHasResumeContent(draft)) {
+      return { meta, draft }
+    }
+  }
+
+  const fallback = listAllDrafts()
+    .filter(draftHasResumeContent)
+    .sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || ""))[0]
+  if (!fallback?.session) return null
+
+  const fallbackMeta = {
+    schoolId: fallback.schoolId,
+    surveyType: fallback.surveyType,
+  } satisfies ActiveDraftMeta
+  setActiveDraftMeta(fallbackMeta)
+  return { meta: fallbackMeta, draft: fallback }
 }
 
 function stripRoomsByType(

@@ -33,6 +33,7 @@ import SurveyProgressTracker from "@/components/survey-progress-tracker"
 import TraditionalStudioCopyReviewBanner from "@/components/traditional-studio-copy-review-banner"
 import { cn } from "@/lib/utils"
 import { resolveRoomNeighborhoodForCopy } from "@/lib/traditional-studio-copy"
+import { useQuestionFieldCollapse } from "@/lib/use-question-field-collapse"
 
 const CONTEXT_TOGGLE_KEY = "esa-show-question-context"
 
@@ -475,37 +476,19 @@ function QuestionField({
   onCommentChange: (comment: string) => void
   onPhotoChange: (photos: string[]) => void
 }) {
-  const rootRef = useRef<HTMLFieldSetElement>(null)
+  const [commentEditing, setCommentEditing] = useState(false)
   const answered = isQuestionFullyAnswered(question, { value: value ?? "", comment })
   const noteRequired = responseRequiresUnableToAssessNote(value)
   const multiSelect = isMultiSelectQuestionType(question.questionType)
-  const [collapsed, setCollapsed] = useState(false)
-  const [userExpanded, setUserExpanded] = useState(false)
-
-  useEffect(() => {
-    if (autoAnswered || highlighted || noteRequired) {
-      setCollapsed(false)
-      if (noteRequired) setUserExpanded(true)
-    }
-  }, [autoAnswered, highlighted, noteRequired])
-
-  useEffect(() => {
-    if (!answered) {
-      setUserExpanded(false)
-    }
-  }, [answered])
-
-  const expand = useCallback(() => {
-    setCollapsed(false)
-    setUserExpanded(true)
-  }, [])
-
-  const collapse = useCallback(() => {
-    if (answered && !autoAnswered) {
-      setCollapsed(true)
-      setUserExpanded(false)
-    }
-  }, [answered, autoAnswered])
+  const { rootRef, collapsed, expand, collapse } = useQuestionFieldCollapse({
+    answered,
+    noteRequired,
+    highlighted,
+    multiSelect,
+    commentEditing,
+    autoAnswered,
+    value,
+  })
 
   const summary = formatAnswerSummary(question, value)
   const hasExtras =
@@ -678,6 +661,7 @@ function QuestionField({
           comment={comment}
           onChange={onCommentChange}
           required={noteRequired}
+          onEditingChange={setCommentEditing}
         />
         <QuestionPhoto
           key={

@@ -223,13 +223,6 @@ export function schoolHasFloorPlan(
   school: AisdSchoolOption,
   manifest: FloorPlanManifestRow[],
 ): boolean {
-  // LBJ uses bundled local CAFM plans in /public/floor-plans.
-  if (
-    school.id === "lbj" ||
-    school.name.toUpperCase().replace(/\s+/g, " ").trim().startsWith("LBJ")
-  ) {
-    return true
-  }
   const row = getManifestRowForAisdSchool(manifest, school)
   return row ? rowHasFloorPlans(row) : false
 }

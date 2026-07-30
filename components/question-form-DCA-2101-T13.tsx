@@ -11,6 +11,7 @@ import { mergeResponsePhotoFields, normalizeResponsePhotos } from "@/lib/respons
 import { effectiveCloseOutPendingQuestionIds } from "@/lib/closeout"
 import { isQuestionAnswered, isQuestionFullyAnswered, responseRequiresUnableToAssessNote } from "@/lib/survey-validation"
 import { cn } from "@/lib/utils"
+import { useQuestionFieldCollapse } from "@/lib/use-question-field-collapse"
 
 function formatAnswerSummary(question: EsaQuestion, value: string | string[] | undefined): string {
   if (!isQuestionAnswered(question, value)) return "Not answered"
@@ -267,37 +268,18 @@ function QuestionField({
   onCommentChange: (comment: string) => void
   onPhotoChange: (photos: string[]) => void
 }) {
-  const rootRef = useRef<HTMLFieldSetElement>(null)
+  const [commentEditing, setCommentEditing] = useState(false)
   const answered = isQuestionFullyAnswered(question, { value, comment })
   const noteRequired = responseRequiresUnableToAssessNote(value)
   const multiSelect = isMultiSelectQuestionType(question.questionType)
-  const [collapsed, setCollapsed] = useState(false)
-  const [userExpanded, setUserExpanded] = useState(false)
-
-  useEffect(() => {
-    if (highlighted || noteRequired) {
-      setCollapsed(false)
-      setUserExpanded(true)
-    }
-  }, [highlighted, noteRequired])
-
-  useEffect(() => {
-    if (!answered) {
-      setUserExpanded(false)
-    }
-  }, [answered])
-
-  const expand = useCallback(() => {
-    setCollapsed(false)
-    setUserExpanded(true)
-  }, [])
-
-  const collapse = useCallback(() => {
-    if (answered) {
-      setCollapsed(true)
-      setUserExpanded(false)
-    }
-  }, [answered])
+  const { rootRef, collapsed, expand, collapse } = useQuestionFieldCollapse({
+    answered,
+    noteRequired,
+    highlighted,
+    multiSelect,
+    commentEditing,
+    value,
+  })
 
   const summary = formatAnswerSummary(question, value)
   const hasExtras = !!(comment?.trim() || photos.length > 0)
@@ -460,6 +442,7 @@ function QuestionField({
           comment={comment}
           onChange={onCommentChange}
           required={noteRequired}
+          onEditingChange={setCommentEditing}
         />
         <QuestionPhoto photos={photos} onChange={onPhotoChange} />
       </div>

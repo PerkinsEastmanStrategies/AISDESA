@@ -2220,9 +2220,6 @@ function persistDraftFromState(state: SurveyState): string | null {
     lastSubmission: state.submission,
     savedAt,
   })
-  syncSchoolPreWalkToDrafts(state.school.id, state.preWalk, {
-    activeSurveyType: state.surveyType,
-  })
 
   if (state.surveyType === "closeout") {
     const sourceTypes = new Set(
@@ -2316,6 +2313,8 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     preWalkPromptPending: false,
     preWalkRequested: false,
   })
+  const stateRef = useRef(state)
+  stateRef.current = state
 
   useEffect(() => {
     let cancelled = false
@@ -2387,13 +2386,43 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "UPDATE_SCHOOL", school: full })
   }, [schools, schoolsLoading, state.hydrated, state.school])
 
-  // Auto-save draft on every change (survives submit + browser close)
+  // Flush draft to localStorage when Safari/iOS suspends or kills the tab.
+  useEffect(() => {
+    const flush = () => {
+      const current = stateRef.current
+      if (!current.hydrated || !current.school || !current.session) return
+      persistDraftFromState(current)
+    }
+    window.addEventListener("pagehide", flush)
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush()
+    }
+    document.addEventListener("visibilitychange", onVisibility)
+    return () => {
+      window.removeEventListener("pagehide", flush)
+      document.removeEventListener("visibilitychange", onVisibility)
+    }
+  }, [])
+
+  // Save immediately when school or survey module changes (don't wait for debounce).
+  useEffect(() => {
+    if (!state.hydrated || !state.school || !state.session) return
+    const savedAt = persistDraftFromState(stateRef.current)
+    if (!savedAt) return
+    dispatch({ type: "MARK_SAVED", savedAt })
+  }, [state.hydrated, state.school?.id, state.surveyType])
+
+  // Auto-save draft on change — debounced to avoid Safari localStorage pressure while typing notes.
   useEffect(() => {
     if (!state.hydrated || !state.school || !state.session) return
 
-    const savedAt = persistDraftFromState(state)
-    if (!savedAt) return
-    dispatch({ type: "MARK_SAVED", savedAt })
+    const timer = window.setTimeout(() => {
+      const savedAt = persistDraftFromState(stateRef.current)
+      if (!savedAt) return
+      dispatch({ type: "MARK_SAVED", savedAt })
+    }, 800)
+
+    return () => window.clearTimeout(timer)
   }, [
     state.hydrated,
     state.school,
@@ -3389,10 +3418,19 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
   const resetWeightOverrides = useCallback(() => dispatch({ type: "RESET_WEIGHT_OVERRIDES" }), [])
 
-  const hasAssessorRegistered =
-    hasActiveVisit() &&
-    (!!resolveCampusAssessor(state.assessorByType) ||
-      (state.surveyType === "closeout" && isAssessorRegistered(state.assessorByType.studios)))
+  const hasAssessorRegistered = (() => {
+    const campusAssessor = resolveCampusAssessor(state.assessorByType, state.surveyType)
+    const hasAssessorInfo =
+      isAssessorRegistered(campusAssessor) ||
+      (state.surveyType === "closeout" && isAssessorRegistered(state.assessorByType.studios))
+    if (!hasAssessorInfo) return false
+    // After iOS tab kill, sessionStorage is cleared but localStorage draft/session remains.
+    return (
+      hasActiveVisit() ||
+      (state.session != null && sessionHasRegisteredAssessor(state.session)) ||
+      !!state.lastSavedAt
+    )
+  })()
 
   const registerAssessor = useCallback((name: string, email: string) => {
     markActiveVisit()
