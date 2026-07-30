@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, "..")
 
 const sourceDir =
   process.argv[2] ||
-  path.join(process.env.USERPROFILE ?? "", "Downloads", "AISD_ESA_All_Tabs_CSV_Package")
+  path.join(process.env.USERPROFILE ?? "", "Downloads", "AISD_ESA_FinalDraft0729_CSV_Package")
 
 const files = [
   "01_Surveys.csv",

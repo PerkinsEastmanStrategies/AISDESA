@@ -1,10 +1,38 @@
 ﻿SpaceTypeID,SurveyID,SurveyFocusArea,ScoreFocusArea,SpaceTypeName,DisplayOrder,IsActive
 SPT-TRADITIONAL-STUDIO,SRV-STUDIOS,Studios,Studios,Traditional Studio,10,True
-SPT-MAKER-SPACE,SRV-STUDIOS,Studios,Studios,Maker Space,20,True
-SPT-OUTDOOR-SPACES,SRV-OUTDOOR,Outdoor,Outdoor,Outdoor Spaces,30,True
-SPT-ADMIN-OFFICES,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Admin Offices,40,True
+SPT-OUTDOOR-SPACES,SRV-OUTDOOR,Outdoor,Outdoor,Outdoor Spaces,20,True
+SPT-ADMIN-OFFICES,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Admin Offices,30,True
+SPT-MAIN-ADMIN-SUITE,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Main Admin Suite,40,True
 SPT-COMMUNITY-PARTNERS-SUITE,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Community Partners Suite,50,True
-SPT-MENTAL-WELLNESS-AND-COUNSELING-S,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Mental Wellness and Counseling Suite,60,True
+SPT-MENTAL-WELLNESS-AND-COUNSELING-SUI,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Mental Wellness and Counseling Suite,60,True
 SPT-PROFESSIONAL-LEARNING-CENTER,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Professional Learning Center,70,True
 SPT-MAIN-ENTRY-RECEPTION,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Main Entry/Reception,80,True
-SPT-MAIN-ADMIN-SUITE,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Main Admin Suite,90,True
+SPT-SCIENCE,SRV-STUDIOS,Studios,Studios,Science,90,True
+SPT-SCIENCE-PREP-ROOM,SRV-STUDIOS,Studios,Studios,Science Prep Room,100,True
+SPT-EARLY-CHILDHOOD-STUDIO,SRV-STUDIOS,Studios,Studios,Early childhood studio,110,True
+SPT-EARLY-CHILDHOOD-SPECIAL-EDUCATION-,SRV-STUDIOS,Studios,Special Education,Early Childhood Special Education studio,120,True
+SPT-MAKER-SPACE,SRV-STUDIOS,Studios,Studios,Maker Space,130,True
+SPT-SPECIAL-EDUCATION-SUITE,SRV-SPECIAL-EDUCATION,Special Education,Special Education,Special Education Suite,140,True
+SPT-SENSORY-MOTOR-LAB,SRV-SPECIAL-EDUCATION,Special Education,Special Education,Sensory Motor Lab,150,True
+SPT-LIFE-SKILLS-STUDIO,SRV-SPECIAL-EDUCATION,Special Education,Special Education,Life Skills Studio,160,True
+SPT-VOCATIONAL-LAB,SRV-SPECIAL-EDUCATION,Special Education,Special Education,Vocational Lab,170,True
+SPT-SPED-FLEX-STUDIO,SRV-STUDIOS,Studios,Special Education,SPED Flex Studio,180,True
+SPT-LIBRARY-MEDIA-CENTER,SRV-SHARED-SPACES,Shared Spaces,Shared Spaces,Library Media Center,190,True
+SPT-COMPETITION-GYM,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Competition Gym,200,True
+SPT-MULTIPURPOSE-GYM,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Multipurpose Gym,210,True
+SPT-PRACTICE-GYM,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Practice Gym,220,True
+SPT-WEIGHT-ROOM,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Weight Room,230,True
+SPT-WRESTLING,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Wrestling,240,True
+SPT-LOCKER-ROOMS,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Locker rooms,250,True
+SPT-PE-FITNESS-ROOM,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,PE Fitness Room,260,True
+SPT-ATHLETICS-WING,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Athletics Wing,270,True
+SPT-OUTDOOR-ATHLETICS,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Outdoor Athletics,280,True
+SPT-ART-STUDIO,SRV-STUDIOS,Studios,Studios,Art Studio,290,True
+SPT-2D-ART-STUDIO,SRV-STUDIOS,Studios,Studios,2D Art Studio,300,True
+SPT-3D-ART-STUDIO,SRV-STUDIOS,Studios,Studios,3D Art Studio,310,True
+SPT-DIGITAL-ARTS-STUDIO,SRV-STUDIOS,Studios,Studios,Digital Arts Studio,320,True
+SPT-THEATER-ARTS-STUDIO,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Theater Arts Studio,330,True
+SPT-AUDITORIUM,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Auditorium,340,True
+SPT-BLACK-BOX,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Black Box,350,True
+SPT-DANCE,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Dance,360,True
+SPT-THEATER-ARTS-SUITE,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Theater Arts Suite,370,True

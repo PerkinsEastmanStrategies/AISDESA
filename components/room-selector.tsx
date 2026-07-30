@@ -30,6 +30,10 @@ import {
   surveyModuleUsesSpaceTypePicker,
   surveyTypeForSpaceType,
   tableEntryForSpaceType,
+  spaceTypeDisplayLabel,
+  questionSetStatusForSpaceType,
+  isPendingQuestionSet,
+  isPlaceholderQuestionSet,
   type RoomSurveySession,
 } from "@aisd/shared"
 import { roomNeedsCloseOut } from "@/lib/closeout"
@@ -72,6 +76,7 @@ export default function RoomSelector({
     setNeighborhood,
     setSchoolRoomNumber,
     setPendingStudioType,
+    setPendingNeighborhood,
     setSpaceTypeExists,
     setSurveyType,
     selectRoom,
@@ -111,7 +116,10 @@ export default function RoomSelector({
     state.surveyType,
     selectedSpaceType,
   )
-  const showNeighborhoodPicker = showNeighborhoodForRoom || neighborhoodOnlyMode
+  const isNeighborhoodsSurvey = state.surveyType === "neighborhoods"
+  const showNeighborhoodsEarlyPicker = isNeighborhoodsSurvey && !!selectedSpaceType
+  const showNeighborhoodPicker =
+    showNeighborhoodForRoom || neighborhoodOnlyMode || showNeighborhoodsEarlyPicker
   const selectedStudioType =
     showStudioType && selectedSpaceType && isStudioType(selectedSpaceType)
       ? selectedSpaceType
@@ -122,15 +130,24 @@ export default function RoomSelector({
     state.school?.schoolClass,
   )
   const spaceTypeReady = !showSpaceType || !!selectedSpaceType || preWalkMapped
+  const pendingNeighborhood = state.pendingNeighborhood ?? ""
+  const selectedNeighborhood = neighborhoodOnlyMode
+    ? neighborhoodFromSurveyRoomId(selectedId ?? "") ??
+      currentRoomSession?.neighborhood ??
+      pendingNeighborhood
+    : isNeighborhoodsSurvey
+      ? currentRoomSession?.neighborhood ?? pendingNeighborhood
+      : (currentRoomSession?.neighborhood ?? "")
+  const neighborhoodReady = !isNeighborhoodsSurvey || !!selectedNeighborhood.trim()
   const showExistenceGate =
-    !!selectedSpaceType && spaceTypeRequiresExistenceGate(selectedSpaceType)
+    !!selectedSpaceType && spaceTypeRequiresExistenceGate(selectedSpaceType) && neighborhoodReady
   const spaceTypeExistsAnswer = showExistenceGate
     ? readSpaceTypeExistsAtSchool(state.session, selectedSpaceType)
     : null
   const spaceTypeAbsent = spaceTypeExistsAnswer === false
   const spaceTypeExistsConfirmed = spaceTypeExistsAnswer === true
   const roomSelectionReady =
-    spaceTypeReady && (!showExistenceGate || spaceTypeExistsConfirmed)
+    spaceTypeReady && neighborhoodReady && (!showExistenceGate || spaceTypeExistsConfirmed)
   const spaceTypeNoun = showStudioType ? "studio type" : "space type"
   const showGrade =
     studioTypeShowsGradePicker(selectedStudioType, state.school?.schoolClass) ||
@@ -151,11 +168,6 @@ export default function RoomSelector({
   const searchRef = useRef<HTMLInputElement>(null)
   const manualRoomRef = useRef<HTMLInputElement>(null)
   const selectedGrade = currentRoomSession?.gradeType ?? ""
-  const selectedNeighborhood = neighborhoodOnlyMode
-    ? neighborhoodFromSurveyRoomId(selectedId ?? "") ??
-      currentRoomSession?.neighborhood ??
-      ""
-    : (currentRoomSession?.neighborhood ?? "")
   const [neighborhoodOptions, setNeighborhoodOptions] = useState<string[]>([...NEIGHBORHOOD_OPTIONS])
   const neighborhoodLoadRef = useRef(0)
 
@@ -500,14 +512,20 @@ export default function RoomSelector({
 
   const handleSelectNeighborhood = (neighborhood: string) => {
     setNeighborhoodPickerOpen(false)
-    if (neighborhoodOnlyMode) {
-      if (!neighborhood.trim()) {
+    if (isNeighborhoodsSurvey) {
+      const trimmed = neighborhood.trim()
+      setPendingNeighborhood(trimmed || null)
+      if (!trimmed) {
+        if (neighborhoodOnlyMode) selectRoom(null)
+        return
+      }
+      if (neighborhoodOnlyMode) {
         selectRoom(null)
         return
       }
-      const roomId = neighborhoodSurveyRoomId(neighborhood)
-      selectRoom(roomId)
-      setNeighborhood(roomId, neighborhood)
+      if (selectedId) {
+        setNeighborhood(selectedId, trimmed)
+      }
       return
     }
     if (!selectedId) return
@@ -635,16 +653,57 @@ export default function RoomSelector({
             <p className="mt-1.5 text-[11px] text-slate-500">
               {preWalkMapped
                 ? "Select a room — its space type will fill in from your pre-walk map"
-                : neighborhoodOnlyMode
-                  ? "Choose Neighborhood, then select which neighborhood to assess"
-                  : `Choose a ${spaceTypeNoun} before selecting a room`}
+                : isNeighborhoodsSurvey
+                  ? "Choose a space type, then select the neighborhood you are assessing"
+                  : neighborhoodOnlyMode
+                    ? "Choose Neighborhood, then select which neighborhood to assess"
+                    : `Choose a ${spaceTypeNoun} before selecting a room`}
             </p>
           )}
-          {selectedSpaceType && neighborhoodOnlyMode && !spaceTypeAbsent && (
+          {selectedSpaceType && isNeighborhoodsSurvey && !selectedNeighborhood.trim() && (
             <p className="mt-1.5 text-[11px] text-slate-500">
-              Select a neighborhood below — no room required for this space type.
+              Select the neighborhood you are in before confirming whether this space type exists there.
             </p>
           )}
+          {selectedSpaceType && neighborhoodOnlyMode && selectedNeighborhood.trim() && !spaceTypeAbsent && (
+            <p className="mt-1.5 text-[11px] text-slate-500">
+              Confirm whether this space type exists in this neighborhood to begin scoring.
+            </p>
+          )}
+        </div>
+      )}
+
+      {showNeighborhoodsEarlyPicker && (
+        <div>
+          <label
+            htmlFor="neighborhood-early-select-trigger"
+            className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400"
+          >
+            Neighborhood
+          </label>
+          <button
+            id="neighborhood-early-select-trigger"
+            type="button"
+            onClick={() => {
+              setRoomPickerOpen(false)
+              setGradePickerOpen(false)
+              setStudioTypePickerOpen(false)
+              setNeighborhoodPickerOpen(true)
+            }}
+            className="flex w-full min-h-[48px] items-center gap-2 rounded-xl border border-slate-200/90 bg-slate-50/80 px-3 py-3 text-left text-sm font-medium text-slate-900 shadow-[0_1px_0_rgba(15,23,42,0.03)] outline-none transition-colors focus:border-[var(--color-primary)] focus:bg-white focus:ring-2 focus:ring-blue-100"
+          >
+            <span
+              className={cn(
+                "min-w-0 flex-1 truncate",
+                !selectedNeighborhood.trim() && "font-normal text-slate-400",
+              )}
+            >
+              {selectedNeighborhood.trim()
+                ? `Neighborhood ${selectedNeighborhood}`
+                : "Select neighborhood"}
+            </span>
+            <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+          </button>
         </div>
       )}
 
@@ -653,6 +712,7 @@ export default function RoomSelector({
           spaceType={selectedSpaceType}
           value={spaceTypeExistsAnswer}
           onChange={(exists) => setSpaceTypeExists(selectedSpaceType, exists)}
+          neighborhood={isNeighborhoodsSurvey ? selectedNeighborhood : null}
         />
       )}
 
@@ -741,8 +801,8 @@ export default function RoomSelector({
           </div>
         )}
 
-        {showNeighborhoodPicker && (
-          <div className={cn((neighborhoodOnlyMode || !showGrade) && "col-span-2")}>
+        {showNeighborhoodForRoom && (
+          <div className={cn(!showGrade && "col-span-2")}>
             <label
               htmlFor="neighborhood-select-trigger"
               className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400"
@@ -753,17 +813,12 @@ export default function RoomSelector({
               id="neighborhood-select-trigger"
               type="button"
               onClick={() => {
-                if (neighborhoodOnlyMode && !roomSelectionReady) return
                 setRoomPickerOpen(false)
                 setGradePickerOpen(false)
                 setStudioTypePickerOpen(false)
                 setNeighborhoodPickerOpen(true)
               }}
-              disabled={neighborhoodOnlyMode && !roomSelectionReady}
-              className={cn(
-                "flex w-full min-h-[48px] items-center gap-2 rounded-xl border border-slate-200/90 bg-slate-50/80 px-3 py-3 text-left text-sm font-medium text-slate-900 shadow-[0_1px_0_rgba(15,23,42,0.03)] outline-none transition-colors focus:border-[var(--color-primary)] focus:bg-white focus:ring-2 focus:ring-blue-100",
-                neighborhoodOnlyMode && !roomSelectionReady && "cursor-not-allowed opacity-60",
-              )}
+              className="flex w-full min-h-[48px] items-center gap-2 rounded-xl border border-slate-200/90 bg-slate-50/80 px-3 py-3 text-left text-sm font-medium text-slate-900 shadow-[0_1px_0_rgba(15,23,42,0.03)] outline-none transition-colors focus:border-[var(--color-primary)] focus:bg-white focus:ring-2 focus:ring-blue-100"
             >
               <span
                 className={cn(
@@ -781,7 +836,7 @@ export default function RoomSelector({
         )}
 
         {selectedId && showGrade && !isNeighborhoodSurveyRoomId(selectedId) && (
-          <div className={cn(!showNeighborhoodPicker && "col-span-2")}>
+          <div className={cn(!showNeighborhoodForRoom && "col-span-2")}>
             <label
               htmlFor="grade-select-trigger"
               className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400"
@@ -940,7 +995,19 @@ export default function RoomSelector({
                       )}
                     >
                       <span className="min-w-0 flex-1">
-                        <span className="block leading-snug">{type}</span>
+                        <span className="block leading-snug">
+                          {spaceTypeDisplayLabel(state.surveyType, type, state.school?.schoolClass)}
+                        </span>
+                        {tableEntry?.questionSetStatus === "placeholder" && (
+                          <span className="mt-0.5 block text-[10px] font-medium text-amber-700">
+                            Placeholder question set
+                          </span>
+                        )}
+                        {tableEntry?.questionSetStatus === "pending" && (
+                          <span className="mt-0.5 block text-[10px] font-medium text-slate-500">
+                            Questions pending
+                          </span>
+                        )}
                         {!isRequired && (
                           <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-wide text-slate-400">
                             Optional

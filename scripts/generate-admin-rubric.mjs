@@ -25,7 +25,7 @@ const PACKAGES = [
     label: "Admin Offices",
   },
   {
-    spaceTypeId: "SPT-MENTAL-WELLNESS-AND-COUNSELING-S",
+    spaceTypeId: "SPT-MENTAL-WELLNESS-AND-COUNSELING-SUI",
     assessmentArea: "Administration",
     versionConst: "COUNSELING_SUITE_RUBRIC_VERSION",
     version: 2,

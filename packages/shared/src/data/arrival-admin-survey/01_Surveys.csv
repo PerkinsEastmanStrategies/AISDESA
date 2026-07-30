@@ -1,4 +1,8 @@
 ﻿SurveyID,SurveyName,SurveyFocusArea,Description,DisplayOrder,IsActive
-SRV-STUDIOS,Studios Survey,Studios,Field assessment survey for Studios.,10,True
-SRV-OUTDOOR,Outdoor Survey,Outdoor,Field assessment survey for Outdoor.,20,True
-SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration Survey,Arrival/Administration,Field assessment survey for Arrival/Administration.,30,True
+SRV-STUDIOS,Studios Survey,Studios,Educational suitability assessment for Studios.,10,True
+SRV-OUTDOOR,Outdoor Survey,Outdoor,Educational suitability assessment for Outdoor.,20,True
+SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration Survey,Arrival/Administration,Educational suitability assessment for Arrival/Administration.,30,True
+SRV-SPECIAL-EDUCATION,Special Education Survey,Special Education,Educational suitability assessment for Special Education.,40,True
+SRV-SHARED-SPACES,Shared Spaces Survey,Shared Spaces,Educational suitability assessment for Shared Spaces.,50,True
+SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness Survey,Athletics and Wellness,Educational suitability assessment for Athletics and Wellness.,60,True
+SRV-PERFORMING-ARTS,Performing Arts Survey,Performing Arts,Educational suitability assessment for Performing Arts.,70,True

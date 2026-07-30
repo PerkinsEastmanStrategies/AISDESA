@@ -12,6 +12,7 @@ import {
   isOptionValueSelected,
   isSpaceTypeForSurveyModule,
   surveyModuleUsesSpaceTypePicker,
+  questionSetStatusForSpaceType,
   type EsaQuestion,
   type EsaQuestionOption,
   type RoomQuestionResponse,
@@ -186,7 +187,40 @@ export default function QuestionForm() {
     })
   }, [])
 
-  if (!rubric || !roomId) return null
+  if (!roomId) return null
+
+  if (!rubric) {
+    const roomType = currentRoomSession?.roomType
+    if (!roomType) return null
+    const status = questionSetStatusForSpaceType(
+      state.surveyType,
+      roomType,
+      state.school?.schoolClass,
+    )
+    if (status === "pending") {
+      return (
+        <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
+          <h2 className="text-lg font-semibold">{roomType}</h2>
+          <p className="mt-2 max-w-md text-sm text-[var(--color-muted-foreground)]">
+            Survey questions for this space type are pending and will be added in a future release.
+            The space type remains in the registry for planning and close-out tracking.
+          </p>
+        </div>
+      )
+    }
+    if (status === "placeholder") {
+      return (
+        <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
+          <h2 className="text-lg font-semibold">{roomType}</h2>
+          <p className="mt-2 max-w-md text-sm text-[var(--color-muted-foreground)]">
+            Neighborhood questions shown here are placeholders until the final Neighborhoods question
+            set is published. Responses may be revised when official questions are loaded.
+          </p>
+        </div>
+      )
+    }
+    return null
+  }
 
   const spaceType = currentRoomSession?.roomType
   const showSpaceTypePhoto =

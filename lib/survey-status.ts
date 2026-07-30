@@ -190,6 +190,7 @@ export function areAllRoomsSurveyed(
 
   if (
     surveyType === "studios" ||
+    surveyType === "special_education" ||
     surveyType === "administration" ||
     surveyType === "arrival" ||
     surveyType === "neighborhoods" ||
@@ -227,6 +228,7 @@ export function areAllRoomsSurveyed(
 function surveyTypeHasDedicatedCompletion(surveyType: SurveyType): boolean {
   return (
     surveyType === "studios" ||
+    surveyType === "special_education" ||
     surveyType === "administration" ||
     surveyType === "arrival" ||
     surveyType === "neighborhoods" ||

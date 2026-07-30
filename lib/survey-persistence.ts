@@ -33,6 +33,8 @@ export interface PersistedSurveyDraft {
   /** UI selection — restored on reload so the user returns to the same place */
   selectedRoomId?: string | null
   pendingStudioType?: string | null
+  /** Neighborhoods survey: selected neighborhood before existence gate / room pick */
+  pendingNeighborhood?: string | null
   view?: "survey" | "results"
   /** Rooms entered manually (not on the floor plan SVG) */
   manualRooms?: ParsedPlanRoom[]

@@ -1,5 +1,6 @@
 export type SurveyType =
   | "studios"
+  | "special_education"
   | "outdoor"
   | "neighborhoods"
   | "arrival"

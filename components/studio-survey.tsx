@@ -95,6 +95,8 @@ export default function StudioSurvey() {
     state.surveyType,
     selectedSpaceType,
   )
+  const isNeighborhoodsSurvey = state.surveyType === "neighborhoods"
+  const pendingNeighborhood = state.pendingNeighborhood?.trim() ?? ""
   const spaceTypeAbsent =
     !!selectedSpaceType && isSpaceTypeMarkedAbsentAtSchool(state.session, selectedSpaceType)
   const showQuestions = !!state.selectedRoomId && !spaceTypeAbsent
@@ -160,9 +162,17 @@ export default function StudioSurvey() {
                 ? "Select a room below to answer deferred questions from other survey sections."
                 : "Review your campus Close Out summary below, add final thoughts, and submit when ready."
               : needsSpaceType
-                ? neighborhoodOnlyMode
-                  ? "Select the Neighborhood space type, then choose a neighborhood to begin scoring."
-                  : "Select a space type, then choose a room from the dropdown or floor plan to begin scoring."
+                ? isNeighborhoodsSurvey
+                  ? !selectedSpaceType
+                    ? "Select a space type, then choose the neighborhood you are assessing."
+                    : !pendingNeighborhood
+                      ? "Select the neighborhood you are in, then confirm whether this space type exists in this neighborhood."
+                      : neighborhoodOnlyMode
+                        ? "Confirm whether this space type exists in this neighborhood to begin scoring."
+                        : "Confirm whether this space type exists in this neighborhood, then select a room to begin scoring."
+                  : neighborhoodOnlyMode
+                    ? "Select the Neighborhood space type, then choose a neighborhood to begin scoring."
+                    : "Select a space type, then choose a room from the dropdown or floor plan to begin scoring."
                 : "Select a studio type, then choose a room from the dropdown or floor plan to begin scoring."}
           </p>
         </div>

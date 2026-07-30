@@ -53,6 +53,8 @@ function surveyTypeShortLabel(type: SurveyType): string {
   switch (type) {
     case "studios":
       return "Stu"
+    case "special_education":
+      return "SpEd"
     case "outdoor":
       return "Out"
     case "neighborhoods":

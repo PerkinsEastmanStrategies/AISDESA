@@ -40,8 +40,10 @@ import {
   isElementaryGrade,
   isNeighborhoodSpaceType,
   isOutdoorSpaceType,
+  isNeighborhoodOnlySpaceType,
   isNeighborhoodSurveyRoomId,
   isOutdoorSurveyRoomId,
+  neighborhoodSurveyRoomId,
   isRoomComplete,
   isSecondaryGrade,
   neighborhoodFromSurveyRoomId,
@@ -161,6 +163,7 @@ interface SurveyState {
   assessorByType: AssessorBySurveyType
   submitValidation: SubmitValidationResult | null
   pendingStudioType: string | null
+  pendingNeighborhood: string | null
   preWalk: PreWalkState
   preWalkPromptPending: boolean
   preWalkRequested: boolean
@@ -197,6 +200,7 @@ type Action =
   | { type: "ANSWER_PREWALK_PROMPT"; choice: "map" | "skip" }
   | { type: "SET_ROOM_TYPE"; roomId: string; roomType: string }
   | { type: "SET_PENDING_STUDIO_TYPE"; roomType: string | null }
+  | { type: "SET_PENDING_NEIGHBORHOOD"; neighborhood: string | null }
   | { type: "SET_SPACE_TYPE_EXISTS"; spaceType: string; exists: boolean }
   | { type: "SET_RESPONSE"; roomId: string; response: RoomQuestionResponse }
   | { type: "APPLY_TRADITIONAL_STUDIO_COPY"; roomId: string }
@@ -508,6 +512,7 @@ function ensureRoomSession(
 
   const planRoom = state.allRooms.find((r) => r.id === roomId)
   const lookupNeighborhood = lookupNeighborhoodFromPlan(planRoom)
+  const pendingNeighborhood = state.pendingNeighborhood?.trim() ?? ""
   const preWalkMapping = getPreWalkMappingForSurveyModule(
     state.preWalk.mappings,
     state.surveyType,
@@ -527,7 +532,7 @@ function ensureRoomSession(
       areaSqft,
       neighborhood: existing.neighborhood?.trim()
         ? existing.neighborhood
-        : lookupNeighborhood || existing.neighborhood || "",
+        : pendingNeighborhood || lookupNeighborhood || existing.neighborhood || "",
       preWalkNote1: existing.preWalkNote1 ?? preWalkMapping?.note1 ?? "",
       preWalkNote2: existing.preWalkNote2 ?? preWalkMapping?.note2 ?? "",
     }
@@ -537,7 +542,7 @@ function ensureRoomSession(
     roomNumber: roomId,
     roomType,
     gradeType: "",
-    neighborhood: lookupNeighborhood,
+    neighborhood: pendingNeighborhood || lookupNeighborhood,
     areaSqft: lookupAreaFromPlan(planRoom),
     preWalkNote1: preWalkMapping?.note1 ?? "",
     preWalkNote2: preWalkMapping?.note2 ?? "",
@@ -642,6 +647,7 @@ function stateFromDraft(
     assessorByType: stamped.assessorByType,
     submitValidation: null,
     pendingStudioType: draft.pendingStudioType ?? null,
+    pendingNeighborhood: draft.pendingNeighborhood ?? null,
     preWalk: migratePreWalkState(draft.preWalk, school.schoolClass),
     preWalkPromptPending: false,
     preWalkRequested: false,
@@ -935,6 +941,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         showResumeBanner: false,
         weightOverrides: EMPTY_WEIGHT_OVERRIDES,
         pendingStudioType: action.pendingStudioType ?? null,
+        pendingNeighborhood: null,
         preWalk: EMPTY_PREWALK,
         ...emptyScoreState(),
       })
@@ -1146,6 +1153,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       }
     }
     case "SET_PENDING_STUDIO_TYPE": {
+      const clearNeighborhood = action.roomType !== state.pendingStudioType
       if (state.selectedRoomId && state.session && action.roomType) {
         const existing = state.session.rooms[state.selectedRoomId]
         const updated = ensureRoomSession(state, state.selectedRoomId, existing)
@@ -1157,6 +1165,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         return {
           ...state,
           pendingStudioType: action.roomType,
+          pendingNeighborhood: clearNeighborhood ? null : state.pendingNeighborhood,
           session: {
             ...state.session,
             updatedAt: new Date().toISOString(),
@@ -1177,7 +1186,26 @@ function reducer(state: SurveyState, action: Action): SurveyState {
           },
         }
       }
-      return { ...state, pendingStudioType: action.roomType }
+      return {
+        ...state,
+        pendingStudioType: action.roomType,
+        pendingNeighborhood: clearNeighborhood ? null : state.pendingNeighborhood,
+        ...(clearNeighborhood && state.surveyType === "neighborhoods"
+          ? { selectedRoomId: null }
+          : {}),
+      }
+    }
+    case "SET_PENDING_NEIGHBORHOOD": {
+      const neighborhood = action.neighborhood?.trim() ?? ""
+      const nextNeighborhood = neighborhood || null
+      const neighborhoodOnly =
+        state.surveyType === "neighborhoods" &&
+        isNeighborhoodOnlySpaceType(state.surveyType, state.pendingStudioType)
+      return {
+        ...state,
+        pendingNeighborhood: nextNeighborhood,
+        ...(neighborhoodOnly ? { selectedRoomId: null } : {}),
+      }
     }
     case "SET_SPACE_TYPE_EXISTS": {
       if (!state.session) return state
@@ -1185,21 +1213,50 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         ...(state.session.spaceTypeExistsAtSchool ?? {}),
         [action.spaceType]: action.exists,
       }
+      let selectedRoomId = state.selectedRoomId
       const clearSelection =
         !action.exists &&
-        !!state.selectedRoomId &&
+        !!selectedRoomId &&
         (state.pendingStudioType === action.spaceType ||
-          state.session.rooms[state.selectedRoomId]?.roomType === action.spaceType ||
-          (isNeighborhoodSurveyRoomId(state.selectedRoomId) &&
+          state.session.rooms[selectedRoomId]?.roomType === action.spaceType ||
+          (isNeighborhoodSurveyRoomId(selectedRoomId) &&
             action.spaceType === "Neighborhood"))
+      if (clearSelection) selectedRoomId = null
+
+      let session: SurveySession = {
+        ...state.session,
+        spaceTypeExistsAtSchool,
+        updatedAt: new Date().toISOString(),
+      }
+
+      const activeSpaceType =
+        state.pendingStudioType ??
+        (selectedRoomId ? session.rooms[selectedRoomId]?.roomType : null) ??
+        action.spaceType
+
+      if (
+        action.exists &&
+        state.surveyType === "neighborhoods" &&
+        state.pendingNeighborhood?.trim() &&
+        isNeighborhoodOnlySpaceType(state.surveyType, activeSpaceType)
+      ) {
+        const nh = state.pendingNeighborhood.trim()
+        const roomId = neighborhoodSurveyRoomId(nh)
+        selectedRoomId = roomId
+        const ensured = ensureRoomSession({ ...state, session }, roomId, session.rooms[roomId])
+        session = {
+          ...session,
+          rooms: {
+            ...session.rooms,
+            [roomId]: { ...ensured, neighborhood: nh, roomType: "Neighborhood" },
+          },
+        }
+      }
+
       return {
         ...state,
-        selectedRoomId: clearSelection ? null : state.selectedRoomId,
-        session: {
-          ...state.session,
-          spaceTypeExistsAtSchool,
-          updatedAt: new Date().toISOString(),
-        },
+        selectedRoomId,
+        session,
       }
     }
     case "SET_ROOM_TYPE": {
@@ -1812,6 +1869,7 @@ interface SurveyContextValue {
   answerPreWalkPrompt: (choice: "map" | "skip") => void
   setRoomType: (roomId: string, roomType: string) => void
   setPendingStudioType: (roomType: string | null) => void
+  setPendingNeighborhood: (neighborhood: string | null) => void
   setSpaceTypeExists: (spaceType: string, exists: boolean) => void
   setResponse: (roomId: string, response: RoomQuestionResponse) => void
   applyTraditionalStudioCopy: (roomId: string) => void
@@ -1977,6 +2035,7 @@ function persistDraftFromState(state: SurveyState): string | null {
     selectedLevelId: state.selectedLevelId,
     selectedRoomId: state.selectedRoomId,
     pendingStudioType: state.pendingStudioType,
+    pendingNeighborhood: state.pendingNeighborhood,
     preWalk: state.preWalk,
     view: state.view === "admin" || state.view === "landing" ? "survey" : state.view,
     manualRooms: state.manualRooms,
@@ -2070,6 +2129,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     assessorByType: {},
     submitValidation: null,
     pendingStudioType: null,
+    pendingNeighborhood: null,
     preWalk: EMPTY_PREWALK,
     preWalkPromptPending: false,
     preWalkRequested: false,
@@ -2160,6 +2220,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     state.selectedLevelId,
     state.selectedRoomId,
     state.pendingStudioType,
+    state.pendingNeighborhood,
     state.preWalk,
     state.view,
     state.manualRooms,
@@ -3026,6 +3087,11 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     (roomType: string | null) => dispatch({ type: "SET_PENDING_STUDIO_TYPE", roomType }),
     [],
   )
+  const setPendingNeighborhood = useCallback(
+    (neighborhood: string | null) =>
+      dispatch({ type: "SET_PENDING_NEIGHBORHOOD", neighborhood }),
+    [],
+  )
   const setSpaceTypeExists = useCallback(
     (spaceType: string, exists: boolean) =>
       dispatch({ type: "SET_SPACE_TYPE_EXISTS", spaceType, exists }),
@@ -3154,6 +3220,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         answerPreWalkPrompt,
         setRoomType,
         setPendingStudioType,
+        setPendingNeighborhood,
         setSpaceTypeExists,
         setResponse,
         applyTraditionalStudioCopy,

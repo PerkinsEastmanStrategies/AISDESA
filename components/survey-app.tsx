@@ -30,11 +30,16 @@ function SurveyBody() {
 
   if (
     state.surveyType === "studios" ||
+    state.surveyType === "special_education" ||
     state.surveyType === "closeout" ||
     state.surveyType === "outdoor" ||
     state.surveyType === "administration" ||
     state.surveyType === "arrival" ||
-    state.surveyType === "neighborhoods"
+    state.surveyType === "neighborhoods" ||
+    state.surveyType === "athletics" ||
+    state.surveyType === "performing_arts" ||
+    state.surveyType === "shared_spaces" ||
+    state.surveyType === "cte"
   ) {
     return <StudioSurvey />
   }
@@ -42,11 +47,7 @@ function SurveyBody() {
   return (
     <PlaceholderSurvey
       title={surveyTypeLabel(state.surveyType)}
-      description={
-        rubric
-          ? "Questions coming soon."
-          : "This survey module is not yet configured. Select Studios, Neighborhoods, Arrival/Main Office, or Administration to begin ESA scoring."
-      }
+      description="This survey module is not yet configured."
     />
   )
 }

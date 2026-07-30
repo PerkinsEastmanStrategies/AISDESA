@@ -9,11 +9,16 @@ import {
   requiredSurveyTypesForSchool,
   scoringFocusAreaForRoomFromTable,
   scoringFocusAreaLabel,
+  spaceTypeDisplayLabel,
   spaceTypesForSurveyModule,
   surveyFocusForSurveyType,
   surveyTypeAvailableForSchoolFromTable,
   surveyTypesForSchool,
   surveyTypesInSameNavGroup,
+  questionSetStatusForSpaceType,
+  isPendingQuestionSet,
+  isPlaceholderQuestionSet,
+  type QuestionSetStatus,
   type ScoringFocusAreaId,
   type TableOfSurveyEntry,
 } from "../data/table-of-surveys"
@@ -115,6 +120,7 @@ import {
   OUTDOOR_SPACES_SUBCATEGORIES,
 } from "../data/outdoor-rubric"
 import { ensureNotAbleToAssessOptions } from "../data/not-able-to-assess"
+import { roomRubricForSpaceType } from "../data/room-rubric-map"
 
 export {
   TRADITIONAL_STUDIOS_RUBRIC_VERSION,
@@ -281,6 +287,7 @@ const OPEN_COLLAB_RUBRIC: SurveyRubric = {
 
 const RUBRICS: Record<SurveyType, SurveyRubric | null> = {
   studios: STUDIOS_RUBRIC,
+  special_education: null,
   /** Close Out reuses Studios questions for deferred unfinished items */
   closeout: STUDIOS_RUBRIC,
   outdoor: OUTDOOR_SPACES_RUBRIC,
@@ -464,6 +471,13 @@ export function getRoomSurveyRubric(
     surveyType === "closeout" && sourceSurveyType ? sourceSurveyType : surveyType
   let rubric: SurveyRubric | null = null
 
+  if (
+    roomType &&
+    isPendingQuestionSet(effectiveType, roomType, schoolClass)
+  ) {
+    return null
+  }
+
   if (effectiveType === "neighborhoods") {
     let base: SurveyRubric | null = null
     if (roomType === "Neighborhood") base = NEIGHBORHOOD_SPACE_RUBRIC
@@ -488,41 +502,50 @@ export function getRoomSurveyRubric(
     if (roomType === "Outdoor Spaces") {
       rubric = filterRubricBySchoolLevel(OUTDOOR_SPACES_RUBRIC, schoolClass)
     } else if (roomType === "Outdoor Athletics") {
-      rubric = filterRubricBySchoolLevel(OUTDOOR_SPACES_RUBRIC, schoolClass)
+      const parts = roomRubricForSpaceType("Outdoor Athletics")
+      rubric = parts
+        ? filterRubricBySchoolLevel(
+            {
+              assessmentArea: parts.assessmentArea,
+              categories: parts.categories,
+              subcategories: parts.subcategories,
+              questions: parts.questions as SurveyRubric["questions"],
+              options: parts.options as SurveyRubric["options"],
+            },
+            schoolClass,
+          )
+        : null
     } else {
       return null
     }
   } else if (
+    effectiveType === "studios" ||
+    effectiveType === "special_education" ||
     effectiveType === "athletics" ||
     effectiveType === "performing_arts" ||
     effectiveType === "cte" ||
-    effectiveType === "shared_spaces"
+    effectiveType === "shared_spaces" ||
+    effectiveType === "closeout"
   ) {
-    rubric = filterRubricBySchoolLevel(TRADITIONAL_STUDIOS_RUBRIC, schoolClass)
-  } else if (effectiveType !== "studios" && effectiveType !== "closeout") {
-    rubric = RUBRICS[effectiveType]
-  } else if (roomType === "Traditional studio") {
-    rubric = filterRubricBySchoolLevel(TRADITIONAL_STUDIOS_RUBRIC, schoolClass)
-  } else if (roomType === "Sensory Lab") {
-    rubric = filterRubricBySchoolLevel(SENSORY_LAB_RUBRIC, schoolClass)
-  } else if (roomType === "Vocational Lab" || roomType === "Vocational lab") {
-    rubric = filterRubricBySchoolLevel(VOCATIONAL_LAB_RUBRIC, schoolClass)
-  } else if (roomType === "Life Skills Room") {
-    rubric = filterRubricBySchoolLevel(LIFE_SKILLS_RUBRIC, schoolClass)
-  } else if (roomType === "Sped flex studio") {
-    rubric = filterRubricBySchoolLevel(SPED_FLEX_RUBRIC, schoolClass)
-  } else if (roomType === "Maker space") {
-    rubric = filterRubricBySchoolLevel(MAKER_SPACE_RUBRIC, schoolClass)
-  } else if (
-    roomType === "Early childhood studio" ||
-    roomType === "Early childhood special education studio" ||
-    roomType === "Art" ||
-    roomType === "Music" ||
-    roomType === "Science"
-  ) {
-    rubric = filterRubricBySchoolLevel(TRADITIONAL_STUDIOS_RUBRIC, schoolClass)
+    const parts = roomType ? roomRubricForSpaceType(roomType) : null
+    if (parts) {
+      rubric = filterRubricBySchoolLevel(
+        {
+          assessmentArea: parts.assessmentArea,
+          categories: parts.categories,
+          subcategories: parts.subcategories,
+          questions: parts.questions as SurveyRubric["questions"],
+          options: parts.options as SurveyRubric["options"],
+        },
+        schoolClass,
+      )
+    } else if (effectiveType === "studios" || effectiveType === "closeout") {
+      rubric = STUDIOS_RUBRIC
+    } else {
+      return null
+    }
   } else {
-    rubric = STUDIOS_RUBRIC
+    rubric = RUBRICS[effectiveType]
   }
 
   return rubric ? ensureNotAbleToAssessOptions(rubric) : null
@@ -532,6 +555,8 @@ export function surveyTypeLabel(type: SurveyType): string {
   switch (type) {
     case "studios":
       return "Studios"
+    case "special_education":
+      return "Special Education"
     case "outdoor":
       return "Outdoor Elements"
     case "neighborhoods":
@@ -886,7 +911,7 @@ export function gradeOptionsForSchool(
 }
 
 /** Campus rollup buckets aligned with ESA scoring focus areas (Table of Surveys). */
-export type { ScoringFocusAreaDef, ScoringFocusAreaId } from "../data/table-of-surveys"
+export type { ScoringFocusAreaDef, ScoringFocusAreaId, QuestionSetStatus } from "../data/table-of-surveys"
 
 /** Ordered list shown on the campus results rollup. */
 export const SCORING_FOCUS_AREAS = SCORING_FOCUS_AREAS_FROM_TABLE
@@ -930,4 +955,8 @@ export {
   spaceTypesForSurveyModule,
   surveyTypesForSchool,
   surveyTypesInSameNavGroup,
+  spaceTypeDisplayLabel,
+  questionSetStatusForSpaceType,
+  isPendingQuestionSet,
+  isPlaceholderQuestionSet,
 }

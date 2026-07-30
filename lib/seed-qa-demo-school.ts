@@ -107,6 +107,8 @@ function demoRoomType(surveyType: SurveyType): string {
   switch (surveyType) {
     case "studios":
       return "Traditional studio"
+    case "special_education":
+      return "Sped flex studio"
     case "outdoor":
       return "Outdoor Spaces"
     case "administration":
