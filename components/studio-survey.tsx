@@ -10,7 +10,7 @@ import { PreWalkBanner } from "@/components/pre-walk-launcher"
 import TraditionalStudioCopyReviewModal from "@/components/traditional-studio-copy-review-modal"
 import OutdoorElementsMapModal from "@/components/outdoor-elements-map-modal"
 import { resolveRoomNeighborhoodForCopy } from "@/lib/traditional-studio-copy"
-import { isNeighborhoodOnlySpaceType } from "@aisd/shared"
+import { isNeighborhoodOnlySpaceType, isSpaceTypeMarkedAbsentAtSchool } from "@aisd/shared"
 import { effectiveSpaceTypeForSelection } from "@/lib/prewalk"
 import { Map } from "lucide-react"
 
@@ -95,7 +95,24 @@ export default function StudioSurvey() {
     state.surveyType,
     selectedSpaceType,
   )
-  const showQuestions = !!state.selectedRoomId
+  const isNeighborhoodsSurvey = state.surveyType === "neighborhoods"
+  const pendingNeighborhood = state.pendingNeighborhood?.trim() ?? ""
+  const spaceTypeAbsent =
+    !!selectedSpaceType &&
+    (isSpaceTypeMarkedAbsentAtSchool(
+      state.session,
+      selectedSpaceType,
+      isNeighborhoodsSurvey ? pendingNeighborhood : null,
+    ) ||
+      Object.values(state.session?.rooms ?? {}).some(
+        (room) =>
+          room.spaceTypeMarkedAbsent &&
+          room.roomType === selectedSpaceType &&
+          (!isNeighborhoodsSurvey ||
+            !pendingNeighborhood ||
+            room.neighborhood?.trim() === pendingNeighborhood),
+      ))
+  const showQuestions = !!state.selectedRoomId && !spaceTypeAbsent
 
   return (
     <>
@@ -151,14 +168,24 @@ export default function StudioSurvey() {
       ) : (
         <div className="flex min-h-[40vh] items-center justify-center px-6 py-8 text-center">
           <p className="text-sm text-[var(--color-muted-foreground)]">
-            {isCloseOut
+            {spaceTypeAbsent
+              ? `${selectedSpaceType} was marked as not present${isNeighborhoodsSurvey && pendingNeighborhood ? ` in Neighborhood ${pendingNeighborhood}` : ""}. Save and Complete Another Survey to record a score of 0.`
+              : isCloseOut
               ? closeOutPendingCount > 0
                 ? "Select a room below to answer deferred questions from other survey sections."
                 : "Review your campus Close Out summary below, add final thoughts, and submit when ready."
               : needsSpaceType
-                ? neighborhoodOnlyMode
-                  ? "Select the Neighborhood space type, then choose a neighborhood to begin scoring."
-                  : "Select a space type, then choose a room from the dropdown or floor plan to begin scoring."
+                ? isNeighborhoodsSurvey
+                  ? !selectedSpaceType
+                    ? "Select a space type, then choose the neighborhood you are assessing."
+                    : !pendingNeighborhood
+                      ? "Select the neighborhood you are in, then confirm whether this space type exists in this neighborhood."
+                      : neighborhoodOnlyMode
+                        ? "Confirm whether this space type exists in this neighborhood to begin scoring."
+                        : "Confirm whether this space type exists in this neighborhood, then select a room to begin scoring."
+                  : neighborhoodOnlyMode
+                    ? "Select the Neighborhood space type, then choose a neighborhood to begin scoring."
+                    : "Select a space type, then choose a room from the dropdown or floor plan to begin scoring."
                 : "Select a studio type, then choose a room from the dropdown or floor plan to begin scoring."}
           </p>
         </div>

@@ -16,6 +16,18 @@ import {
 } from "@aisd/shared"
 import { isSkippedDependentQuestion } from "@/lib/question-dependencies"
 
+export function scoreAbsentSpaceTypeRoom(roomId: string): RoomScoreResult {
+  return {
+    roomId,
+    overallScore: 0,
+    categoryScores: [],
+    subcategoryScores: [],
+    questionScores: [],
+    answeredCount: 1,
+    totalCount: 1,
+  }
+}
+
 export function resolveRoomAreaSqft(
   roomSession: RoomSurveySession,
   planRoom?: { areaSqft?: number | null },
