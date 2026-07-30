@@ -26,7 +26,7 @@ export interface SurveyTypeInfo {
   assessor: AssessorInfo | null
 }
 
-function sessionHasProgress(session: SurveySession): boolean {
+export function sessionHasProgress(session: SurveySession): boolean {
   return Object.values(session.rooms).some(
     (room) =>
       room.responses.length > 0 ||
@@ -34,6 +34,16 @@ function sessionHasProgress(session: SurveySession): boolean {
       (room.pendingQuestionIds?.length ?? 0) > 0 ||
       !!room.pendingGrade,
   )
+}
+
+/** True when the active survey module has work worth preserving or discarding on navigate-away. */
+export function surveyModuleHasDraftWork(session: SurveySession | null | undefined): boolean {
+  if (!session) return false
+  if (sessionHasProgress(session)) return true
+  if (Object.keys(session.spaceTypeExistsAtSchool ?? {}).length > 0) return true
+  if (session.finalComment?.trim()) return true
+  if ((session.outdoorElementPins?.length ?? 0) > 0) return true
+  return false
 }
 
 function isRoomSurveyFilledOut(
@@ -79,8 +89,12 @@ export function isStudiosSurveyComplete(
   for (const studioType of requiredTypes) {
     const ofType = roomsMatchingSpaceType(session, "studios", studioType, schoolClass)
     if (
-      !isSpaceTypeRoomsComplete(studioType, ofType, schoolClass, (room) =>
-        isRoomSurveyFilledOut(room, "studios", schoolClass),
+      !isSpaceTypeRoomsComplete(
+        studioType,
+        ofType,
+        schoolClass,
+        (room) => isRoomSurveyFilledOut(room, "studios", schoolClass),
+        { session },
       )
     ) {
       return false
@@ -105,8 +119,12 @@ export function isSpaceTypeSurveyComplete(
   for (const spaceType of requiredTypes) {
     const ofType = roomsMatchingSpaceType(session, surveyType, spaceType, schoolClass)
     if (
-      !isSpaceTypeRoomsComplete(spaceType, ofType, schoolClass, (room) =>
-        isRoomSurveyFilledOut(room, surveyType, schoolClass),
+      !isSpaceTypeRoomsComplete(
+        spaceType,
+        ofType,
+        schoolClass,
+        (room) => isRoomSurveyFilledOut(room, surveyType, schoolClass),
+        { session },
       )
     ) {
       return false
@@ -157,7 +175,7 @@ function isSurveyModuleComplete(
 ): boolean {
   if (surveyType === "studios") return isStudiosSurveyComplete(session, schoolClass)
   if (surveyType === "outdoor") return isOutdoorSurveyComplete(session, schoolClass)
-  if (surveyType === "closeout") return isCloseOutSurveyComplete(session)
+  if (surveyType === "closeout") return isCloseOutSurveyComplete(session, schoolClass)
   return isSpaceTypeSurveyComplete(surveyType, session, schoolClass)
 }
 
@@ -189,7 +207,7 @@ export function areAllRoomsSurveyed(
   if (!rubric) return false
 
   if (surveyType === "closeout") {
-    return isCloseOutSurveyComplete(session)
+    return isCloseOutSurveyComplete(session, schoolClass)
   }
 
   for (const room of classroomRooms) {
@@ -266,10 +284,10 @@ export function getSurveyTypeInfo(
     if (session.campusSubmittedAt || draft?.lastSubmission?.session.campusSubmittedAt) {
       return { status: "complete", assessor }
     }
-    if (closeOutSessionHasWork(session) || !!session.finalComment?.trim() || draft?.lastSubmission) {
+    if (closeOutSessionHasWork(session, schoolClass) || !!session.finalComment?.trim() || draft?.lastSubmission) {
       return { status: "in_progress", assessor }
     }
-    if (isCloseOutSurveyComplete(session) && Object.keys(session.rooms).length > 0) {
+    if (isCloseOutSurveyComplete(session, schoolClass) && Object.keys(session.rooms).length > 0) {
       return { status: "in_progress", assessor }
     }
     return { status: "not_started", assessor }

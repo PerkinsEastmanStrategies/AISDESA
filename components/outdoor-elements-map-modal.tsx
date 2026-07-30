@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { Crosshair, LocateFixed, MapPin, X } from "lucide-react"
+import { ChevronDown, ChevronUp, Crosshair, LocateFixed, MapPin, Trash2, X } from "lucide-react"
 import type { Feature, FeatureCollection } from "geojson"
 import type { AisdSchoolOption } from "@aisd/shared"
 import {
@@ -13,10 +13,14 @@ import {
   type OutdoorAssetLegendItem,
 } from "@/lib/outdoor-assets"
 import {
+  OUTDOOR_ELEMENT_TYPE_OPTIONS,
+  outdoorElementPinLabel,
   outdoorElementPinsToGeoJSON,
+  outdoorElementTypeOption,
 } from "@/lib/outdoor-element-types"
 import OutdoorElementPinPanel from "@/components/outdoor-element-pin-panel"
 import { useSurvey } from "@/lib/survey-store"
+import { cn } from "@/lib/utils"
 import "mapbox-gl/dist/mapbox-gl.css"
 
 type MapboxModule = typeof import("mapbox-gl")
@@ -64,6 +68,89 @@ function setMapCursor(map: import("mapbox-gl").Map | null | undefined, cursor: s
   }
 }
 
+function OutdoorMapLegendContent({
+  assetLegend,
+  assetCount,
+  assetsLoading,
+  assetsError,
+  geoStatus,
+  compact = false,
+}: {
+  assetLegend: OutdoorAssetLegendItem[]
+  assetCount: number
+  assetsLoading: boolean
+  assetsError: string | null
+  geoStatus: "idle" | "active" | "denied" | "unavailable"
+  compact?: boolean
+}) {
+  return (
+    <>
+      <ul className={cn("space-y-1", compact ? "text-[11px]" : "mt-1.5")}>
+        <li className="flex items-center gap-2">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-teal-600 ring-2 ring-white" />
+          School location
+        </li>
+        <li className="flex items-center gap-2">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-blue-600 ring-2 ring-white" />
+          Your location
+        </li>
+        <li className="flex items-center gap-2">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-fuchsia-500 ring-2 ring-white" />
+          Your placed pins
+        </li>
+      </ul>
+      {assetLegend.length > 0 && (
+        <div
+          className={cn(
+            "space-y-1 overflow-y-auto border-t pt-2",
+            compact ? "mt-2 max-h-28 border-slate-100" : "mt-2 max-h-36 border-slate-700/80",
+          )}
+        >
+          <p
+            className={cn(
+              "text-[10px] font-semibold uppercase tracking-wide",
+              compact ? "text-slate-400" : "text-slate-400",
+            )}
+          >
+            Reference assets
+          </p>
+          {assetLegend.map((item) => (
+            <div key={item.category} className="flex items-center justify-between gap-2">
+              <span className="flex min-w-0 items-center gap-2">
+                <span
+                  className="inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className="truncate">{item.category}</span>
+              </span>
+              <span className="shrink-0 tabular-nums text-slate-400">{item.count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <p className={cn("text-slate-400", compact ? "mt-2 text-[11px]" : "mt-2")}>
+        {assetsLoading
+          ? "Loading reference assets…"
+          : assetsError
+            ? assetsError
+            : assetCount > 0
+              ? `${assetCount} mapped asset${assetCount === 1 ? "" : "s"} for this campus`
+              : "No mapped assets for this campus yet"}
+      </p>
+      {geoStatus === "denied" && (
+        <p className={cn("text-amber-600", compact ? "mt-1 text-[11px]" : "mt-1 text-amber-300")}>
+          Location access denied — enable it to see your position.
+        </p>
+      )}
+      {geoStatus === "unavailable" && (
+        <p className={cn("text-amber-600", compact ? "mt-1 text-[11px]" : "mt-1 text-amber-300")}>
+          Geolocation is not available in this browser.
+        </p>
+      )}
+    </>
+  )
+}
+
 export default function OutdoorElementsMapModal({
   open,
   school,
@@ -93,6 +180,7 @@ export default function OutdoorElementsMapModal({
   const [markingMode, setMarkingMode] = useState(true)
   const [selectedElementType, setSelectedElementType] = useState<string | null>(null)
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null)
+  const [mobilePickerExpanded, setMobilePickerExpanded] = useState(false)
 
   const placePinRef = useRef(placeOutdoorElementPin)
   placePinRef.current = placeOutdoorElementPin
@@ -108,8 +196,13 @@ export default function OutdoorElementsMapModal({
       setSelectedElementType(null)
       setSelectedPinId(null)
       setAssetLegend([])
+      setMobilePickerExpanded(false)
     }
   }, [open])
+
+  useEffect(() => {
+    if (selectedElementType) setMobilePickerExpanded(false)
+  }, [selectedElementType])
 
   const mapContainerCallbackRef = useCallback((node: HTMLDivElement | null) => {
     mapContainerRef.current = node
@@ -525,22 +618,54 @@ export default function OutdoorElementsMapModal({
   if (!open || !mounted) return null
 
   const titleId = "outdoor-map-title"
+  const selectedOption = selectedElementType
+    ? outdoorElementTypeOption(selectedElementType)
+    : undefined
+  const selectedPin = selectedPinId
+    ? outdoorElementPins.find((entry) => entry.id === selectedPinId)
+    : undefined
 
   return createPortal(
     <div className="fixed inset-0 z-[120] flex flex-col bg-slate-950">
       <div className="flex shrink-0 items-center gap-2 border-b border-slate-800 bg-slate-950/95 px-3 py-2 text-white backdrop-blur">
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 2xl:block">
             Outdoor elements map
           </p>
           <h2 id={titleId} className="truncate text-sm font-semibold">
             {school.displayName || school.name}
           </h2>
         </div>
+        <div className="flex shrink-0 items-center gap-1 2xl:hidden">
+          <button
+            type="button"
+            onClick={centerOnSchool}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-slate-300 active:bg-slate-800"
+            aria-label="Center on school"
+          >
+            <MapPin className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={centerOnUser}
+            disabled={!userCoords}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-slate-300 active:bg-slate-800 disabled:opacity-40"
+            aria-label="Center on my location"
+          >
+            <LocateFixed className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-white active:opacity-90"
+          >
+            Done
+          </button>
+        </div>
         <button
           type="button"
           onClick={onClose}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-300 active:bg-slate-800"
+          className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-300 active:bg-slate-800 2xl:flex"
           aria-label="Close map"
         >
           <X className="h-5 w-5" />
@@ -554,12 +679,14 @@ export default function OutdoorElementsMapModal({
         </div>
       ) : (
         <div className="relative min-h-0 flex-1">
-          <div
-            ref={mapContainerCallbackRef}
-            className="absolute inset-0 h-full w-full [&_.mapboxgl-map]:h-full [&_.mapboxgl-map]:w-full"
-            role="presentation"
-            aria-hidden
-          />
+          <div className="absolute inset-0 pb-16 2xl:pb-0">
+            <div
+              ref={mapContainerCallbackRef}
+              className="absolute inset-0 h-full w-full [&_.mapboxgl-ctrl-top-right]:hidden 2xl:[&_.mapboxgl-ctrl-top-right]:block [&_.mapboxgl-map]:h-full [&_.mapboxgl-map]:w-full"
+              role="presentation"
+              aria-hidden
+            />
+          </div>
 
           {mapError && (
             <div className="pointer-events-none absolute inset-x-3 top-3 rounded-xl border border-amber-500/40 bg-amber-950/90 px-3 py-2 text-xs text-amber-100 shadow-lg">
@@ -567,7 +694,8 @@ export default function OutdoorElementsMapModal({
             </div>
           )}
 
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-2 p-3 lg:flex-row lg:items-end lg:justify-between">
+          {/* Desktop: floating panels */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 hidden flex-col gap-2 p-3 2xl:flex 2xl:flex-row 2xl:items-end 2xl:justify-between">
             <div className="flex flex-col gap-2 lg:max-w-[min(100%,28rem)]">
               <OutdoorElementPinPanel
                 markingMode={markingMode}
@@ -588,54 +716,13 @@ export default function OutdoorElementsMapModal({
 
               <div className="pointer-events-auto max-w-sm rounded-xl border border-slate-700/80 bg-slate-950/90 px-3 py-2 text-xs text-slate-200 shadow-lg backdrop-blur">
                 <p className="font-medium text-white">Legend</p>
-                <ul className="mt-1.5 space-y-1">
-                  <li className="flex items-center gap-2">
-                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-teal-600 ring-2 ring-white" />
-                    School location
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-blue-600 ring-2 ring-white" />
-                    Your location
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-fuchsia-500 ring-2 ring-white" />
-                    Your placed pins
-                  </li>
-                </ul>
-                {assetLegend.length > 0 && (
-                  <div className="mt-2 max-h-36 space-y-1 overflow-y-auto border-t border-slate-700/80 pt-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                      Asset types
-                    </p>
-                    {assetLegend.map((item) => (
-                      <div key={item.category} className="flex items-center justify-between gap-2">
-                        <span className="flex min-w-0 items-center gap-2">
-                          <span
-                            className="inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white"
-                            style={{ backgroundColor: item.color }}
-                          />
-                          <span className="truncate">{item.category}</span>
-                        </span>
-                        <span className="shrink-0 tabular-nums text-slate-400">{item.count}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <p className="mt-2 text-slate-400">
-                  {assetsLoading
-                    ? "Loading reference assets…"
-                    : assetsError
-                      ? assetsError
-                      : assetCount > 0
-                        ? `${assetCount} mapped asset${assetCount === 1 ? "" : "s"} for this campus`
-                        : "No mapped assets for this campus yet"}
-                </p>
-                {geoStatus === "denied" && (
-                  <p className="mt-1 text-amber-300">Location access denied — enable it to see your position.</p>
-                )}
-                {geoStatus === "unavailable" && (
-                  <p className="mt-1 text-amber-300">Geolocation is not available in this browser.</p>
-                )}
+                <OutdoorMapLegendContent
+                  assetLegend={assetLegend}
+                  assetCount={assetCount}
+                  assetsLoading={assetsLoading}
+                  assetsError={assetsError}
+                  geoStatus={geoStatus}
+                />
               </div>
             </div>
 
@@ -667,6 +754,169 @@ export default function OutdoorElementsMapModal({
               </button>
             </div>
           </div>
+
+          {/* Mobile: bottom sheet — element type picker + legend */}
+          {!selectedPinId && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 2xl:hidden">
+              {mobilePickerExpanded && (
+                <button
+                  type="button"
+                  className="pointer-events-auto fixed inset-0 bg-slate-900/40"
+                  onClick={() => setMobilePickerExpanded(false)}
+                  aria-label="Close element picker"
+                />
+              )}
+              <div
+                className={cn(
+                  "pointer-events-auto relative flex flex-col overflow-hidden rounded-t-2xl border border-b-0 border-slate-200/80 bg-white shadow-2xl transition-[max-height] duration-200",
+                  mobilePickerExpanded ? "max-h-[min(62vh,30rem)]" : "max-h-[3.75rem]",
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => setMobilePickerExpanded((expanded) => !expanded)}
+                  className="flex shrink-0 items-center gap-2 px-3 py-3 text-left active:bg-slate-50"
+                  aria-expanded={mobilePickerExpanded}
+                >
+                  {selectedOption ? (
+                    <span
+                      className="inline-block h-3 w-3 shrink-0 rounded-sm"
+                      style={{ backgroundColor: selectedOption.color }}
+                      aria-hidden
+                    />
+                  ) : (
+                    <span className="inline-block h-3 w-3 shrink-0 rounded-sm bg-slate-200" aria-hidden />
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-slate-900">
+                      {selectedOption?.label ?? "Choose element to place"}
+                    </span>
+                    <span className="block truncate text-[10px] text-slate-500">
+                      {outdoorElementPins.length} placed · {assetCount} reference asset
+                      {assetCount === 1 ? "" : "s"}
+                    </span>
+                  </span>
+                  {mobilePickerExpanded ? (
+                    <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+                  ) : (
+                    <ChevronUp className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+                  )}
+                </button>
+                {mobilePickerExpanded && (
+                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-slate-100">
+                    <div className="shrink-0 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">
+                        Outdoor elements
+                      </p>
+                      <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
+                        Pick an element, then tap the map where it is located.
+                      </p>
+                      {selectedOption && (
+                        <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-900">
+                          Tap the map to place{" "}
+                          <strong className="font-semibold">{selectedOption.label}</strong>
+                          {!selectedOption.allowMultiple ? " (replaces any existing pin)" : ""}.
+                        </p>
+                      )}
+                    </div>
+                    <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-1">
+                      {OUTDOOR_ELEMENT_TYPE_OPTIONS.map((option) => {
+                        const placed = outdoorElementPins.filter(
+                          (pin) => pin.elementType === option.id,
+                        )
+                        const active = selectedElementType === option.id
+                        return (
+                          <li key={option.id}>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSelectedElementType(active ? null : option.id)
+                              }
+                              className={cn(
+                                "mb-1 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-colors",
+                                active
+                                  ? "bg-slate-900 text-white shadow-sm"
+                                  : "text-slate-800 active:bg-slate-50",
+                              )}
+                            >
+                              <span
+                                className="inline-block h-3 w-3 shrink-0 rounded-sm"
+                                style={{ backgroundColor: option.color }}
+                                aria-hidden
+                              />
+                              <span className="min-w-0 flex-1 truncate font-medium">
+                                {option.label}
+                              </span>
+                              <span
+                                className={cn(
+                                  "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                  active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600",
+                                )}
+                              >
+                                {placed.length}
+                              </span>
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                    <div className="shrink-0 border-t border-slate-100 px-3 py-2 text-xs text-slate-600">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">
+                        Legend
+                      </p>
+                      <OutdoorMapLegendContent
+                        assetLegend={assetLegend}
+                        assetCount={assetCount}
+                        assetsLoading={assetsLoading}
+                        assetsError={assetsError}
+                        geoStatus={geoStatus}
+                        compact
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Mobile: bottom sheet — placed pin details */}
+          {selectedPinId && selectedPin && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 2xl:hidden">
+              <div className="pointer-events-auto flex max-h-[min(40vh,16rem)] flex-col overflow-hidden rounded-t-2xl border border-b-0 border-slate-200/80 bg-white shadow-2xl">
+                <div className="flex items-start justify-between border-b border-slate-100 px-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">
+                      Placed element
+                    </p>
+                    <p className="mt-0.5 truncate text-sm font-semibold text-slate-900">
+                      {outdoorElementPinLabel(selectedPin, outdoorElementPins)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPinId(null)}
+                    className="rounded-lg p-1 text-slate-400 active:bg-slate-100"
+                    aria-label="Deselect pin"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="flex gap-2 px-3 py-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      removeOutdoorElementPin(selectedPin.id)
+                      setSelectedPinId(null)
+                    }}
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-medium text-red-700 active:bg-red-100"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Remove pin
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>,

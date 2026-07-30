@@ -138,9 +138,13 @@ function scoreSessionRooms(
   return next
 }
 
-function roomHasAssessment(detail: RoomScoreResult | undefined): boolean {
+function roomHasAssessment(
+  detail: RoomScoreResult | undefined,
+  options?: { allowScoreWithoutAnswers?: boolean },
+): boolean {
   if (!detail) return false
-  return detail.overallScore !== null || detail.answeredCount > 0
+  if (detail.answeredCount > 0) return true
+  return !!(options?.allowScoreWithoutAnswers && detail.overallScore !== null)
 }
 
 function weightedAverage(items: { score: number; weight: number }[]): number | null {
@@ -203,8 +207,9 @@ function buildAssessedRoom(
   detail: RoomScoreResult | undefined,
   schoolClass?: string | null,
   neighborhood?: string,
+  assessmentOptions?: { allowScoreWithoutAnswers?: boolean },
 ): AssessedRoomRecord | null {
-  if (!roomHasAssessment(detail)) return null
+  if (!roomHasAssessment(detail, assessmentOptions)) return null
 
   const spaceType = resolveSpaceType(roomSession, surveyType, schoolClass)
   const focusAreaId = scoringFocusAreaForRoom(surveyType, roomSession.roomType, schoolClass)
@@ -355,11 +360,14 @@ export function buildCampusScoringSnapshot(input: {
     const details = roomScoreDetailsBySurveyType[surveyType] ?? {}
     for (const [roomId, roomSession] of Object.entries(session.rooms)) {
       const neighborhood = input.liveNeighborhoodResolver?.(roomId, roomSession)
+      const detail = details[roomId]
+      if (!roomHasAssessment(detail)) continue
+
       const record = buildAssessedRoom(
         roomId,
         roomSession,
         surveyType,
-        details[roomId],
+        detail,
         input.schoolClass,
         neighborhood,
       )
@@ -391,7 +399,7 @@ export function buildCampusScoringSnapshot(input: {
       const roomSession = session.rooms[entry.roomId] ?? sub.session.rooms[entry.roomId]
       if (!roomSession) continue
 
-      if (!roomHasAssessment(details[entry.roomId])) {
+      if (!roomHasAssessment(details[entry.roomId], { allowScoreWithoutAnswers: true })) {
         details[entry.roomId] = {
           roomId: entry.roomId,
           overallScore: entry.overallScore,
@@ -410,6 +418,7 @@ export function buildCampusScoringSnapshot(input: {
         details[entry.roomId],
         input.schoolClass,
         entry.neighborhood,
+        { allowScoreWithoutAnswers: true },
       )
       if (record) {
         allRooms.push(record)

@@ -6,7 +6,7 @@ import DrilldownScoreList from "@/components/drilldown-score-list"
 import { ScoreBadge, ScoreBar } from "@/components/score-display"
 import { sumPositiveWeights } from "@/lib/weight-display"
 import { cn, scoreTextColor } from "@/lib/utils"
-import type { CampusScoringSnapshot } from "@/lib/campus-scoring-tree"
+import type { CampusScoringSnapshot, AssessedRoomRecord } from "@/lib/campus-scoring-tree"
 import { neighborhoodGroupLabel, UNASSIGNED_NEIGHBORHOOD_ID } from "@aisd/shared"
 
 function spaceKey(focusAreaId: string, spaceType: string) {
@@ -223,7 +223,7 @@ export function RoomScoreCards({
 }: {
   rooms: CampusScoringSnapshot["allRooms"]
   snapshot: CampusScoringSnapshot
-  onSelectRoom?: (roomId: string) => void
+  onSelectRoom?: (room: AssessedRoomRecord) => void
 }) {
   const [openRoom, setOpenRoom] = useState<Set<string>>(() => new Set())
 
@@ -256,7 +256,7 @@ export function RoomScoreCards({
                 if (next.has(room.roomId)) next.delete(room.roomId)
                 else next.add(room.roomId)
                 setOpenRoom(next)
-                onSelectRoom?.(room.roomId)
+                onSelectRoom?.(room)
               }}
               className="flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left transition-colors active:bg-slate-50"
             >

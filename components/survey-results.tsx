@@ -36,7 +36,7 @@ export default function SurveyResults() {
     currentResults,
     continueSurvey,
     resetSurvey,
-    selectRoom,
+    editRoomFromResults,
     submission,
     schools,
     resultsInitialTab,
@@ -302,6 +302,10 @@ export default function SurveyResults() {
 
           {tab === "room" && (
             <div className="space-y-3">
+              <p className="rounded-xl border border-blue-100 bg-blue-50/80 px-3 py-2.5 text-xs leading-relaxed text-slate-700">
+                Tap a room below to open it in the survey and edit its answers. Scores update
+                automatically when you save changes.
+              </p>
               <div className="relative">
                 <label htmlFor="results-room-search" className="sr-only">
                   Search rooms
@@ -331,7 +335,7 @@ export default function SurveyResults() {
                 <RoomScoreCards
                   rooms={filteredRooms}
                   snapshot={snapshot}
-                  onSelectRoom={selectRoom}
+                  onSelectRoom={(room) => editRoomFromResults(room.roomId, room.surveyType)}
                 />
               )}
             </div>

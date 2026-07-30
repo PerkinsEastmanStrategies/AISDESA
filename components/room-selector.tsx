@@ -10,6 +10,7 @@ import {
   isClassroomRoom,
   isNeighborhoodOnlySpaceType,
   isNeighborhoodSurveyRoomId,
+  isOutdoorSurveyRoomId,
   isRoomComplete,
   isSpaceTypeRequiredForSchool,
   isSpaceTypeRoomsComplete,
@@ -18,8 +19,13 @@ import {
   spaceTypeCompletionProgress,
   spaceTypeCompletionRule,
   spaceTypeOptionsForSurvey,
+  readSpaceTypeExistsAtSchool,
+  isSpaceTypeMarkedAbsentAtSchool,
+  spaceTypeRequiresExistenceGate,
   neighborhoodFromSurveyRoomId,
+  neighborhoodSurveyRoomDisplayName,
   neighborhoodSurveyRoomId,
+  outdoorSurveyRoomDisplayName,
   studioTypeShowsGradePicker,
   surveyModuleUsesSpaceTypePicker,
   surveyTypeForSpaceType,
@@ -44,6 +50,7 @@ import { cn } from "@/lib/utils"
 import { useSelectRoomWithConfirm } from "@/components/use-select-room-with-confirm"
 import { useFloorPlanDisplay } from "@/lib/use-floor-plan-display"
 import SpaceTypeAssessmentGuidanceModal from "@/components/space-type-assessment-guidance-modal"
+import SpaceTypeExistenceGate from "@/components/space-type-existence-gate"
 import TraditionalStudioCopyOffer from "@/components/traditional-studio-copy-offer"
 import NeighborhoodLegend from "@/components/neighborhood-legend"
 
@@ -65,6 +72,7 @@ export default function RoomSelector({
     setNeighborhood,
     setSchoolRoomNumber,
     setPendingStudioType,
+    setSpaceTypeExists,
     setSurveyType,
     selectRoom,
     currentRoomSession,
@@ -114,13 +122,22 @@ export default function RoomSelector({
     state.school?.schoolClass,
   )
   const spaceTypeReady = !showSpaceType || !!selectedSpaceType || preWalkMapped
+  const showExistenceGate =
+    !!selectedSpaceType && spaceTypeRequiresExistenceGate(selectedSpaceType)
+  const spaceTypeExistsAnswer = showExistenceGate
+    ? readSpaceTypeExistsAtSchool(state.session, selectedSpaceType)
+    : null
+  const spaceTypeAbsent = spaceTypeExistsAnswer === false
+  const spaceTypeExistsConfirmed = spaceTypeExistsAnswer === true
+  const roomSelectionReady =
+    spaceTypeReady && (!showExistenceGate || spaceTypeExistsConfirmed)
   const spaceTypeNoun = showStudioType ? "studio type" : "space type"
   const showGrade =
     studioTypeShowsGradePicker(selectedStudioType, state.school?.schoolClass) ||
     (state.surveyType === "closeout" &&
       !!currentRoomSession?.pendingGrade &&
       studioTypeShowsGradePicker(currentRoomSession.roomType, state.school?.schoolClass))
-  const floorPlanOpen = spaceTypeReady && showFloorPlan
+  const floorPlanOpen = roomSelectionReady && showFloorPlan
   useFloorPlanDisplay(floorPlanOpen)
   const [roomPickerOpen, setRoomPickerOpen] = useState(false)
   const [gradePickerOpen, setGradePickerOpen] = useState(false)
@@ -209,7 +226,7 @@ export default function RoomSelector({
     if (state.surveyType === "closeout" && state.session) {
       onFloor = onFloor.filter((r) => {
         const rs = state.session!.rooms[r.id]
-        return !!rs && roomNeedsCloseOut(rs)
+        return !!rs && roomNeedsCloseOut(rs, schoolClass)
       })
     }
 
@@ -239,6 +256,39 @@ export default function RoomSelector({
       const selected = state.allRooms.find((r) => r.id === selectedId)
       if (selected && !pinnedIds.has(selectedId) && !other.some((r) => r.id === selectedId)) {
         other = sortRoomsByName([selected, ...other])
+      }
+    }
+
+    if (state.surveyType === "closeout" && state.session) {
+      const floorPlanIds = new Set(state.allRooms.map((room) => room.id))
+      const syntheticCloseOutRooms = Object.values(state.session.rooms)
+        .filter(
+          (room) =>
+            roomNeedsCloseOut(room, schoolClass) &&
+            !floorPlanIds.has(room.roomId) &&
+            (isOutdoorSurveyRoomId(room.roomId) || isNeighborhoodSurveyRoomId(room.roomId)),
+        )
+        .map((room) => {
+          const neighborhoodLabel = neighborhoodFromSurveyRoomId(room.roomId)
+          return {
+            id: room.roomId,
+            name: isOutdoorSurveyRoomId(room.roomId)
+              ? outdoorSurveyRoomDisplayName()
+              : neighborhoodLabel
+                ? neighborhoodSurveyRoomDisplayName(neighborhoodLabel)
+                : room.roomNumber || room.roomId,
+            x: 0,
+            y: 0,
+            area: 0,
+            levelId: effectiveLevelId ?? "",
+            points: [] as { x: number; y: number }[],
+          }
+        })
+      if (syntheticCloseOutRooms.length > 0) {
+        other = sortRoomsByName([
+          ...syntheticCloseOutRooms.filter((room) => !other.some((entry) => entry.id === room.id)),
+          ...other,
+        ])
       }
     }
 
@@ -333,6 +383,11 @@ export default function RoomSelector({
         }).complete
       if (fullyScored || submitReady) {
         map[room.roomType].complete += 1
+      }
+    }
+    for (const type of spaceTypeOptions) {
+      if (isSpaceTypeMarkedAbsentAtSchool(state.session, type)) {
+        map[type] = { started: 1, complete: 1 }
       }
     }
     return map
@@ -585,7 +640,7 @@ export default function RoomSelector({
                   : `Choose a ${spaceTypeNoun} before selecting a room`}
             </p>
           )}
-          {selectedSpaceType && neighborhoodOnlyMode && (
+          {selectedSpaceType && neighborhoodOnlyMode && !spaceTypeAbsent && (
             <p className="mt-1.5 text-[11px] text-slate-500">
               Select a neighborhood below — no room required for this space type.
             </p>
@@ -593,6 +648,16 @@ export default function RoomSelector({
         </div>
       )}
 
+      {showExistenceGate && (
+        <SpaceTypeExistenceGate
+          spaceType={selectedSpaceType}
+          value={spaceTypeExistsAnswer}
+          onChange={(exists) => setSpaceTypeExists(selectedSpaceType, exists)}
+        />
+      )}
+
+      {!spaceTypeAbsent && (
+      <>
       <div className="grid grid-cols-2 gap-x-3 gap-y-3">
         {!neighborhoodOnlyMode && (
           <>
@@ -606,9 +671,9 @@ export default function RoomSelector({
               <button
                 id="room-select-trigger"
                 type="button"
-                disabled={!spaceTypeReady}
+                disabled={!roomSelectionReady}
                 onClick={() => {
-                  if (!spaceTypeReady) return
+                  if (!roomSelectionReady) return
                   setGradePickerOpen(false)
                   setNeighborhoodPickerOpen(false)
                   setStudioTypePickerOpen(false)
@@ -616,7 +681,7 @@ export default function RoomSelector({
                 }}
                 className={cn(
                   "flex w-full min-h-[48px] items-center gap-2 rounded-xl border border-slate-200/90 bg-slate-50/80 px-3 py-3 text-left text-sm font-medium text-slate-900 shadow-[0_1px_0_rgba(15,23,42,0.03)] outline-none transition-colors focus:border-[var(--color-primary)] focus:bg-white focus:ring-2 focus:ring-blue-100",
-                  !spaceTypeReady && "cursor-not-allowed opacity-60",
+                  !roomSelectionReady && "cursor-not-allowed opacity-60",
                 )}
               >
                 <span
@@ -662,7 +727,7 @@ export default function RoomSelector({
 
         {(state.school?.hasFloorPlan || plan) &&
           !floorPlanOpen &&
-          spaceTypeReady &&
+          roomSelectionReady &&
           !neighborhoodOnlyMode && (
           <div className="col-span-2">
             <button
@@ -688,16 +753,16 @@ export default function RoomSelector({
               id="neighborhood-select-trigger"
               type="button"
               onClick={() => {
-                if (neighborhoodOnlyMode && !spaceTypeReady) return
+                if (neighborhoodOnlyMode && !roomSelectionReady) return
                 setRoomPickerOpen(false)
                 setGradePickerOpen(false)
                 setStudioTypePickerOpen(false)
                 setNeighborhoodPickerOpen(true)
               }}
-              disabled={neighborhoodOnlyMode && !spaceTypeReady}
+              disabled={neighborhoodOnlyMode && !roomSelectionReady}
               className={cn(
                 "flex w-full min-h-[48px] items-center gap-2 rounded-xl border border-slate-200/90 bg-slate-50/80 px-3 py-3 text-left text-sm font-medium text-slate-900 shadow-[0_1px_0_rgba(15,23,42,0.03)] outline-none transition-colors focus:border-[var(--color-primary)] focus:bg-white focus:ring-2 focus:ring-blue-100",
-                neighborhoodOnlyMode && !spaceTypeReady && "cursor-not-allowed opacity-60",
+                neighborhoodOnlyMode && !roomSelectionReady && "cursor-not-allowed opacity-60",
               )}
             >
               <span
@@ -790,6 +855,8 @@ export default function RoomSelector({
           onCopy={() => applyTraditionalStudioCopy(selectedId)}
         />
       )}
+      </>
+      )}
 
       {studioTypePickerOpen && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
@@ -835,7 +902,8 @@ export default function RoomSelector({
                   type,
                   state.school?.schoolClass,
                 )
-                const hasSaved = progress.started > 0
+                const absent = isSpaceTypeMarkedAbsentAtSchool(state.session, type)
+                const hasSaved = absent || progress.started > 0
                 const roomsOfType = state.session
                   ? Object.values(state.session.rooms).filter((room) => room.roomType === type)
                   : []
@@ -850,6 +918,7 @@ export default function RoomSelector({
                   roomsOfType,
                   state.school?.schoolClass,
                   (room) => roomSurveyComplete(room),
+                  { session: state.session },
                 )
                 const inProgress = hasSaved && !typeComplete
                 const isTraditional = spaceTypeCompletionRule(type, state.school?.schoolClass).kind === "perNeighborhood"
@@ -890,7 +959,7 @@ export default function RoomSelector({
                           ) : null
                         ) : typeComplete ? (
                           <span className="mt-0.5 block text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                            Complete
+                            {absent ? "Not at school" : "Complete"}
                           </span>
                         ) : hasSaved ? (
                           <span className="mt-0.5 block text-xs font-normal text-amber-800">

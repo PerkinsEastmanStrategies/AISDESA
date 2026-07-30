@@ -4,8 +4,7 @@ import type {
   SchoolFloorPlanConfig,
 } from "@aisd/shared"
 import {
-  LIVELY_FLOOR_PLAN,
-  parseRoomsFromSvg,
+  getFloorPlanForSchool,
   schoolNameToId,
 } from "@aisd/shared"
 import { parsePlanRoomsFromSvg } from "@/lib/room-parser"
@@ -22,7 +21,14 @@ import {
   preferMobileFloorPlan,
   prefetchFloorPlanSvgs,
 } from "@/lib/floor-plans"
+import {
+  mergeLbjHatchDeviationData,
+  parseLbjHatchDeviationFromSvg,
+  type LbjHatchDeviationData,
+  type RoomSizeDeviationColorMap,
+} from "@/lib/floor-plan-hatch-deviation"
 import { prepareFloorPlanSvgForDisplay } from "@/lib/floor-plan-style"
+import type { RoomSizeDeviationMap } from "@/lib/room-neighborhood-lookup"
 import {
   applySvgViewBox,
   parseSvgViewBoxFromText,
@@ -45,6 +51,7 @@ const STUB_SVG_MAX_BYTES = 1000
 
 const blobUrlsBySchool = new Map<string, string[]>()
 const displaySvgTextByKey = new Map<string, string>()
+const rawFloorPlanSvgByKey = new Map<string, string>()
 
 /** Sentinel `src` when SVG text is cached for WebKit data-URL rendering. */
 export const INLINE_FLOOR_PLAN_SRC = "aisd:inline-floor-plan"
@@ -53,8 +60,36 @@ export function isInlineFloorPlanSrc(src: string | undefined | null): boolean {
   return src === INLINE_FLOOR_PLAN_SRC
 }
 
-function displaySvgKey(schoolId: string, levelId: string): string {
-  return `${schoolId}::${levelId}::plan-style-v2`
+function rawSvgKey(schoolId: string, levelId: string): string {
+  return `${schoolId}::${levelId}::raw`
+}
+
+function cacheRawFloorPlanSvg(schoolId: string, levelId: string, svgText: string): void {
+  rawFloorPlanSvgByKey.set(rawSvgKey(schoolId, levelId), svgText)
+}
+
+export function getRawFloorPlanSvg(schoolId: string, levelId: string): string | null {
+  return rawFloorPlanSvgByKey.get(rawSvgKey(schoolId, levelId)) ?? null
+}
+
+/** LBJ only — rebuild display SVG with DEF_HATCH_* visible for size deviation. */
+export function buildLbjFloorPlanDisplaySvg(
+  schoolId: string,
+  levelId: string,
+  showHatch: boolean,
+): string | null {
+  if (!isLbjBundledCafmPlan(schoolId)) {
+    return getFloorPlanDisplaySvg(schoolId, levelId)
+  }
+
+  const raw = getRawFloorPlanSvg(schoolId, levelId)
+  if (!raw) return getFloorPlanDisplaySvg(schoolId, levelId)
+
+  const prepared = prepareDistrictFloorPlanSvg(raw, {
+    schoolId,
+    lbjShowHatch: showHatch,
+  })
+  return prepared?.svgText ?? getFloorPlanDisplaySvg(schoolId, levelId)
 }
 
 function cacheFloorPlanDisplaySvg(schoolId: string, levelId: string, svgText: string): void {
@@ -101,10 +136,17 @@ export function floorPlanSvgInlineFragment(svgText: string): string | null {
   }
 }
 
+function displaySvgKey(schoolId: string, levelId: string): string {
+  return `${schoolId}::${levelId}::plan-style-v5-lbj-stroke`
+}
+
 function clearFloorPlanDisplaySvgCache(schoolId: string): void {
   const prefix = `${schoolId}::`
   for (const key of displaySvgTextByKey.keys()) {
     if (key.startsWith(prefix)) displaySvgTextByKey.delete(key)
+  }
+  for (const key of rawFloorPlanSvgByKey.keys()) {
+    if (key.startsWith(prefix)) rawFloorPlanSvgByKey.delete(key)
   }
 }
 
@@ -162,12 +204,239 @@ export function restoreFloorPlanLevelFromCache(
   }
 }
 
-export function isLivelySchool(school: AisdSchoolOption): boolean {
+function resolveBundledFloorPlan(school: AisdSchoolOption): SchoolFloorPlanConfig | null {
   return (
-    school.id === "lively" ||
-    schoolNameToId(school.name) === "lively" ||
-    school.name.toUpperCase().includes("LIVELY")
+    getFloorPlanForSchool(school.id) ??
+    (schoolNameToId(school.name) ? getFloorPlanForSchool(schoolNameToId(school.name)!) : null)
   )
+}
+
+export function isBundledFloorPlanSchool(school: AisdSchoolOption): boolean {
+  return resolveBundledFloorPlan(school) !== null
+}
+
+function isLbjBundledCafmPlan(schoolId: string): boolean {
+  return schoolId === "lbj"
+}
+
+let lbjHatchDeviationCache: LbjHatchDeviationData | null = null
+
+/** Size deviation bands + hatch fill colors from DEF_HATCH_* layers (LBJ only). */
+export async function loadLbjHatchDeviationData(): Promise<LbjHatchDeviationData> {
+  if (lbjHatchDeviationCache) return lbjHatchDeviationCache
+
+  const config = getFloorPlanForSchool("lbj")
+  if (!config) {
+    return { bands: new Map(), colors: new Map(), legend: [] }
+  }
+
+  let merged: LbjHatchDeviationData = {
+    bands: new Map(),
+    colors: new Map(),
+    legend: [],
+  }
+
+  for (const level of config.levels) {
+    try {
+      const response = await fetch(level.src)
+      if (!response.ok) continue
+      const raw = await response.text()
+      if (isEmptyOrStubFloorPlanSvg(raw)) continue
+      merged = mergeLbjHatchDeviationData(merged, parseLbjHatchDeviationFromSvg(raw))
+    } catch {
+      /* skip failed level */
+    }
+  }
+
+  lbjHatchDeviationCache = merged
+  return merged
+}
+
+/** @deprecated Prefer loadLbjHatchDeviationData().bands */
+export async function loadLbjHatchSizeDeviationMap(): Promise<RoomSizeDeviationMap> {
+  const data = await loadLbjHatchDeviationData()
+  return data.bands
+}
+
+async function loadBundledSchoolRooms(
+  school: AisdSchoolOption,
+  config: SchoolFloorPlanConfig,
+): Promise<FloorPlanLoadResult> {
+  const loadedById = new Map<
+    string,
+    { level: SchoolFloorPlanConfig["levels"][number]; rooms: ParsedPlanRoom[] }
+  >()
+
+  for (const level of config.levels) {
+    try {
+      const response = await fetch(level.src)
+      if (!response.ok) continue
+      const raw = await response.text()
+      if (isEmptyOrStubFloorPlanSvg(raw)) continue
+      cacheRawFloorPlanSvg(school.id, level.id, raw)
+
+      const prepared = prepareDistrictFloorPlanSvg(raw, { schoolId: school.id })
+      if (!prepared) continue
+
+      const rooms = parsePlanRoomsFromSvg(prepared.svgText, level.id)
+      loadedById.set(level.id, {
+        level: {
+          ...level,
+          src: EMPTY_FLOOR_PLAN_SRC,
+          viewBox: prepared.viewBox,
+        },
+        rooms,
+      })
+    } catch {
+      /* skip failed level */
+    }
+  }
+
+  const styledLevels = config.levels
+    .map((level) => loadedById.get(level.id)?.level)
+    .filter((level): level is SchoolFloorPlanConfig["levels"][number] => Boolean(level))
+
+  if (!styledLevels.length) {
+    return { plan: null, rooms: [] }
+  }
+
+  const preferredDefaultId = config.defaultLevelId
+  const defaultLevelId = styledLevels.some((level) => level.id === preferredDefaultId)
+    ? preferredDefaultId
+    : styledLevels[0].id
+
+  return {
+    plan: {
+      schoolId: school.id,
+      defaultLevelId,
+      buildingSqft: config.buildingSqft,
+      levels: styledLevels,
+    },
+    rooms: config.levels.flatMap((level) => loadedById.get(level.id)?.rooms ?? []),
+  }
+}
+
+async function loadBundledFloorPlanLevelDisplay(
+  schoolId: string,
+  levelId: string,
+  config: SchoolFloorPlanConfig,
+): Promise<SchoolFloorPlanConfig["levels"][number] | null> {
+  const level = config.levels.find((entry) => entry.id === levelId)
+  if (!level) return null
+
+  try {
+    const response = await fetch(level.src)
+    if (!response.ok) return null
+    const raw = await response.text()
+    if (isEmptyOrStubFloorPlanSvg(raw)) return null
+    cacheRawFloorPlanSvg(schoolId, levelId, raw)
+
+    const prepared = prepareDistrictFloorPlanSvg(raw, { schoolId })
+    if (!prepared) return null
+
+    const src = createFloorPlanLevelSrc(schoolId, levelId, prepared.svgText)
+
+    return {
+      ...level,
+      src,
+      viewBox: prepared.viewBox,
+    }
+  } catch {
+    return null
+  }
+}
+
+async function loadBundledFloorPlan(
+  school: AisdSchoolOption,
+  config: SchoolFloorPlanConfig,
+  onFirstFloorReady?: (result: FloorPlanLoadResult) => void,
+): Promise<FloorPlanLoadResult> {
+  revokeFloorPlanBlobUrls(school.id)
+
+  const preferredDefaultId = config.defaultLevelId
+  const levelsInLoadOrder = [
+    ...config.levels.filter((level) => level.id === preferredDefaultId),
+    ...config.levels.filter((level) => level.id !== preferredDefaultId),
+  ]
+
+  const loadedById = new Map<
+    string,
+    { level: SchoolFloorPlanConfig["levels"][number]; rooms: ParsedPlanRoom[] }
+  >()
+
+  for (const level of levelsInLoadOrder) {
+    try {
+      const response = await fetch(level.src)
+      if (!response.ok) continue
+      const raw = await response.text()
+      if (isEmptyOrStubFloorPlanSvg(raw)) continue
+      cacheRawFloorPlanSvg(school.id, level.id, raw)
+
+      const prepared = prepareDistrictFloorPlanSvg(raw, { schoolId: school.id })
+      if (!prepared) continue
+
+      const src = createFloorPlanLevelSrc(school.id, level.id, prepared.svgText)
+
+      const styledLevel = {
+        ...level,
+        src,
+        viewBox: prepared.viewBox,
+      }
+      const rooms = parsePlanRoomsFromSvg(prepared.svgText, level.id)
+      loadedById.set(level.id, { level: styledLevel, rooms })
+
+      if (level.id === preferredDefaultId) {
+        onFirstFloorReady?.({
+          plan: {
+            schoolId: school.id,
+            defaultLevelId: preferredDefaultId,
+            buildingSqft: config.buildingSqft,
+            levels: [styledLevel],
+          },
+          rooms: [],
+        })
+      }
+    } catch {
+      /* skip failed level */
+    }
+  }
+
+  const styledLevels = config.levels
+    .map((level) => loadedById.get(level.id)?.level)
+    .filter((level): level is SchoolFloorPlanConfig["levels"][number] => Boolean(level))
+
+  if (!styledLevels.length) {
+    return { plan: null, rooms: [] }
+  }
+
+  const defaultLevelId = styledLevels.some((level) => level.id === preferredDefaultId)
+    ? preferredDefaultId
+    : styledLevels[0].id
+
+  if (!loadedById.has(preferredDefaultId)) {
+    const fallback = loadedById.get(defaultLevelId)
+    if (fallback) {
+      onFirstFloorReady?.({
+        plan: {
+          schoolId: school.id,
+          defaultLevelId,
+          buildingSqft: config.buildingSqft,
+          levels: [fallback.level],
+        },
+        rooms: [],
+      })
+    }
+  }
+
+  return {
+    plan: {
+      schoolId: school.id,
+      defaultLevelId,
+      buildingSqft: config.buildingSqft,
+      levels: styledLevels,
+    },
+    rooms: config.levels.flatMap((level) => loadedById.get(level.id)?.rooms ?? []),
+  }
 }
 
 interface LevelLoadResult {
@@ -177,13 +446,21 @@ interface LevelLoadResult {
 }
 
 /** Restyle SVG, crop viewBox to content so the plan fills the panel, return text + viewBox. */
-function prepareDistrictFloorPlanSvg(rawSvg: string): {
+function prepareDistrictFloorPlanSvg(
+  rawSvg: string,
+  options: { schoolId?: string; lbjShowHatch?: boolean } = {},
+): {
   svgText: string
   viewBox: { x: number; y: number; w: number; h: number }
 } | null {
+  const displayOptions = {
+    lbjCafmPlan: options.schoolId ? isLbjBundledCafmPlan(options.schoolId) : false,
+    lbjShowHatch: options.lbjShowHatch === true,
+  }
+
   // Crop first so line weights are scaled to the visible plan, not a padded CAD sheet.
   if (typeof DOMParser === "undefined") {
-    const styled = prepareFloorPlanSvgForDisplay(rawSvg)
+    const styled = prepareFloorPlanSvgForDisplay(rawSvg, displayOptions)
     const vb = parseSvgViewBoxFromText(styled)
     if (!vb) return null
     return {
@@ -197,7 +474,9 @@ function prepareDistrictFloorPlanSvg(rawSvg: string): {
   if (!svg || svg.tagName.toLowerCase() !== "svg") return null
   if (doc.querySelector("parsererror")) return null
 
-  const resolved = resolveSvgViewBox(svg, rawSvg.length)
+  const resolved = resolveSvgViewBox(svg, rawSvg.length, {
+    hideSelector: displayOptions.lbjCafmPlan ? "[id^='DEF_HATCH_']" : undefined,
+  })
   if (!resolved) return null
   applySvgViewBox(svg, resolved)
 
@@ -206,7 +485,7 @@ function prepareDistrictFloorPlanSvg(rawSvg: string): {
       ? new XMLSerializer().serializeToString(doc)
       : rawSvg
 
-  const styled = prepareFloorPlanSvgForDisplay(cropped)
+  const styled = prepareFloorPlanSvgForDisplay(cropped, displayOptions)
   const styledDoc = new DOMParser().parseFromString(styled, "image/svg+xml")
   const styledSvg = styledDoc.documentElement as unknown as SVGSVGElement
   if (styledSvg?.tagName?.toLowerCase() === "svg") {
@@ -235,7 +514,7 @@ async function loadLevelRoomsOnly(
   const rawSvg = await fetchFloorPlanSvgByFilename(floor.filename, { preferMobile })
   if (!rawSvg || isEmptyOrStubFloorPlanSvg(rawSvg)) return null
 
-  const prepared = prepareDistrictFloorPlanSvg(rawSvg)
+  const prepared = prepareDistrictFloorPlanSvg(rawSvg, { schoolId })
   if (!prepared) return null
 
   const { svgText, viewBox } = prepared
@@ -263,7 +542,7 @@ async function loadLevel(
   const rawSvg = await fetchFloorPlanSvgByFilename(floor.filename, { preferMobile })
   if (!rawSvg || isEmptyOrStubFloorPlanSvg(rawSvg)) return null
 
-  const prepared = prepareDistrictFloorPlanSvg(rawSvg)
+  const prepared = prepareDistrictFloorPlanSvg(rawSvg, { schoolId })
   if (!prepared) return null
 
   const { svgText, viewBox } = prepared
@@ -278,183 +557,6 @@ async function loadLevel(
     },
     rooms: parseRooms ? parsePlanRoomsFromSvg(svgText, floor.id) : [],
     svgText,
-  }
-}
-
-async function loadLivelySchoolRooms(school: AisdSchoolOption): Promise<FloorPlanLoadResult> {
-  const loadedById = new Map<
-    string,
-    { level: SchoolFloorPlanConfig["levels"][number]; rooms: ParsedPlanRoom[] }
-  >()
-
-  for (const level of LIVELY_FLOOR_PLAN.levels) {
-    try {
-      const response = await fetch(level.src)
-      if (!response.ok) continue
-      const raw = await response.text()
-      if (isEmptyOrStubFloorPlanSvg(raw)) continue
-
-      const prepared = prepareDistrictFloorPlanSvg(raw)
-      if (!prepared) continue
-
-      const rooms = parseRoomsFromSvg(prepared.svgText, level.id)
-      loadedById.set(level.id, {
-        level: {
-          ...level,
-          src: EMPTY_FLOOR_PLAN_SRC,
-          viewBox: prepared.viewBox,
-        },
-        rooms,
-      })
-    } catch {
-      /* skip failed level */
-    }
-  }
-
-  const styledLevels = LIVELY_FLOOR_PLAN.levels
-    .map((level) => loadedById.get(level.id)?.level)
-    .filter((level): level is SchoolFloorPlanConfig["levels"][number] => Boolean(level))
-
-  if (!styledLevels.length) {
-    return { plan: null, rooms: [] }
-  }
-
-  const preferredDefaultId = LIVELY_FLOOR_PLAN.defaultLevelId
-  const defaultLevelId = styledLevels.some((level) => level.id === preferredDefaultId)
-    ? preferredDefaultId
-    : styledLevels[0].id
-
-  return {
-    plan: {
-      schoolId: school.id,
-      defaultLevelId,
-      buildingSqft: LIVELY_FLOOR_PLAN.buildingSqft,
-      levels: styledLevels,
-    },
-    rooms: LIVELY_FLOOR_PLAN.levels.flatMap(
-      (level) => loadedById.get(level.id)?.rooms ?? [],
-    ),
-  }
-}
-
-async function loadLivelyFloorPlanLevelDisplay(
-  schoolId: string,
-  levelId: string,
-): Promise<SchoolFloorPlanConfig["levels"][number] | null> {
-  const level = LIVELY_FLOOR_PLAN.levels.find((entry) => entry.id === levelId)
-  if (!level) return null
-
-  try {
-    const response = await fetch(level.src)
-    if (!response.ok) return null
-    const raw = await response.text()
-    if (isEmptyOrStubFloorPlanSvg(raw)) return null
-
-    const prepared = prepareDistrictFloorPlanSvg(raw)
-    if (!prepared) return null
-
-    const src = createFloorPlanLevelSrc(schoolId, levelId, prepared.svgText)
-
-    return {
-      ...level,
-      src,
-      viewBox: prepared.viewBox,
-    }
-  } catch {
-    return null
-  }
-}
-
-async function loadLivelyFloorPlan(
-  school: AisdSchoolOption,
-  onFirstFloorReady?: (result: FloorPlanLoadResult) => void,
-): Promise<FloorPlanLoadResult> {
-  revokeFloorPlanBlobUrls(school.id)
-
-  const preferredDefaultId = LIVELY_FLOOR_PLAN.defaultLevelId
-  const levelsInLoadOrder = [
-    ...LIVELY_FLOOR_PLAN.levels.filter((level) => level.id === preferredDefaultId),
-    ...LIVELY_FLOOR_PLAN.levels.filter((level) => level.id !== preferredDefaultId),
-  ]
-
-  const loadedById = new Map<
-    string,
-    { level: SchoolFloorPlanConfig["levels"][number]; rooms: ParsedPlanRoom[] }
-  >()
-
-  for (const level of levelsInLoadOrder) {
-    try {
-      const response = await fetch(level.src)
-      if (!response.ok) continue
-      const raw = await response.text()
-      if (isEmptyOrStubFloorPlanSvg(raw)) continue
-
-      const prepared = prepareDistrictFloorPlanSvg(raw)
-      if (!prepared) continue
-
-      const src = createFloorPlanLevelSrc(school.id, level.id, prepared.svgText)
-
-      const styledLevel = {
-        ...level,
-        src,
-        viewBox: prepared.viewBox,
-      }
-      const rooms = parseRoomsFromSvg(prepared.svgText, level.id)
-      loadedById.set(level.id, { level: styledLevel, rooms })
-
-      if (level.id === preferredDefaultId) {
-        onFirstFloorReady?.({
-          plan: {
-            schoolId: school.id,
-            defaultLevelId: preferredDefaultId,
-            buildingSqft: LIVELY_FLOOR_PLAN.buildingSqft,
-            levels: [styledLevel],
-          },
-          rooms: [],
-        })
-      }
-    } catch {
-      /* skip failed level */
-    }
-  }
-
-  const styledLevels = LIVELY_FLOOR_PLAN.levels
-    .map((level) => loadedById.get(level.id)?.level)
-    .filter((level): level is SchoolFloorPlanConfig["levels"][number] => Boolean(level))
-
-  if (!styledLevels.length) {
-    return { plan: null, rooms: [] }
-  }
-
-  const defaultLevelId = styledLevels.some((level) => level.id === preferredDefaultId)
-    ? preferredDefaultId
-    : styledLevels[0].id
-
-  if (!loadedById.has(preferredDefaultId)) {
-    const fallback = loadedById.get(defaultLevelId)
-    if (fallback) {
-      onFirstFloorReady?.({
-        plan: {
-          schoolId: school.id,
-          defaultLevelId,
-          buildingSqft: LIVELY_FLOOR_PLAN.buildingSqft,
-          levels: [fallback.level],
-        },
-        rooms: [],
-      })
-    }
-  }
-
-  return {
-    plan: {
-      schoolId: school.id,
-      defaultLevelId,
-      buildingSqft: LIVELY_FLOOR_PLAN.buildingSqft,
-      levels: styledLevels,
-    },
-    rooms: LIVELY_FLOOR_PLAN.levels.flatMap(
-      (level) => loadedById.get(level.id)?.rooms ?? [],
-    ),
   }
 }
 
@@ -497,7 +599,7 @@ async function withRoomSheetData(
 /**
  * Load floor plans for a school. Calls `onFirstFloorReady` as soon as the default
  * floor SVG is fetched so the map can render before room parsing and other floors finish.
- * Lively keeps its local multi-level plans; all other schools use the Sheet + Supabase files.
+ * Bundled /public/floor-plans (e.g. LBJ) skip Supabase; all other schools use the Sheet + Supabase files.
  */
 export async function loadFloorPlanForSchool(
   school: AisdSchoolOption,
@@ -505,8 +607,9 @@ export async function loadFloorPlanForSchool(
 ): Promise<FloorPlanLoadResult> {
   revokeFloorPlanBlobUrls(school.id)
 
-  if (isLivelySchool(school)) {
-    const result = await loadLivelyFloorPlan(school, onFirstFloorReady)
+  const bundled = resolveBundledFloorPlan(school)
+  if (bundled) {
+    const result = await loadBundledFloorPlan(school, bundled, onFirstFloorReady)
     return {
       plan: result.plan,
       rooms: await withRoomSheetData(school, result.rooms),
@@ -603,8 +706,9 @@ export async function loadSchoolRoomsForSchool(
 ): Promise<FloorPlanLoadResult> {
   revokeFloorPlanBlobUrls(school.id)
 
-  if (isLivelySchool(school)) {
-    const result = await loadLivelySchoolRooms(school)
+  const bundled = resolveBundledFloorPlan(school)
+  if (bundled) {
+    const result = await loadBundledSchoolRooms(school, bundled)
     return {
       plan: result.plan,
       rooms: await withRoomSheetData(school, result.rooms),
@@ -658,8 +762,9 @@ export async function loadFloorPlanLevelDisplay(
   school: AisdSchoolOption,
   levelId: string,
 ): Promise<SchoolFloorPlanConfig["levels"][number] | null> {
-  if (isLivelySchool(school)) {
-    return loadLivelyFloorPlanLevelDisplay(school.id, levelId)
+  const bundled = resolveBundledFloorPlan(school)
+  if (bundled) {
+    return loadBundledFloorPlanLevelDisplay(school.id, levelId, bundled)
   }
 
   const manifest = await loadFloorPlanManifest()

@@ -10,7 +10,7 @@ import { PreWalkBanner } from "@/components/pre-walk-launcher"
 import TraditionalStudioCopyReviewModal from "@/components/traditional-studio-copy-review-modal"
 import OutdoorElementsMapModal from "@/components/outdoor-elements-map-modal"
 import { resolveRoomNeighborhoodForCopy } from "@/lib/traditional-studio-copy"
-import { isNeighborhoodOnlySpaceType } from "@aisd/shared"
+import { isNeighborhoodOnlySpaceType, isSpaceTypeMarkedAbsentAtSchool } from "@aisd/shared"
 import { effectiveSpaceTypeForSelection } from "@/lib/prewalk"
 import { Map } from "lucide-react"
 
@@ -95,7 +95,9 @@ export default function StudioSurvey() {
     state.surveyType,
     selectedSpaceType,
   )
-  const showQuestions = !!state.selectedRoomId
+  const spaceTypeAbsent =
+    !!selectedSpaceType && isSpaceTypeMarkedAbsentAtSchool(state.session, selectedSpaceType)
+  const showQuestions = !!state.selectedRoomId && !spaceTypeAbsent
 
   return (
     <>
@@ -151,7 +153,9 @@ export default function StudioSurvey() {
       ) : (
         <div className="flex min-h-[40vh] items-center justify-center px-6 py-8 text-center">
           <p className="text-sm text-[var(--color-muted-foreground)]">
-            {isCloseOut
+            {spaceTypeAbsent
+              ? `${selectedSpaceType} was marked as not present at this school. Select another space type to continue.`
+              : isCloseOut
               ? closeOutPendingCount > 0
                 ? "Select a room below to answer deferred questions from other survey sections."
                 : "Review your campus Close Out summary below, add final thoughts, and submit when ready."

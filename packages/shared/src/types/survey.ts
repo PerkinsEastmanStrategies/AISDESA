@@ -206,6 +206,8 @@ export interface SurveySession {
   finalComment?: string
   /** Set when the assessor submits the full campus assessment from Close Out. */
   campusSubmittedAt?: string
+  /** Per space type: false = space not present at this school (skip room survey). */
+  spaceTypeExistsAtSchool?: Record<string, boolean>
 }
 
 export interface CategoryScore {

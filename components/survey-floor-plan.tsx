@@ -3,6 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Maximize2, Minimize2, Scan, ZoomIn, ZoomOut, RotateCcw, X } from "lucide-react"
+import {
+  buildLbjFloorPlanDisplaySvg,
+  floorPlanSvgDataUrl,
+  floorPlanSvgInlineFragment,
+  getFloorPlanDisplaySvg,
+  isInlineFloorPlanSrc,
+  loadLbjHatchDeviationData,
+} from "@/lib/floor-plan-loader"
 import { useSurvey } from "@/lib/survey-store"
 import { useSelectRoomWithConfirm } from "@/components/use-select-room-with-confirm"
 import { overlayPointsForRoom, viewBoxString, type ParsedPlanRoom } from "@aisd/shared"
@@ -33,12 +41,6 @@ import {
 import { programTypeFillColor, programTypeLegendColors } from "@/lib/program-type-colors"
 import NeighborhoodLegend from "@/components/neighborhood-legend"
 import { cn, scoreFillRgba, scoreStrokeRgba } from "@/lib/utils"
-import {
-  floorPlanSvgDataUrl,
-  floorPlanSvgInlineFragment,
-  getFloorPlanDisplaySvg,
-  isInlineFloorPlanSrc,
-} from "@/lib/floor-plan-loader"
 import { neighborhoodGroupId, NEIGHBORHOOD_OPTIONS } from "@aisd/shared"
 
 function colorWithAlpha(color: string, alpha: number): string {
@@ -225,6 +227,9 @@ export default function SurveyFloorPlan({
   const [roomUseMap, setRoomUseMap] = useState<RoomUseMap>(new Map())
   const [neighborhoodMap, setNeighborhoodMap] = useState<RoomNeighborhoodMap>(new Map())
   const [sizeDeviationMap, setSizeDeviationMap] = useState<RoomSizeDeviationMap>(new Map())
+  const [lbjSizeDeviationLegend, setLbjSizeDeviationLegend] = useState<
+    { id: string; color: string }[]
+  >([])
   const [isPanning, setIsPanning] = useState(false)
   const [internalExpanded, setInternalExpanded] = useState(false)
   const expanded = expandedProp ?? internalExpanded
@@ -261,6 +266,18 @@ export default function SurveyFloorPlan({
   const levelId = state.selectedLevelId ?? plan?.defaultLevelId ?? "floor-1"
   const level = plan?.levels.find((l) => l.id === levelId)
 
+  const isLbjBundledPlan = state.school?.id === "lbj"
+  const lbjHatchInPlan = isLbjBundledPlan && showSizeDeviation
+
+  // LBJ bundled CAFM plans: always paint via data-URL <image> so plan CSS (white fill + black strokes) stays intact.
+  const lbjPlanImageUrl = useMemo(() => {
+    if (!isLbjBundledPlan || !state.school || !levelId) return null
+    const svgText = showSizeDeviation
+      ? buildLbjFloorPlanDisplaySvg(state.school.id, levelId, true)
+      : getFloorPlanDisplaySvg(state.school.id, levelId)
+    return svgText ? floorPlanSvgDataUrl(svgText) : null
+  }, [isLbjBundledPlan, state.school?.id, levelId, level?.src, showSizeDeviation])
+
   // WebKit/iOS: render via data-URL <image> (blob: breaks; inline markup leaks CSS onto overlays).
   const webKitPlanImageUrl = useMemo(() => {
     if (!state.school || !levelId || !isInlineFloorPlanSrc(level?.src)) return null
@@ -268,18 +285,20 @@ export default function SurveyFloorPlan({
     return svgText ? floorPlanSvgDataUrl(svgText) : null
   }, [state.school?.id, levelId, level?.src])
 
-  const planImageHref = webKitPlanImageUrl ?? level?.src ?? ""
+  const planImageHref = lbjPlanImageUrl ?? webKitPlanImageUrl ?? level?.src ?? ""
 
   const planInlineMarkup = useMemo(() => {
-    if (!state.school || !levelId) return null
+    if (isLbjBundledPlan || !state.school || !levelId) return null
     const svgText = getFloorPlanDisplaySvg(state.school.id, levelId)
     if (!svgText) return null
     return floorPlanSvgInlineFragment(svgText)
-  }, [state.school?.id, levelId, webKitPlanImageUrl])
+  }, [isLbjBundledPlan, state.school?.id, levelId, webKitPlanImageUrl])
 
   const planBackdropReady =
     Boolean(level?.src) &&
-    (!isInlineFloorPlanSrc(level?.src) || Boolean(webKitPlanImageUrl))
+    (!isInlineFloorPlanSrc(level?.src) ||
+      Boolean(lbjPlanImageUrl) ||
+      Boolean(webKitPlanImageUrl))
 
   useEffect(() => {
     if (!levelId || !plan || !state.school) return
@@ -350,20 +369,30 @@ export default function SurveyFloorPlan({
         setRoomUseMap(new Map())
         setNeighborhoodMap(new Map())
         setSizeDeviationMap(new Map())
+        setLbjSizeDeviationLegend([])
       }
       return
     }
     let cancelled = false
     void (async () => {
-      const [useMap, nbhMap, deviationMap] = await Promise.all([
-        loadRoomUseMap(state.school),
-        loadRoomNeighborhoodMap(state.school),
-        loadRoomSizeDeviationMap(state.school),
+      const school = state.school!
+      const isLbj = school.id === "lbj"
+      const [useMap, nbhMap, csvDeviation, lbjHatch] = await Promise.all([
+        loadRoomUseMap(school),
+        loadRoomNeighborhoodMap(school),
+        loadRoomSizeDeviationMap(school),
+        isLbj ? loadLbjHatchDeviationData() : Promise.resolve(null),
       ])
       if (cancelled) return
       setRoomUseMap(useMap)
       setNeighborhoodMap(nbhMap)
-      setSizeDeviationMap(deviationMap)
+      if (isLbj && lbjHatch && lbjHatch.bands.size > 0) {
+        setSizeDeviationMap(lbjHatch.bands)
+        setLbjSizeDeviationLegend(lbjHatch.legend)
+      } else {
+        setSizeDeviationMap(csvDeviation)
+        setLbjSizeDeviationLegend([])
+      }
     })()
     return () => {
       cancelled = true
@@ -598,11 +627,12 @@ export default function SurveyFloorPlan({
 
   const hasSizeDeviationColors = useMemo(
     () =>
+      (isLbjBundledPlan && lbjSizeDeviationLegend.length > 0) ||
       sizeDeviationMap.size > 0 ||
       levelRooms.some((room) =>
         Boolean(sizeDeviationForRoom(sizeDeviationMap, room.id, room.name)),
       ),
-    [levelRooms, sizeDeviationMap],
+    [isLbjBundledPlan, lbjSizeDeviationLegend.length, levelRooms, sizeDeviationMap],
   )
 
   const resolveAssessmentScore = useCallback(
@@ -914,7 +944,11 @@ export default function SurveyFloorPlan({
           )}
         >
           <NeighborhoodLegend
-            items={SIZE_DEVIATION_LEGEND}
+            items={
+              isLbjBundledPlan && lbjSizeDeviationLegend.length > 0
+                ? lbjSizeDeviationLegend
+                : SIZE_DEVIATION_LEGEND
+            }
             label="Size deviation"
             className="pointer-events-auto rounded-xl border border-slate-200/80 bg-white/95 shadow-md backdrop-blur-sm"
           />
@@ -940,6 +974,16 @@ export default function SurveyFloorPlan({
           )}
         >
           <g transform={sceneTransform}>
+            {isLbjBundledPlan ? (
+              <rect
+                x={vb.x}
+                y={vb.y}
+                width={vb.w}
+                height={vb.h}
+                fill="#ffffff"
+                pointerEvents="none"
+              />
+            ) : null}
             {planInlineMarkup ? (
               <g aria-hidden pointerEvents="none">
                 {showRoomTags && !photoGalleryMode ? (
@@ -994,7 +1038,7 @@ export default function SurveyFloorPlan({
                   photoGalleryMode={photoGalleryMode}
                   showInlinePhotoMarker={!photoGalleryMode}
                   showNeighborhood={showNeighborhoods && !photoGalleryMode}
-                  showSizeDeviation={showSizeDeviation && !photoGalleryMode}
+                  showSizeDeviation={showSizeDeviation && !photoGalleryMode && !lbjHatchInPlan}
                   sizeDeviation={sizeDeviationForRoom(sizeDeviationMap, room.id, room.name)}
                   showRoomUse={showRoomUse && !photoGalleryMode}
                   showRoomTags={showRoomTags && !photoGalleryMode}

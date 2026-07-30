@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import Image from "next/image"
 import { BarChart3, ArrowLeft, Building2, Check, Home, LayoutDashboard, LogOut, Search, User } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
@@ -22,6 +23,8 @@ function AssessorProfileMenu() {
   const [open, setOpen] = useState(false)
   const [pickingSchool, setPickingSchool] = useState(false)
   const [schoolQuery, setSchoolQuery] = useState("")
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -38,6 +41,34 @@ function AssessorProfileMenu() {
     )
   }, [schools, schoolQuery])
 
+  const updateMenuPosition = () => {
+    const el = buttonRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const width = Math.min(288, window.innerWidth - 16)
+    const margin = 8
+    let left = rect.left
+    if (left + width > window.innerWidth - margin) {
+      left = window.innerWidth - width - margin
+    }
+    left = Math.max(margin, left)
+    setMenuPos({ top: rect.bottom + 8, left, width })
+  }
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setMenuPos(null)
+      return
+    }
+    updateMenuPosition()
+    window.addEventListener("resize", updateMenuPosition)
+    window.addEventListener("scroll", updateMenuPosition, true)
+    return () => {
+      window.removeEventListener("resize", updateMenuPosition)
+      window.removeEventListener("scroll", updateMenuPosition, true)
+    }
+  }, [open, pickingSchool])
+
   useEffect(() => {
     if (!open) {
       setPickingSchool(false)
@@ -45,7 +76,13 @@ function AssessorProfileMenu() {
       return
     }
     const onPointerDown = (e: PointerEvent) => {
-      if (!menuRef.current?.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      if (
+        !buttonRef.current?.contains(target) &&
+        !menuRef.current?.contains(target)
+      ) {
+        setOpen(false)
+      }
     }
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -73,9 +110,135 @@ function AssessorProfileMenu() {
 
   if (!hasAssessorRegistered || !assessor) return null
 
+  const menu =
+    open && menuPos ? (
+      <div
+        ref={menuRef}
+        role="menu"
+        style={{
+          position: "fixed",
+          top: menuPos.top,
+          left: menuPos.left,
+          width: menuPos.width,
+        }}
+        className="z-[100] rounded-xl border border-[var(--color-border)] bg-white py-2 shadow-lg"
+      >
+        <div className="border-b border-[var(--color-border)] px-3 pb-2.5 pt-1">
+          <p className="truncate text-sm font-medium text-slate-900">{assessor.name}</p>
+          <p className="mt-0.5 truncate text-xs text-[var(--color-muted-foreground)]">
+            {assessor.email}
+          </p>
+          {state.school && (
+            <p className="mt-1.5 truncate text-xs text-[var(--color-muted-foreground)]">
+              {state.school.displayName}
+            </p>
+          )}
+        </div>
+
+        {pickingSchool ? (
+          <div className="flex flex-col">
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setPickingSchool(false)
+                setSchoolQuery("")
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-slate-50"
+            >
+              <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              Back
+            </button>
+            <div className="border-b border-[var(--color-border)] px-3 pb-2">
+              <label htmlFor="school-switch-search" className="sr-only">
+                Search schools
+              </label>
+              <div className="relative">
+                <Search
+                  className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-muted-foreground)]"
+                  aria-hidden
+                />
+                <input
+                  ref={searchRef}
+                  id="school-switch-search"
+                  type="search"
+                  value={schoolQuery}
+                  onChange={(e) => setSchoolQuery(e.target.value)}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  placeholder="Search schools…"
+                  autoComplete="off"
+                  className="w-full rounded-lg border border-[var(--color-border)] bg-white py-2 pl-8 pr-3 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+            </div>
+            <div className="max-h-56 overflow-y-auto py-1">
+              {schoolsLoading ? (
+                <p className="px-3 py-2 text-xs text-[var(--color-muted-foreground)]">Loading schools…</p>
+              ) : filteredSchools.length === 0 ? (
+                <p className="px-3 py-2 text-xs text-[var(--color-muted-foreground)]">
+                  No schools match “{schoolQuery.trim()}”
+                </p>
+              ) : (
+                filteredSchools.map((school) => {
+                  const active = state.school?.id === school.id
+                  return (
+                    <button
+                      key={school.id}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setSchool(school)
+                        if (state.view === "results") setView("survey")
+                        setOpen(false)
+                        setPickingSchool(false)
+                        setSchoolQuery("")
+                      }}
+                      className={cn(
+                        "flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-slate-50 active:bg-slate-100",
+                        active && "bg-blue-50 text-[var(--color-primary)]",
+                      )}
+                    >
+                      <Building2 className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
+                      <span className="min-w-0 flex-1 truncate">{school.displayName}</span>
+                      {active && <Check className="h-4 w-4 shrink-0" aria-hidden />}
+                    </button>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => setPickingSchool(true)}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100"
+            >
+              <Building2 className="h-4 w-4 shrink-0" aria-hidden />
+              Switch school
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false)
+                logoutAssessor()
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 active:bg-red-100"
+            >
+              <LogOut className="h-4 w-4 shrink-0" aria-hidden />
+              Log out
+            </button>
+          </>
+        )}
+      </div>
+    ) : null
+
   return (
-    <div ref={menuRef} className="relative shrink-0">
+    <div className="relative shrink-0">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label="Assessor profile"
@@ -86,122 +249,7 @@ function AssessorProfileMenu() {
         <User className="h-4 w-4" aria-hidden />
       </button>
 
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-[var(--color-border)] bg-white py-2 shadow-lg"
-        >
-          <div className="border-b border-[var(--color-border)] px-3 pb-2.5 pt-1">
-            <p className="truncate text-sm font-medium text-slate-900">{assessor.name}</p>
-            <p className="mt-0.5 truncate text-xs text-[var(--color-muted-foreground)]">
-              {assessor.email}
-            </p>
-            {state.school && (
-              <p className="mt-1.5 truncate text-xs text-[var(--color-muted-foreground)]">
-                {state.school.displayName}
-              </p>
-            )}
-          </div>
-
-          {pickingSchool ? (
-            <div className="flex flex-col">
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setPickingSchool(false)
-                  setSchoolQuery("")
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[var(--color-muted-foreground)] hover:bg-slate-50"
-              >
-                <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                Back
-              </button>
-              <div className="border-b border-[var(--color-border)] px-3 pb-2">
-                <label htmlFor="school-switch-search" className="sr-only">
-                  Search schools
-                </label>
-                <div className="relative">
-                  <Search
-                    className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-muted-foreground)]"
-                    aria-hidden
-                  />
-                  <input
-                    ref={searchRef}
-                    id="school-switch-search"
-                    type="search"
-                    value={schoolQuery}
-                    onChange={(e) => setSchoolQuery(e.target.value)}
-                    onKeyDown={(e) => e.stopPropagation()}
-                    placeholder="Search schools…"
-                    autoComplete="off"
-                    className="w-full rounded-lg border border-[var(--color-border)] bg-white py-2 pl-8 pr-3 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-              </div>
-              <div className="max-h-56 overflow-y-auto py-1">
-                {schoolsLoading ? (
-                  <p className="px-3 py-2 text-xs text-[var(--color-muted-foreground)]">Loading schools…</p>
-                ) : filteredSchools.length === 0 ? (
-                  <p className="px-3 py-2 text-xs text-[var(--color-muted-foreground)]">
-                    No schools match “{schoolQuery.trim()}”
-                  </p>
-                ) : (
-                  filteredSchools.map((school) => {
-                    const active = state.school?.id === school.id
-                    return (
-                      <button
-                        key={school.id}
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setSchool(school)
-                          if (state.view === "results") setView("survey")
-                          setOpen(false)
-                          setPickingSchool(false)
-                          setSchoolQuery("")
-                        }}
-                        className={cn(
-                          "flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-slate-50 active:bg-slate-100",
-                          active && "bg-blue-50 text-[var(--color-primary)]",
-                        )}
-                      >
-                        <Building2 className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
-                        <span className="min-w-0 flex-1 truncate">{school.displayName}</span>
-                        {active && <Check className="h-4 w-4 shrink-0" aria-hidden />}
-                      </button>
-                    )
-                  })
-                )}
-              </div>
-            </div>
-          ) : (
-            <>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => setPickingSchool(true)}
-                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100"
-              >
-                <Building2 className="h-4 w-4 shrink-0" aria-hidden />
-                Switch school
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false)
-                  logoutAssessor()
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 active:bg-red-100"
-              >
-                <LogOut className="h-4 w-4 shrink-0" aria-hidden />
-                Log out
-              </button>
-            </>
-          )}
-        </div>
-      )}
+      {typeof document !== "undefined" && menu ? createPortal(menu, document.body) : null}
     </div>
   )
 }

@@ -23,45 +23,41 @@ export interface SchoolFloorPlanConfig {
   buildingSqft: number
 }
 
-/** Lively Middle School — matches AISD/lib/floor-plan.ts */
-export const LIVELY_FLOOR_PLAN: SchoolFloorPlanConfig = {
-  schoolId: "lively",
-  buildingSqft: 185_000,
-  defaultLevelId: "l1",
+/** LBJ Early College High School — bundled CAFM floor plans in /public/floor-plans. */
+export const LBJ_FLOOR_PLAN: SchoolFloorPlanConfig = {
+  schoolId: "lbj",
+  buildingSqft: 350_000,
+  defaultLevelId: "floor-1",
   levels: [
     {
-      id: "lb",
-      label: "Basement",
-      src: "/floor-plans/LivelyMS_LB_plan.svg",
-      viewBox: { x: -13070.2, y: -18202.2, w: 27865.2, h: 5247.3 },
-      buildings: ["A"],
+      id: "floor-1",
+      label: "Floor 1",
+      src: "/floor-plans/LBJ_1_CT_uncolored.svg",
+      viewBox: { x: 0, y: 0, w: 10800, h: 7200 },
     },
     {
-      id: "l1",
-      label: "Level 1",
-      src: "/floor-plans/LivelyMS_L1_plan.svg",
-      viewBox: { x: -2186.02, y: -18129.5, w: 6089.0, h: 4937.38 },
-      buildings: ["A", "B", "C", "D"],
+      id: "floor-2",
+      label: "Floor 2",
+      src: "/floor-plans/LBJ_2_CT_uncolored.svg",
+      viewBox: { x: 0, y: 0, w: 10800, h: 7200 },
     },
     {
-      id: "l2",
-      label: "Level 2",
-      src: "/floor-plans/LivelyMS_L2_plan.svg",
-      viewBox: { x: -2186.0, y: -18047.9, w: 6089.0, h: 4613.8 },
-      buildings: ["A", "B", "C", "D"],
+      id: "ground",
+      label: "Ground Floor",
+      src: "/floor-plans/LBJ_G_CT_uncolored.svg",
+      viewBox: { x: 0, y: 0, w: 9934, h: 14044 },
     },
     {
-      id: "l3",
-      label: "Level 3",
-      src: "/floor-plans/LivelyMS_L3_plan.svg",
-      viewBox: { x: -2181.4, y: -18111.5, w: 6089.0, h: 4703.4 },
-      buildings: ["A"],
+      id: "athletics",
+      label: "Athletics",
+      src: "/floor-plans/LBJ_New_Athletics_uncolored.svg",
+      viewBox: { x: 0, y: 0, w: 10800, h: 7200 },
     },
   ],
 }
 
 const FLOOR_PLANS: Record<string, SchoolFloorPlanConfig> = {
-  lively: LIVELY_FLOOR_PLAN,
+  lbj: LBJ_FLOOR_PLAN,
 }
 
 export function getFloorPlanForSchool(schoolId: string): SchoolFloorPlanConfig | null {
@@ -70,7 +66,7 @@ export function getFloorPlanForSchool(schoolId: string): SchoolFloorPlanConfig |
 
 export function schoolNameToId(name: string): string | null {
   const normalized = name.toUpperCase().replace(/\s+/g, " ").trim()
-  if (normalized.includes("LIVELY")) return "lively"
+  if (normalized === "LBJ" || normalized.startsWith("LBJ ")) return "lbj"
   return null
 }
 

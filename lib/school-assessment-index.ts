@@ -107,10 +107,5 @@ export function schoolScoredRoomCount(input: Parameters<typeof buildSchoolCampus
 }
 
 export function schoolHasResults(input: Parameters<typeof buildSchoolCampusSnapshot>[0]): boolean {
-  const drafts = input.drafts
-  if (schoolHasAnySubmission(input.schoolId, drafts)) return true
-  const snapshot = buildSchoolCampusSnapshot(input)
-  return snapshot.allRooms.some(
-    (room) => room.overallScore !== null || room.answeredCount > 0,
-  )
+  return schoolHasAnySubmission(input.schoolId, input.drafts)
 }

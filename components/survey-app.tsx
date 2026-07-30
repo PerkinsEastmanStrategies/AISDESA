@@ -12,6 +12,7 @@ import AdminDashboard from "@/components/admin-dashboard"
 import EsaLanding from "@/components/esa-landing"
 import PreWalkPromptModal from "@/components/pre-walk-prompt-modal"
 import SurveyRemoteConflictModal from "@/components/survey-remote-conflict-modal"
+import SurveyLeavePromptModal from "@/components/survey-leave-prompt-modal"
 import { getSurveyRubric, surveyTypeLabel } from "@aisd/shared"
 
 function SurveyBody() {
@@ -144,11 +145,32 @@ function SurveyRemoteConflictHost() {
   )
 }
 
+function SurveyLeavePromptHost() {
+  const {
+    leavePromptOpen,
+    leavePromptSurveyLabel,
+    confirmLeaveKeepDraft,
+    confirmLeaveDiscard,
+    cancelLeavePrompt,
+  } = useSurvey()
+
+  return (
+    <SurveyLeavePromptModal
+      open={leavePromptOpen}
+      surveyLabel={leavePromptSurveyLabel}
+      onKeepDraft={confirmLeaveKeepDraft}
+      onDiscard={confirmLeaveDiscard}
+      onCancel={cancelLeavePrompt}
+    />
+  )
+}
+
 export default function SurveyApp() {
   return (
     <SurveyProvider>
       <SurveyAppContent />
       <SurveyRemoteConflictHost />
+      <SurveyLeavePromptHost />
     </SurveyProvider>
   )
 }

@@ -223,10 +223,10 @@ export function schoolHasFloorPlan(
   school: AisdSchoolOption,
   manifest: FloorPlanManifestRow[],
 ): boolean {
-  // Lively uses local multi-level plans regardless of the live Sheet row.
+  // LBJ uses bundled local CAFM plans in /public/floor-plans.
   if (
-    school.id === "lively" ||
-    school.name.toUpperCase().replace(/\s+/g, " ").trim().includes("LIVELY")
+    school.id === "lbj" ||
+    school.name.toUpperCase().replace(/\s+/g, " ").trim().startsWith("LBJ")
   ) {
     return true
   }

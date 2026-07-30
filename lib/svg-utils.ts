@@ -31,7 +31,8 @@ export function parseSvgViewBoxAttribute(
 /** Measure rendered SVG content bounds (respects transforms). */
 export function getTightSvgViewBox(
   svgElement: SVGSVGElement,
-  paddingRatio = 0.03
+  paddingRatio = 0.03,
+  options: { hideSelector?: string } = {},
 ): SvgViewBox | null {
   if (typeof document === "undefined") return null;
 
@@ -39,6 +40,11 @@ export function getTightSvgViewBox(
   mount.style.cssText =
     "position:fixed;left:-10000px;top:0;width:2400px;height:2400px;overflow:hidden;visibility:hidden;pointer-events:none;";
   const clone = svgElement.cloneNode(true) as SVGSVGElement;
+  if (options.hideSelector) {
+    for (const el of Array.from(clone.querySelectorAll(options.hideSelector))) {
+      el.setAttribute("display", "none");
+    }
+  }
   clone.setAttribute("width", "2400");
   clone.setAttribute("height", "2400");
   mount.appendChild(clone);
@@ -72,7 +78,8 @@ export function getTightSvgViewBox(
 /** Prefer declared viewBox on very large SVGs to avoid an extra DOM measurement pass. */
 export function resolveSvgViewBox(
   svgElement: SVGSVGElement,
-  sourceCharLength?: number
+  sourceCharLength?: number,
+  options: { hideSelector?: string } = {},
 ): SvgViewBox | null {
   const declared = parseSvgViewBoxAttribute(svgElement);
   if (
@@ -83,7 +90,7 @@ export function resolveSvgViewBox(
     return declared;
   }
 
-  const tight = getTightSvgViewBox(svgElement);
+  const tight = getTightSvgViewBox(svgElement, 0.03, options);
   return tight ?? declared;
 }
 

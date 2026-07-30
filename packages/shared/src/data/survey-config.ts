@@ -1,4 +1,4 @@
-import type { GradeType, SurveyType } from "../types/survey"
+import type { GradeType, SurveySession, SurveyType } from "../types/survey"
 import {
   SCORING_FOCUS_AREAS_FROM_TABLE,
   SURVEY_MODULE_ORDER,
@@ -725,6 +725,37 @@ export type OutdoorSpaceType = (typeof OUTDOOR_SPACE_TYPE_OPTIONS)[number]
 
 export function isOutdoorSpaceType(value: string): value is OutdoorSpaceType {
   return (OUTDOOR_SPACE_TYPE_OPTIONS as readonly string[]).includes(value)
+}
+
+/** Outdoor and Traditional studio skip the "does this space exist?" gate. */
+export function spaceTypeRequiresExistenceGate(spaceType: string | null | undefined): boolean {
+  if (!spaceType?.trim()) return false
+  if (spaceType === "Traditional studio") return false
+  if (isOutdoorSpaceType(spaceType) || spaceType === "Outdoor Athletics") return false
+  return true
+}
+
+export function readSpaceTypeExistsAtSchool(
+  session: Pick<SurveySession, "spaceTypeExistsAtSchool"> | null | undefined,
+  spaceType: string,
+): boolean | null {
+  const record = session?.spaceTypeExistsAtSchool
+  if (!record || !(spaceType in record)) return null
+  return record[spaceType] ?? null
+}
+
+export function isSpaceTypeMarkedAbsentAtSchool(
+  session: Pick<SurveySession, "spaceTypeExistsAtSchool"> | null | undefined,
+  spaceType: string,
+): boolean {
+  return readSpaceTypeExistsAtSchool(session, spaceType) === false
+}
+
+export function isSpaceTypeConfirmedAtSchool(
+  session: Pick<SurveySession, "spaceTypeExistsAtSchool"> | null | undefined,
+  spaceType: string,
+): boolean {
+  return readSpaceTypeExistsAtSchool(session, spaceType) === true
 }
 
 /** Synthetic session key for campus-wide Outdoor Elements scoring (not a floor-plan room). */

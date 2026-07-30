@@ -26,7 +26,8 @@ export default function ScorePanel() {
 
   if (!currentRoomScore || !state.selectedRoomId) return null
 
-  const { overallScore, answeredCount, totalCount } = currentRoomScore
+  const { answeredCount, totalCount } = currentRoomScore
+  const showScore = currentRoomScore.overallScore !== null
 
   return (
     <div className="border-b border-[var(--color-border)] bg-[var(--color-card)]">
@@ -38,7 +39,7 @@ export default function ScorePanel() {
       >
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium text-[var(--color-muted-foreground)]">
-            Scoring summary
+            Survey progress
             {hasCustomWeights && (
               <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700">
                 Custom weights
@@ -46,9 +47,13 @@ export default function ScorePanel() {
             )}
           </p>
           <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <p className={cn("text-xl font-bold tabular-nums", scoreTextColor(overallScore))}>
-              {overallScore !== null ? `${Math.round(overallScore)}%` : "—"}
-            </p>
+            {showScore ? (
+              <p className={cn("text-xl font-bold tabular-nums", scoreTextColor(currentRoomScore.overallScore))}>
+                {currentRoomScore.overallScore !== null ? `${Math.round(currentRoomScore.overallScore)}%` : "—"}
+              </p>
+            ) : (
+              <p className="text-sm font-medium text-slate-700">Scores appear after Save</p>
+            )}
             <p className="text-xs text-[var(--color-muted-foreground)]">
               {answeredCount} / {totalCount} answered
             </p>
