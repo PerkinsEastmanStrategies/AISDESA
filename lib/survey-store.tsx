@@ -758,6 +758,8 @@ function buildSubmission(state: SurveyState): SurveySubmission | null {
     .filter(([, roomSession]) => roomHasAssessmentProgress(roomSession))
     .map(([roomId, roomSession]) => {
     const detail = state.roomScoreDetails[roomId]
+    const absent = roomSession.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(roomId)
+    const overallScore = absent ? (detail?.overallScore ?? 0) : (detail?.overallScore ?? null)
     return {
       roomId,
       roomName: roomDisplayName(state, roomId),
@@ -768,11 +770,13 @@ function buildSubmission(state: SurveyState): SurveySubmission | null {
       neighborhood: resolveRoomNeighborhood(state, roomId, roomSession),
       levelId: roomSession.levelId,
       gradeType: roomSession.gradeType,
-      overallScore: detail?.overallScore ?? null,
+      overallScore,
       categoryScores: detail?.categoryScores ?? [],
-      answeredCount: detail?.answeredCount ?? 0,
-      totalCount: detail?.totalCount ?? 0,
-      complete: detail
+      answeredCount: absent ? (detail?.answeredCount ?? 1) : (detail?.answeredCount ?? 0),
+      totalCount: absent ? (detail?.totalCount ?? 1) : (detail?.totalCount ?? 0),
+      complete: absent
+        ? true
+        : detail
           ? isRoomComplete(
               detail,
               roomSession.gradeType,
@@ -2848,6 +2852,13 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
           return true
         }
         if (!applyCurrentRoomDeferral()) return false
+        dispatch({ type: "SUBMIT" })
+        return true
+      }
+
+      // No active room (e.g. space type marked not present) — save module progress as-is.
+      if (!state.selectedRoomId) {
+        dispatch({ type: "CLEAR_SUBMIT_VALIDATION" })
         dispatch({ type: "SUBMIT" })
         return true
       }

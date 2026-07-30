@@ -82,8 +82,11 @@ export default function SurveyResults() {
       campusId: state.school.campusId,
       schoolClass: state.school.schoolClass,
       drafts: scoringDrafts,
+      liveSurveyType: state.surveyType,
+      liveSession: state.session,
+      liveRoomScoreDetails: state.roomScoreDetails,
     })
-  }, [state.school, scoringDrafts])
+  }, [state.school, state.surveyType, state.session, state.roomScoreDetails, scoringDrafts])
 
   const roomScoreById = useMemo(() => {
     if (!snapshot) return {}

@@ -189,6 +189,7 @@ export default function ScoringHierarchy({ snapshot }: { snapshot: CampusScoring
                                             roomIds={[room.roomId]}
                                             session={session}
                                             surveyType={room.surveyType}
+                                            schoolClass={snapshot.schoolClass}
                                             roomScoreDetails={
                                               snapshot.roomScoreDetailsBySurveyType[
                                                 room.surveyType
@@ -293,6 +294,7 @@ export function RoomScoreCards({
                   roomIds={[room.roomId]}
                   session={session}
                   surveyType={room.surveyType}
+                  schoolClass={snapshot.schoolClass}
                   roomScoreDetails={snapshot.roomScoreDetailsBySurveyType[room.surveyType]}
                 />
               </div>
@@ -415,6 +417,7 @@ export function NeighborhoodScoreCards({
                                 roomIds={[room.roomId]}
                                 session={session}
                                 surveyType={assessed.surveyType}
+                                schoolClass={snapshot.schoolClass}
                                 roomScoreDetails={
                                   snapshot.roomScoreDetailsBySurveyType[assessed.surveyType]
                                 }

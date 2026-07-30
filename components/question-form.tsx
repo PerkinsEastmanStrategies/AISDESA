@@ -10,6 +10,7 @@ import {
   isMultiSelectQuestionType,
   canonicalizeResponseValues,
   isOptionValueSelected,
+  applyMultiSelectOptionToggle,
   isSpaceTypeForSurveyModule,
   surveyModuleUsesSpaceTypePicker,
   questionSetStatusForSpaceType,
@@ -720,15 +721,7 @@ function QuestionField({
                   multiple
                   onToggle={() => {
                     const current = Array.isArray(value) ? value : []
-                    if (selected) {
-                      onChange(
-                        current.filter((v) =>
-                          isOptionValueSelected(opt.option, v) ? false : true,
-                        ),
-                      )
-                    } else {
-                      onChange([...current, opt.option])
-                    }
+                    onChange(applyMultiSelectOptionToggle(opt.option, selected, current))
                   }}
                 />
               )

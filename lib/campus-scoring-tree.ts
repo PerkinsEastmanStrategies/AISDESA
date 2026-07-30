@@ -65,6 +65,7 @@ export interface CampusScoringSnapshot {
   schoolId: string
   schoolName: string
   campusId: string
+  schoolClass?: string | null
   focusAreas: FocusAreaGroup[]
   allRooms: AssessedRoomRecord[]
   neighborhoods: ReturnType<typeof aggregateCampusScores>["neighborhoods"]
@@ -371,15 +372,17 @@ export function buildCampusScoringSnapshot(input: {
     for (const [roomId, roomSession] of Object.entries(session.rooms)) {
       const neighborhood = input.liveNeighborhoodResolver?.(roomId, roomSession)
       const detail = details[roomId]
-      if (!roomHasAssessment(detail)) continue
+      const absent = roomSession.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(roomId)
+      if (!roomHasAssessment(detail, { allowScoreWithoutAnswers: absent })) continue
 
       const record = buildAssessedRoom(
         roomId,
         roomSession,
         surveyType,
-        detail,
+        detail ?? (absent ? scoreAbsentSpaceTypeRoom(roomId) : undefined),
         input.schoolClass,
         neighborhood,
+        { allowScoreWithoutAnswers: absent },
       )
       if (record) allRooms.push(record)
     }
@@ -472,6 +475,7 @@ export function buildCampusScoringSnapshot(input: {
     schoolId: input.schoolId,
     schoolName: input.schoolName,
     campusId: input.campusId,
+    schoolClass: input.schoolClass,
     focusAreas,
     allRooms,
     neighborhoods: campusAgg.neighborhoods,

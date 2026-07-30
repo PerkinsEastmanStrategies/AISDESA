@@ -119,7 +119,7 @@ import {
   OUTDOOR_SPACES_RUBRIC_VERSION,
   OUTDOOR_SPACES_SUBCATEGORIES,
 } from "../data/outdoor-rubric"
-import { ensureNotAbleToAssessOptions } from "../data/not-able-to-assess"
+import { ensureSyntheticQuestionOptions } from "../data/not-able-to-assess"
 import { roomRubricForSpaceType } from "../data/room-rubric-map"
 
 export {
@@ -302,7 +302,7 @@ const RUBRICS: Record<SurveyType, SurveyRubric | null> = {
 
 export function getSurveyRubric(type: SurveyType): SurveyRubric | null {
   const rubric = RUBRICS[type]
-  return rubric ? ensureNotAbleToAssessOptions(rubric) : null
+  return rubric ? ensureSyntheticQuestionOptions(rubric) : null
 }
 
 export function isElementaryGrade(grade: string | null | undefined): boolean {
@@ -548,7 +548,7 @@ export function getRoomSurveyRubric(
     rubric = RUBRICS[effectiveType]
   }
 
-  return rubric ? ensureNotAbleToAssessOptions(rubric) : null
+  return rubric ? ensureSyntheticQuestionOptions(rubric) : null
 }
 
 export function surveyTypeLabel(type: SurveyType): string {

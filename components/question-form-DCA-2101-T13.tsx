@@ -5,7 +5,7 @@ import { Check, ChevronDown, ChevronUp } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
 import QuestionComment from "@/components/question-comment"
 import QuestionPhoto from "@/components/question-photo"
-import { getRoomSurveyRubric, isMultiSelectQuestionType, canonicalizeResponseValues, isOptionValueSelected, type EsaQuestion, type EsaQuestionOption, type RoomQuestionResponse } from "@aisd/shared"
+import { getRoomSurveyRubric, isMultiSelectQuestionType, canonicalizeResponseValues, isOptionValueSelected, applyMultiSelectOptionToggle, type EsaQuestion, type EsaQuestionOption, type RoomQuestionResponse } from "@aisd/shared"
 import { dependentQuestionDisabledReason, isSkippedDependentQuestion } from "@/lib/question-dependencies"
 import { mergeResponsePhotoFields, normalizeResponsePhotos } from "@/lib/response-photos"
 import { effectiveCloseOutPendingQuestionIds } from "@/lib/closeout"
@@ -507,15 +507,7 @@ function QuestionField({
                   multiple
                   onToggle={() => {
                     const current = Array.isArray(value) ? value : []
-                    if (selected) {
-                      onChange(
-                        current.filter((v) =>
-                          isOptionValueSelected(opt.option, v) ? false : true,
-                        ),
-                      )
-                    } else {
-                      onChange([...current, opt.option])
-                    }
+                    onChange(applyMultiSelectOptionToggle(opt.option, selected, current))
                   }}
                 />
               )

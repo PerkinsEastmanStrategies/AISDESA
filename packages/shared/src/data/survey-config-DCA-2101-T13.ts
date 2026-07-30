@@ -63,7 +63,7 @@ import {
   OPEN_COLLAB_RUBRIC_VERSION,
   OPEN_COLLAB_SUBCATEGORIES,
 } from "../data/neighborhood-rubric"
-import { ensureNotAbleToAssessOptions } from "../data/not-able-to-assess"
+import { ensureSyntheticQuestionOptions } from "../data/not-able-to-assess"
 
 export {
   TRADITIONAL_STUDIOS_RUBRIC_VERSION,
@@ -192,7 +192,7 @@ const RUBRICS: Record<SurveyType, SurveyRubric | null> = {
 
 export function getSurveyRubric(type: SurveyType): SurveyRubric | null {
   const rubric = RUBRICS[type]
-  return rubric ? ensureNotAbleToAssessOptions(rubric) : null
+  return rubric ? ensureSyntheticQuestionOptions(rubric) : null
 }
 
 export function isElementaryGrade(grade: string | null | undefined): boolean {
@@ -320,7 +320,7 @@ export function getRoomSurveyRubric(
     rubric = STUDIOS_RUBRIC
   }
 
-  return rubric ? ensureNotAbleToAssessOptions(rubric) : null
+  return rubric ? ensureSyntheticQuestionOptions(rubric) : null
 }
 
 export function surveyTypeLabel(type: SurveyType): string {
