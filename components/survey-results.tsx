@@ -25,6 +25,7 @@ import FocusAreaComparisonPanel from "@/components/focus-area-comparison-panel"
 import CampusResultsInsights from "@/components/campus-results-insights"
 import { OverallScoreDisplay } from "@/components/score-display"
 import { cn } from "@/lib/utils"
+import { UNASSIGNED_NEIGHBORHOOD_ID } from "@aisd/shared"
 import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
 import { useFloorPlanDisplay } from "@/lib/use-floor-plan-display"
 
@@ -101,6 +102,7 @@ export default function SurveyResults() {
     if (!snapshot) return {}
     const map: Record<string, number | null> = {}
     for (const neighborhood of snapshot.neighborhoods) {
+      if (neighborhood.neighborhoodId === UNASSIGNED_NEIGHBORHOOD_ID) continue
       map[neighborhood.neighborhoodId] = neighborhood.overallScore
     }
     return map

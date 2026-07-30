@@ -312,7 +312,11 @@ export function NeighborhoodScoreCards({
   const [openNeighborhood, setOpenNeighborhood] = useState<Set<string>>(() => new Set())
   const [openRoom, setOpenRoom] = useState<Set<string>>(() => new Set())
 
-  if (!snapshot.neighborhoods.length) {
+  const scorableNeighborhoods = snapshot.neighborhoods.filter(
+    (n) => n.neighborhoodId !== UNASSIGNED_NEIGHBORHOOD_ID,
+  )
+
+  if (!scorableNeighborhoods.length) {
     return (
       <p className="rounded-2xl border border-slate-200/90 bg-white px-4 py-8 text-center text-sm text-slate-500">
         No neighborhood scores yet.
@@ -322,7 +326,7 @@ export function NeighborhoodScoreCards({
 
   return (
     <div className="space-y-2">
-      {snapshot.neighborhoods.map((n) => {
+      {scorableNeighborhoods.map((n) => {
         const nOpen = openNeighborhood.has(n.neighborhoodId)
 
         return (

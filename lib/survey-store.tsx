@@ -1655,7 +1655,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
 
       return {
         ...submitState,
-        view: "results",
+        view: "survey",
         submission,
         selectedRoomId: null,
         submitValidation: null,
