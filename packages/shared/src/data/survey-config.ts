@@ -874,6 +874,38 @@ export function neighborhoodSurveyRoomDisplayName(neighborhood: string): string 
   return trimmed ? `Neighborhood ${trimmed}` : "Neighborhood"
 }
 
+/** Synthetic session key when a space type is assessed without a specific floor-plan room. */
+export const NA_SURVEY_ROOM_PREFIX = "__na-room__:" as const
+
+export function naSurveyRoomId(spaceType: string, neighborhood?: string | null): string {
+  const type = spaceType.trim()
+  const nh = neighborhood?.trim()
+  return nh ? `${NA_SURVEY_ROOM_PREFIX}${type}::${nh}` : `${NA_SURVEY_ROOM_PREFIX}${type}`
+}
+
+export function isNaSurveyRoomId(roomId: string | null | undefined): boolean {
+  return !!roomId?.startsWith(NA_SURVEY_ROOM_PREFIX)
+}
+
+export function parseNaSurveyRoomId(
+  roomId: string,
+): { spaceType: string; neighborhood?: string } | null {
+  if (!isNaSurveyRoomId(roomId)) return null
+  const rest = roomId.slice(NA_SURVEY_ROOM_PREFIX.length)
+  const sep = rest.indexOf("::")
+  if (sep >= 0) {
+    return {
+      spaceType: rest.slice(0, sep),
+      neighborhood: rest.slice(sep + 2) || undefined,
+    }
+  }
+  return { spaceType: rest }
+}
+
+export function naSurveyRoomDisplayName(): string {
+  return "N/A — no room assigned"
+}
+
 /** Neighborhoods module: the Neighborhood space type is scored per neighborhood, not per room. */
 export function isNeighborhoodOnlySpaceType(
   surveyType: SurveyType,

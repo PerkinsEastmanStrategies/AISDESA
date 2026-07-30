@@ -10,7 +10,10 @@ import {
   isClassroomRoom,
   isNeighborhoodOnlySpaceType,
   isNeighborhoodSurveyRoomId,
+  isNaSurveyRoomId,
   isOutdoorSurveyRoomId,
+  naSurveyRoomDisplayName,
+  naSurveyRoomId,
   isRoomComplete,
   isSpaceTypeRequiredForSchool,
   isSpaceTypeRoomsComplete,
@@ -152,6 +155,14 @@ export default function RoomSelector({
   const spaceTypeExistsConfirmed = spaceTypeExistsAnswer === true
   const roomSelectionReady =
     spaceTypeReady && neighborhoodReady && (!showExistenceGate || spaceTypeExistsConfirmed)
+  const selectedNaRoomId =
+    selectedSpaceType && roomSelectionReady
+      ? naSurveyRoomId(
+          selectedSpaceType,
+          isNeighborhoodsSurvey ? selectedNeighborhood : null,
+        )
+      : null
+  const naRoomSelected = !!selectedId && selectedId === selectedNaRoomId
   const spaceTypeNoun = showStudioType ? "studio type" : "space type"
   const showGrade =
     studioTypeShowsGradePicker(selectedStudioType, state.school?.schoolClass) ||
@@ -449,6 +460,11 @@ export default function RoomSelector({
   const selectedRoom = selectedId
     ? state.allRooms.find((r) => r.id === selectedId) ?? roomOptions.find((r) => r.id === selectedId)
     : null
+
+  const handleSelectNaRoom = () => {
+    if (!selectedNaRoomId || !roomSelectionReady) return
+    handleSelectRoom(selectedNaRoomId)
+  }
 
   const handleSelectRoom = (roomId: string | null) => {
     if (
@@ -760,17 +776,19 @@ export default function RoomSelector({
                     !selectedRoom && "font-normal text-slate-400",
                   )}
                 >
-                  {selectedRoom
-                    ? formatRoomPickerLabel(selectedRoom)
-                    : roomOptions.length
-                      ? "Select a room"
-                      : "No rooms on this floor"}
+                  {naRoomSelected
+                    ? naSurveyRoomDisplayName()
+                    : selectedRoom
+                      ? formatRoomPickerLabel(selectedRoom)
+                      : roomOptions.length
+                        ? "Select a room"
+                        : "No rooms on this floor"}
                 </span>
                 <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
               </button>
             </div>
 
-            {selectedId && !isNeighborhoodSurveyRoomId(selectedId) && (
+            {selectedId && !isNeighborhoodSurveyRoomId(selectedId) && !isNaSurveyRoomId(selectedId) && (
               <div>
                 <label
                   htmlFor="school-room-number"
@@ -798,7 +816,8 @@ export default function RoomSelector({
         {(state.school?.hasFloorPlan || plan) &&
           !floorPlanOpen &&
           roomSelectionReady &&
-          !neighborhoodOnlyMode && (
+          !neighborhoodOnlyMode &&
+          !isNaSurveyRoomId(selectedId) && (
           <div className="col-span-2">
             <button
               type="button"
@@ -1126,6 +1145,33 @@ export default function RoomSelector({
             )}
 
             <ul className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-2 py-2">
+              {showSpaceType && selectedSpaceType && roomSelectionReady && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={handleSelectNaRoom}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium",
+                      naRoomSelected
+                        ? "bg-blue-50 text-[var(--color-primary)]"
+                        : "text-slate-800 active:bg-slate-50",
+                    )}
+                  >
+                    <span className="min-w-0 flex-1">
+                      N/A
+                      <span
+                        className={cn(
+                          "mt-0.5 block text-[11px] font-normal",
+                          naRoomSelected ? "text-[var(--color-primary)]/80" : "text-slate-500",
+                        )}
+                      >
+                        No specific room assigned
+                      </span>
+                    </span>
+                    {naRoomSelected && <Check className="h-4 w-4 shrink-0" aria-hidden />}
+                  </button>
+                </li>
+              )}
               <li>
                 <button
                   type="button"

@@ -1,4 +1,5 @@
 import type { PreWalkRoomMapping, PreWalkState, RoomSurveySession, SurveyType } from "@aisd/shared"
+import { isNaSurveyRoomId } from "@aisd/shared"
 import {
   isSpaceTypeForSurveyModule,
   spaceTypeOptionsForSurvey,
@@ -366,6 +367,7 @@ export function canSelectRoomForSurvey(args: {
   schoolClass?: string | null
 }): boolean {
   const { roomId, preWalkMappings, schoolClass, surveyType, ...rest } = args
+  if (isNaSurveyRoomId(roomId)) return true
   if (!surveyUsesSpaceTypePicker(surveyType, schoolClass)) return true
 
   const mappedType = preWalkSpaceTypeForRoom(preWalkMappings, roomId, surveyType, schoolClass)

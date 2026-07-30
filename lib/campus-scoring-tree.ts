@@ -12,6 +12,8 @@ import {
   getRoomSurveyRubric,
   isOutdoorSurveyRoomId,
   isAbsentSpaceTypeRoomId,
+  isNaSurveyRoomId,
+  naSurveyRoomDisplayName,
   parseAbsentSpaceTypeRoomId,
   absentSpaceTypeRoomDisplayName,
   isRoomComplete,
@@ -98,6 +100,7 @@ function averageCategoryScores(rooms: Pick<ScoredRoomEntry, "categoryScores" | "
 
 function roomDisplayName(roomId: string, roomSession: RoomSurveySession): string {
   if (isOutdoorSurveyRoomId(roomId)) return outdoorSurveyRoomDisplayName()
+  if (isNaSurveyRoomId(roomId)) return naSurveyRoomDisplayName()
   const absent = parseAbsentSpaceTypeRoomId(roomId)
   if (absent) return absentSpaceTypeRoomDisplayName(absent.spaceType, absent.neighborhood)
   const neighborhoodLabel = neighborhoodFromSurveyRoomId(roomId)

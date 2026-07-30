@@ -44,6 +44,9 @@ import {
   isNeighborhoodSurveyRoomId,
   isOutdoorSurveyRoomId,
   isAbsentSpaceTypeRoomId,
+  isNaSurveyRoomId,
+  naSurveyRoomDisplayName,
+  parseNaSurveyRoomId,
   absentSpaceTypeRoomId,
   absentSpaceTypeRoomDisplayName,
   parseAbsentSpaceTypeRoomId,
@@ -301,6 +304,10 @@ function resolveRoomType(
   if (isNeighborhoodSurveyRoomId(roomId) && state.surveyType === "neighborhoods") {
     return "Neighborhood"
   }
+  const naParsed = parseNaSurveyRoomId(roomId)
+  if (naParsed) {
+    return state.pendingStudioType ?? naParsed.spaceType
+  }
 
   const preWalkType = preWalkSpaceTypeForRoom(
     state.preWalk.mappings,
@@ -403,6 +410,7 @@ function bootstrapCampusScopedSurvey(state: SurveyState): SurveyState {
 
 function roomDisplayName(state: SurveyState, roomId: string): string {
   if (isOutdoorSurveyRoomId(roomId)) return outdoorSurveyRoomDisplayName()
+  if (isNaSurveyRoomId(roomId)) return naSurveyRoomDisplayName()
   const absent = parseAbsentSpaceTypeRoomId(roomId)
   if (absent) return absentSpaceTypeRoomDisplayName(absent.spaceType, absent.neighborhood)
   const neighborhoodLabel = neighborhoodFromSurveyRoomId(roomId)
@@ -528,6 +536,37 @@ function ensureRoomSession(
       roomType: "Neighborhood",
       gradeType: "",
       neighborhood: neighborhoodLabel,
+      preWalkNote1: "",
+      preWalkNote2: "",
+      levelId: "campus",
+      responses: [],
+    }
+  }
+
+  const naParsed = parseNaSurveyRoomId(roomId)
+  if (naParsed) {
+    const label = naSurveyRoomDisplayName()
+    const spaceType = state.pendingStudioType ?? naParsed.spaceType
+    const neighborhood =
+      naParsed.neighborhood ??
+      state.pendingNeighborhood?.trim() ??
+      existing?.neighborhood ??
+      ""
+    if (existing) {
+      return {
+        ...existing,
+        roomType: spaceType,
+        roomNumber: label,
+        neighborhood,
+        levelId: "campus",
+      }
+    }
+    return {
+      roomId,
+      roomNumber: label,
+      roomType: spaceType,
+      gradeType: "",
+      neighborhood,
       preWalkNote1: "",
       preWalkNote2: "",
       levelId: "campus",
@@ -1141,11 +1180,12 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         isOutdoorSurveyRoomId(action.roomId) && state.surveyType === "outdoor"
       const neighborhoodSurveyRoom =
         isNeighborhoodSurveyRoomId(action.roomId) && state.surveyType === "neighborhoods"
+      const naSurveyRoom = isNaSurveyRoomId(action.roomId)
       const room =
-        campusRoom || neighborhoodSurveyRoom
+        campusRoom || neighborhoodSurveyRoom || naSurveyRoom
           ? undefined
           : state.allRooms.find((r) => r.id === action.roomId)
-      if (!campusRoom && !neighborhoodSurveyRoom && !room && state.session) {
+      if (!campusRoom && !neighborhoodSurveyRoom && !naSurveyRoom && !room && state.session) {
         return state
       }
       if (!state.session) {
@@ -1183,6 +1223,20 @@ function reducer(state: SurveyState, action: Action): SurveyState {
     }
     case "SET_PENDING_STUDIO_TYPE": {
       const clearNeighborhood = action.roomType !== state.pendingStudioType
+      if (state.selectedRoomId && isNaSurveyRoomId(state.selectedRoomId)) {
+        const naParsed = parseNaSurveyRoomId(state.selectedRoomId)
+        if (!action.roomType || !naParsed || naParsed.spaceType !== action.roomType) {
+          return {
+            ...state,
+            pendingStudioType: action.roomType,
+            pendingNeighborhood: clearNeighborhood ? null : state.pendingNeighborhood,
+            selectedRoomId: null,
+            ...(clearNeighborhood && state.surveyType === "neighborhoods"
+              ? { selectedRoomId: null }
+              : {}),
+          }
+        }
+      }
       if (state.selectedRoomId && state.session && action.roomType) {
         const existing = state.session.rooms[state.selectedRoomId]
         const updated = ensureRoomSession(state, state.selectedRoomId, existing)
@@ -2016,7 +2070,6 @@ type PendingLeaveNavigation =
 
 function shouldPromptLeaveSurvey(state: SurveyState): boolean {
   if (!state.school || state.view === "results") return false
-  if (Object.keys(state.preWalk?.mappings ?? {}).length > 0) return true
   return surveyModuleHasDraftWork(state.session)
 }
 

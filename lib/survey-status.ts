@@ -12,6 +12,7 @@ import {
   type RoomSurveySession,
 } from "@aisd/shared"
 import { assessorFromSession, isAssessorRegistered } from "@/lib/assessor"
+import { roomHasAssessmentProgress } from "@/lib/school-assessment-index"
 import {
   closeOutSessionHasWork,
   isCloseOutSurveyComplete,
@@ -39,11 +40,15 @@ export function sessionHasProgress(session: SurveySession): boolean {
 /** True when the active survey module has work worth preserving or discarding on navigate-away. */
 export function surveyModuleHasDraftWork(session: SurveySession | null | undefined): boolean {
   if (!session) return false
-  if (sessionHasProgress(session)) return true
-  if (Object.keys(session.spaceTypeExistsAtSchool ?? {}).length > 0) return true
   if (session.finalComment?.trim()) return true
   if ((session.outdoorElementPins?.length ?? 0) > 0) return true
-  return false
+  if (Object.keys(session.spaceTypeExistsAtSchool ?? {}).length > 0) return true
+  return Object.values(session.rooms).some(
+    (room) =>
+      roomHasAssessmentProgress(room) ||
+      (room.pendingQuestionIds?.length ?? 0) > 0 ||
+      !!room.pendingGrade,
+  )
 }
 
 function isRoomSurveyFilledOut(
