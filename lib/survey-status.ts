@@ -51,6 +51,7 @@ function isRoomSurveyFilledOut(
   surveyType: SurveyType,
   schoolClass?: string | null,
 ): boolean {
+  if (room.spaceTypeMarkedAbsent) return true
   const rubric = getRoomSurveyRubric(surveyType, room.roomType, room.gradeType, schoolClass)
   if (!rubric) return false
   return validateRoomSession(room.roomId, room.roomId, room, rubric.questions, {

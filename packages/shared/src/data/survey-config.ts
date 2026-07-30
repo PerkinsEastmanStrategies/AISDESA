@@ -760,27 +760,85 @@ export function spaceTypeRequiresExistenceGate(spaceType: string | null | undefi
   return true
 }
 
+/** Composite key when existence is scoped to a neighborhood (Neighborhoods survey). */
+export function spaceTypeExistenceKey(
+  spaceType: string,
+  neighborhood?: string | null,
+): string {
+  const nh = neighborhood?.trim()
+  return nh ? `${spaceType}::${nh}` : spaceType
+}
+
 export function readSpaceTypeExistsAtSchool(
   session: Pick<SurveySession, "spaceTypeExistsAtSchool"> | null | undefined,
   spaceType: string,
+  neighborhood?: string | null,
 ): boolean | null {
   const record = session?.spaceTypeExistsAtSchool
-  if (!record || !(spaceType in record)) return null
-  return record[spaceType] ?? null
+  if (!record) return null
+  const scopedKey = spaceTypeExistenceKey(spaceType, neighborhood)
+  if (scopedKey in record) return record[scopedKey] ?? null
+  if (!neighborhood?.trim() && spaceType in record) return record[spaceType] ?? null
+  return null
 }
 
 export function isSpaceTypeMarkedAbsentAtSchool(
   session: Pick<SurveySession, "spaceTypeExistsAtSchool"> | null | undefined,
   spaceType: string,
+  neighborhood?: string | null,
 ): boolean {
-  return readSpaceTypeExistsAtSchool(session, spaceType) === false
+  return readSpaceTypeExistsAtSchool(session, spaceType, neighborhood) === false
 }
 
 export function isSpaceTypeConfirmedAtSchool(
   session: Pick<SurveySession, "spaceTypeExistsAtSchool"> | null | undefined,
   spaceType: string,
+  neighborhood?: string | null,
 ): boolean {
-  return readSpaceTypeExistsAtSchool(session, spaceType) === true
+  return readSpaceTypeExistsAtSchool(session, spaceType, neighborhood) === true
+}
+
+/** Synthetic session key for a space type marked not present (scores 0). */
+export const ABSENT_SPACE_TYPE_ROOM_PREFIX = "__absent-space-type__:" as const
+
+export function absentSpaceTypeRoomId(
+  spaceType: string,
+  neighborhood?: string | null,
+): string {
+  const type = spaceType.trim()
+  const nh = neighborhood?.trim()
+  return nh
+    ? `${ABSENT_SPACE_TYPE_ROOM_PREFIX}${type}::${nh}`
+    : `${ABSENT_SPACE_TYPE_ROOM_PREFIX}${type}`
+}
+
+export function isAbsentSpaceTypeRoomId(roomId: string | null | undefined): boolean {
+  return !!roomId?.startsWith(ABSENT_SPACE_TYPE_ROOM_PREFIX)
+}
+
+export function parseAbsentSpaceTypeRoomId(
+  roomId: string,
+): { spaceType: string; neighborhood?: string } | null {
+  if (!isAbsentSpaceTypeRoomId(roomId)) return null
+  const rest = roomId.slice(ABSENT_SPACE_TYPE_ROOM_PREFIX.length)
+  const sep = rest.indexOf("::")
+  if (sep >= 0) {
+    return {
+      spaceType: rest.slice(0, sep),
+      neighborhood: rest.slice(sep + 2) || undefined,
+    }
+  }
+  return { spaceType: rest }
+}
+
+export function absentSpaceTypeRoomDisplayName(
+  spaceType: string,
+  neighborhood?: string | null,
+): string {
+  const nh = neighborhood?.trim()
+  return nh
+    ? `${spaceType} — not present (Neighborhood ${nh})`
+    : `${spaceType} — not present`
 }
 
 /** Synthetic session key for campus-wide Outdoor Elements scoring (not a floor-plan room). */

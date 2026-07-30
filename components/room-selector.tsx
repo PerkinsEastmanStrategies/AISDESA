@@ -142,7 +142,11 @@ export default function RoomSelector({
   const showExistenceGate =
     !!selectedSpaceType && spaceTypeRequiresExistenceGate(selectedSpaceType) && neighborhoodReady
   const spaceTypeExistsAnswer = showExistenceGate
-    ? readSpaceTypeExistsAtSchool(state.session, selectedSpaceType)
+    ? readSpaceTypeExistsAtSchool(
+        state.session,
+        selectedSpaceType,
+        isNeighborhoodsSurvey ? selectedNeighborhood : null,
+      )
     : null
   const spaceTypeAbsent = spaceTypeExistsAnswer === false
   const spaceTypeExistsConfirmed = spaceTypeExistsAnswer === true
@@ -398,8 +402,13 @@ export default function RoomSelector({
       }
     }
     for (const type of spaceTypeOptions) {
-      if (isSpaceTypeMarkedAbsentAtSchool(state.session, type)) {
-        map[type] = { started: 1, complete: 1 }
+      const absentRooms = state.session
+        ? Object.values(state.session.rooms).filter(
+            (room) => room.spaceTypeMarkedAbsent && room.roomType === type,
+          )
+        : []
+      if (absentRooms.length > 0 || isSpaceTypeMarkedAbsentAtSchool(state.session, type)) {
+        map[type] = { started: Math.max(1, absentRooms.length), complete: 1 }
       }
     }
     return map
@@ -414,6 +423,7 @@ export default function RoomSelector({
 
   const roomSurveyComplete = useCallback(
     (room: RoomSurveySession) => {
+      if (room.spaceTypeMarkedAbsent) return true
       const detail = state.roomScoreDetails[room.roomId]
       const fullyScored = !!(
         detail &&

@@ -25,6 +25,7 @@ export function roomHasAssessmentProgress(
     return true
   }
   if (!roomSession) return false
+  if (roomSession.spaceTypeMarkedAbsent) return true
   return (
     roomSession.responses.length > 0 ||
     !!roomSession.gradeType ||

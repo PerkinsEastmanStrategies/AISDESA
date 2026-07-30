@@ -43,6 +43,11 @@ import {
   isNeighborhoodOnlySpaceType,
   isNeighborhoodSurveyRoomId,
   isOutdoorSurveyRoomId,
+  isAbsentSpaceTypeRoomId,
+  absentSpaceTypeRoomId,
+  absentSpaceTypeRoomDisplayName,
+  parseAbsentSpaceTypeRoomId,
+  spaceTypeExistenceKey,
   neighborhoodSurveyRoomId,
   isRoomComplete,
   isSecondaryGrade,
@@ -116,7 +121,7 @@ import {
 import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
 import { EMPTY_PREWALK, getPreWalkMappingForSurveyModule, migratePreWalkState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypeForRoom, preWalkSpaceTypePhotoKey, shouldPromptPreWalkOnSchoolSelect } from "@/lib/prewalk"
 import { applyTraditionalStudioCopyToRoom, getTraditionalStudioCopyOffer } from "@/lib/traditional-studio-copy"
-import { scoreRoomSessionWithMetadata } from "@/lib/traditional-studio-room-score"
+import { scoreRoomSessionWithMetadata, scoreAbsentSpaceTypeRoom } from "@/lib/traditional-studio-room-score"
 import {
   fetchRemoteSurveyStatusClient,
   flushSurveySyncQueue,
@@ -398,6 +403,8 @@ function bootstrapCampusScopedSurvey(state: SurveyState): SurveyState {
 
 function roomDisplayName(state: SurveyState, roomId: string): string {
   if (isOutdoorSurveyRoomId(roomId)) return outdoorSurveyRoomDisplayName()
+  const absent = parseAbsentSpaceTypeRoomId(roomId)
+  if (absent) return absentSpaceTypeRoomDisplayName(absent.spaceType, absent.neighborhood)
   const neighborhoodLabel = neighborhoodFromSurveyRoomId(roomId)
   if (neighborhoodLabel) return neighborhoodSurveyRoomDisplayName(neighborhoodLabel)
   const parsed = state.allRooms.find((r) => r.id === roomId)
@@ -464,6 +471,24 @@ function ensureRoomSession(
   roomId: string,
   existing?: RoomSurveySession,
 ): RoomSurveySession {
+  const absentParsed = parseAbsentSpaceTypeRoomId(roomId)
+  if (absentParsed) {
+    const label = absentSpaceTypeRoomDisplayName(absentParsed.spaceType, absentParsed.neighborhood)
+    return {
+      ...(existing ?? {}),
+      roomId,
+      roomNumber: label,
+      roomType: absentParsed.spaceType,
+      gradeType: existing?.gradeType ?? "",
+      neighborhood: absentParsed.neighborhood ?? existing?.neighborhood ?? "",
+      preWalkNote1: existing?.preWalkNote1 ?? "",
+      preWalkNote2: existing?.preWalkNote2 ?? "",
+      levelId: "campus",
+      responses: existing?.spaceTypeMarkedAbsent ? existing.responses : [],
+      spaceTypeMarkedAbsent: true,
+    }
+  }
+
   if (isOutdoorSurveyRoomId(roomId) && state.surveyType === "outdoor") {
     if (existing) {
       return {
@@ -1209,55 +1234,83 @@ function reducer(state: SurveyState, action: Action): SurveyState {
     }
     case "SET_SPACE_TYPE_EXISTS": {
       if (!state.session) return state
+      const neighborhood =
+        state.surveyType === "neighborhoods" ? state.pendingNeighborhood?.trim() ?? "" : ""
+      const existenceKey = spaceTypeExistenceKey(action.spaceType, neighborhood || null)
       const spaceTypeExistsAtSchool = {
         ...(state.session.spaceTypeExistsAtSchool ?? {}),
-        [action.spaceType]: action.exists,
+        [existenceKey]: action.exists,
       }
       let selectedRoomId = state.selectedRoomId
-      const clearSelection =
-        !action.exists &&
-        !!selectedRoomId &&
-        (state.pendingStudioType === action.spaceType ||
-          state.session.rooms[selectedRoomId]?.roomType === action.spaceType ||
-          (isNeighborhoodSurveyRoomId(selectedRoomId) &&
-            action.spaceType === "Neighborhood"))
-      if (clearSelection) selectedRoomId = null
+      const absentRoomId = absentSpaceTypeRoomId(action.spaceType, neighborhood || null)
 
       let session: SurveySession = {
         ...state.session,
         spaceTypeExistsAtSchool,
         updatedAt: new Date().toISOString(),
+        rooms: { ...state.session.rooms },
       }
 
-      const activeSpaceType =
-        state.pendingStudioType ??
-        (selectedRoomId ? session.rooms[selectedRoomId]?.roomType : null) ??
-        action.spaceType
+      if (!action.exists) {
+        const clearSelection =
+          !!selectedRoomId &&
+          (state.pendingStudioType === action.spaceType ||
+            state.session.rooms[selectedRoomId]?.roomType === action.spaceType ||
+            (isNeighborhoodSurveyRoomId(selectedRoomId) &&
+              action.spaceType === "Neighborhood"))
+        if (clearSelection) selectedRoomId = null
 
-      if (
-        action.exists &&
-        state.surveyType === "neighborhoods" &&
-        state.pendingNeighborhood?.trim() &&
-        isNeighborhoodOnlySpaceType(state.surveyType, activeSpaceType)
-      ) {
-        const nh = state.pendingNeighborhood.trim()
-        const roomId = neighborhoodSurveyRoomId(nh)
-        selectedRoomId = roomId
-        const ensured = ensureRoomSession({ ...state, session }, roomId, session.rooms[roomId])
+        const ensured = ensureRoomSession({ ...state, session }, absentRoomId)
         session = {
           ...session,
           rooms: {
             ...session.rooms,
-            [roomId]: { ...ensured, neighborhood: nh, roomType: "Neighborhood" },
+            [absentRoomId]: {
+              ...ensured,
+              roomType: action.spaceType,
+              neighborhood: neighborhood || ensured.neighborhood || "",
+              spaceTypeMarkedAbsent: true,
+              responses: [],
+            },
           },
+        }
+      } else {
+        if (session.rooms[absentRoomId]?.spaceTypeMarkedAbsent) {
+          const { [absentRoomId]: _removed, ...restRooms } = session.rooms
+          session = { ...session, rooms: restRooms }
+        }
+
+        const activeSpaceType =
+          state.pendingStudioType ??
+          (selectedRoomId ? session.rooms[selectedRoomId]?.roomType : null) ??
+          action.spaceType
+
+        if (
+          state.surveyType === "neighborhoods" &&
+          neighborhood &&
+          isNeighborhoodOnlySpaceType(state.surveyType, activeSpaceType)
+        ) {
+          const roomId = neighborhoodSurveyRoomId(neighborhood)
+          selectedRoomId = roomId
+          const ensured = ensureRoomSession({ ...state, session }, roomId, session.rooms[roomId])
+          session = {
+            ...session,
+            rooms: {
+              ...session.rooms,
+              [roomId]: { ...ensured, neighborhood, roomType: "Neighborhood" },
+            },
+          }
         }
       }
 
-      return {
-        ...state,
-        selectedRoomId,
-        session,
-      }
+      return reducer(
+        {
+          ...state,
+          selectedRoomId,
+          session,
+        },
+        { type: "RECALC_SCORES" },
+      )
     }
     case "SET_ROOM_TYPE": {
       if (!state.session) return state
@@ -1647,8 +1700,20 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       for (const [roomId, roomSession] of Object.entries(state.session.rooms)) {
         const campusRoom = isOutdoorSurveyRoomId(roomId)
         const neighborhoodSurveyRoom = isNeighborhoodSurveyRoomId(roomId)
-        const parsed = campusRoom || neighborhoodSurveyRoom ? undefined : state.allRooms.find((r) => r.id === roomId)
-        if (!parsed && !campusRoom && !neighborhoodSurveyRoom) continue
+        const absentRoom = isAbsentSpaceTypeRoomId(roomId) || roomSession.spaceTypeMarkedAbsent
+        const parsed =
+          campusRoom || neighborhoodSurveyRoom || absentRoom
+            ? undefined
+            : state.allRooms.find((r) => r.id === roomId)
+        if (!parsed && !campusRoom && !neighborhoodSurveyRoom && !absentRoom) continue
+
+        if (absentRoom) {
+          const result = scoreAbsentSpaceTypeRoom(roomId)
+          roomScoreDetails[roomId] = result
+          roomScores[roomId] = 0
+          continue
+        }
+
         const rubric = getRoomSurveyRubric(
           state.surveyType,
           roomSession.roomType,
@@ -1956,6 +2021,7 @@ function roomSurveyComplete(
   roomId: string,
   roomSession: RoomSurveySession,
 ): boolean {
+  if (roomSession.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(roomId)) return true
   const pendingDone = !roomNeedsCloseOut(roomSession, state.school?.schoolClass)
   const rubric = getRoomSurveyRubric(
     state.surveyType,
@@ -1975,14 +2041,16 @@ function buildScoredRoomEntries(state: SurveyState): ScoredRoomEntry[] {
   if (!state.session) return []
   return Object.entries(state.session.rooms)
     .filter(([, rs]) => {
+      if (rs.spaceTypeMarkedAbsent) return true
       if (roomHasAssessmentProgress(rs)) return true
       return roomNeedsCloseOut(rs, state.school?.schoolClass)
     })
     .map(([roomId, roomSession]) => {
       const campusRoom = isOutdoorSurveyRoomId(roomId)
       const neighborhoodSurveyRoom = isNeighborhoodSurveyRoomId(roomId)
+      const absentRoom = isAbsentSpaceTypeRoomId(roomId) || roomSession.spaceTypeMarkedAbsent
       const parsed =
-        campusRoom || neighborhoodSurveyRoom
+        campusRoom || neighborhoodSurveyRoom || absentRoom
           ? undefined
           : state.allRooms.find((r) => r.id === roomId)
       const rubric = getRoomSurveyRubric(
@@ -1994,7 +2062,11 @@ function buildScoredRoomEntries(state: SurveyState): ScoredRoomEntry[] {
       )
       let answeredCount = 0
       let totalCount = 0
-      if (rubric) {
+      if (absentRoom) {
+        const detail = state.roomScoreDetails[roomId]
+        answeredCount = detail?.answeredCount ?? 1
+        totalCount = detail?.totalCount ?? 1
+      } else if (rubric) {
         const progress = scoreRoomSessionWithMetadata(
           roomSession,
           rubric,
@@ -2004,6 +2076,7 @@ function buildScoredRoomEntries(state: SurveyState): ScoredRoomEntry[] {
         answeredCount = progress.answeredCount
         totalCount = progress.totalCount
       }
+      const detail = state.roomScoreDetails[roomId]
       return {
         roomId,
         roomName: roomDisplayName(state, roomId),
@@ -2014,8 +2087,8 @@ function buildScoredRoomEntries(state: SurveyState): ScoredRoomEntry[] {
         neighborhood: resolveRoomNeighborhood(state, roomId, roomSession),
         levelId: roomSession.levelId,
         gradeType: roomSession.gradeType,
-        overallScore: null,
-        categoryScores: [],
+        overallScore: absentRoom ? (detail?.overallScore ?? 0) : null,
+        categoryScores: detail?.categoryScores ?? [],
         answeredCount,
         totalCount,
         complete: roomSurveyComplete(state, roomId, roomSession),

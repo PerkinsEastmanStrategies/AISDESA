@@ -98,7 +98,20 @@ export default function StudioSurvey() {
   const isNeighborhoodsSurvey = state.surveyType === "neighborhoods"
   const pendingNeighborhood = state.pendingNeighborhood?.trim() ?? ""
   const spaceTypeAbsent =
-    !!selectedSpaceType && isSpaceTypeMarkedAbsentAtSchool(state.session, selectedSpaceType)
+    !!selectedSpaceType &&
+    (isSpaceTypeMarkedAbsentAtSchool(
+      state.session,
+      selectedSpaceType,
+      isNeighborhoodsSurvey ? pendingNeighborhood : null,
+    ) ||
+      Object.values(state.session?.rooms ?? {}).some(
+        (room) =>
+          room.spaceTypeMarkedAbsent &&
+          room.roomType === selectedSpaceType &&
+          (!isNeighborhoodsSurvey ||
+            !pendingNeighborhood ||
+            room.neighborhood?.trim() === pendingNeighborhood),
+      ))
   const showQuestions = !!state.selectedRoomId && !spaceTypeAbsent
 
   return (
@@ -156,7 +169,7 @@ export default function StudioSurvey() {
         <div className="flex min-h-[40vh] items-center justify-center px-6 py-8 text-center">
           <p className="text-sm text-[var(--color-muted-foreground)]">
             {spaceTypeAbsent
-              ? `${selectedSpaceType} was marked as not present at this school. Select another space type to continue.`
+              ? `${selectedSpaceType} was marked as not present${isNeighborhoodsSurvey && pendingNeighborhood ? ` in Neighborhood ${pendingNeighborhood}` : ""}. Save and Complete Another Survey to record a score of 0.`
               : isCloseOut
               ? closeOutPendingCount > 0
                 ? "Select a room below to answer deferred questions from other survey sections."

@@ -70,8 +70,8 @@ export default function SpaceTypeExistenceGate({
       {value === false && (
         <p className="mt-3 text-xs font-medium text-emerald-800">
           {scopedToNeighborhood
-            ? `Marked as not present — no room or questions required for ${spaceType} in Neighborhood ${neighborhoodLabel}.`
-            : `Marked as not present — no room or questions required for ${spaceType}.`}
+            ? `Marked as not present — this will score 0 for ${spaceType} in Neighborhood ${neighborhoodLabel}. Use Save and Complete Another Survey to record it.`
+            : `Marked as not present — this will score 0 for ${spaceType}. Use Save and Complete Another Survey to record it.`}
         </p>
       )}
     </div>

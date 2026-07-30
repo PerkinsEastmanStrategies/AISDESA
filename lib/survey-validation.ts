@@ -225,6 +225,7 @@ export function validateSurveyBeforeDeferral(
         (roomSession.pendingQuestionIds?.length ?? 0) > 0 || !!roomSession.pendingGrade
       if (!hasPending) continue
     } else {
+      if (roomSession.spaceTypeMarkedAbsent) continue
       const started = roomSession.responses.length > 0 || !!roomSession.gradeType
       if (!started) continue
     }

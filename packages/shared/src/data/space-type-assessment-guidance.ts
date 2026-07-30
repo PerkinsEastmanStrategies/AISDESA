@@ -278,6 +278,7 @@ export function requiredCompletedRoomsForSpaceType(
 
 export interface SpaceTypeRoomSession {
   neighborhood?: string | null
+  spaceTypeMarkedAbsent?: boolean
 }
 
 export function isSpaceTypeRoomsComplete<T extends SpaceTypeRoomSession>(
@@ -294,7 +295,7 @@ export function isSpaceTypeRoomsComplete<T extends SpaceTypeRoomSession>(
   }
 
   const rule = spaceTypeCompletionRule(spaceType, schoolClass)
-  const filled = rooms.filter((room) => isFilledOut(room))
+  const filled = rooms.filter((room) => isFilledOut(room) || room.spaceTypeMarkedAbsent)
 
   if (rule.kind === "minRooms") {
     return filled.length >= rule.count
@@ -319,7 +320,7 @@ export function spaceTypeCompletionProgress<T extends SpaceTypeRoomSession>(
   isFilledOut: (room: T) => boolean,
 ): { complete: number; required: number } {
   const rule = spaceTypeCompletionRule(spaceType, schoolClass)
-  const filled = rooms.filter((room) => isFilledOut(room))
+  const filled = rooms.filter((room) => isFilledOut(room) || room.spaceTypeMarkedAbsent)
 
   if (rule.kind === "minRooms") {
     return { complete: filled.length, required: rule.count }

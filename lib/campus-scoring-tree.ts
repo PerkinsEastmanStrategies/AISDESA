@@ -11,6 +11,9 @@ import {
   EMPTY_WEIGHT_OVERRIDES,
   getRoomSurveyRubric,
   isOutdoorSurveyRoomId,
+  isAbsentSpaceTypeRoomId,
+  parseAbsentSpaceTypeRoomId,
+  absentSpaceTypeRoomDisplayName,
   isRoomComplete,
   neighborhoodFromSurveyRoomId,
   neighborhoodSurveyRoomDisplayName,
@@ -27,7 +30,7 @@ import {
   schoolLevelFromSchoolClass,
   TABLE_OF_SURVEY_ENTRIES,
 } from "@aisd/shared"
-import { scoreRoomSessionWithMetadata } from "@/lib/traditional-studio-room-score"
+import { scoreRoomSessionWithMetadata, scoreAbsentSpaceTypeRoom } from "@/lib/traditional-studio-room-score"
 import { loadDraftsForSchool, type PersistedSurveyDraft } from "@/lib/survey-persistence"
 
 export interface AssessedRoomRecord extends ScoredRoomEntry {
@@ -94,6 +97,8 @@ function averageCategoryScores(rooms: Pick<ScoredRoomEntry, "categoryScores" | "
 
 function roomDisplayName(roomId: string, roomSession: RoomSurveySession): string {
   if (isOutdoorSurveyRoomId(roomId)) return outdoorSurveyRoomDisplayName()
+  const absent = parseAbsentSpaceTypeRoomId(roomId)
+  if (absent) return absentSpaceTypeRoomDisplayName(absent.spaceType, absent.neighborhood)
   const neighborhoodLabel = neighborhoodFromSurveyRoomId(roomId)
   if (neighborhoodLabel) return neighborhoodSurveyRoomDisplayName(neighborhoodLabel)
   return roomSession.roomNumber?.trim() || roomId
@@ -120,6 +125,11 @@ function scoreSessionRooms(
 
   for (const [roomId, roomSession] of Object.entries(session.rooms)) {
     if (next[roomId]?.subcategoryScores?.length) continue
+
+    if (roomSession.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(roomId)) {
+      next[roomId] = scoreAbsentSpaceTypeRoom(roomId)
+      continue
+    }
 
     const rubric = getRoomSurveyRubric(
       surveyType,
