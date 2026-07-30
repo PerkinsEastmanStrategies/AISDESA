@@ -19,6 +19,7 @@ export default function SurveyActionBar() {
     saveAndContinueToNextRoom,
     peekSubmitValidation,
     selectRoom,
+    classroomRooms,
   } = useSurvey()
 
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -54,8 +55,12 @@ export default function SurveyActionBar() {
 
   if (!state.school || state.view === "results") return null
 
+  const currentIdx = state.selectedRoomId
+    ? classroomRooms.findIndex((r) => r.id === state.selectedRoomId)
+    : -1
+  const nextRoom = currentIdx >= 0 ? classroomRooms[currentIdx + 1] : null
   const isCampusScoped = state.surveyType === "outdoor"
-  const canAdvance = !isCampusScoped && !!state.selectedRoomId
+  const canAdvance = !isCampusScoped && !!nextRoom && !!state.selectedRoomId
 
   const openConfirm = (intent: ConfirmIntent, validation: SubmitValidationResult) => {
     setConfirmIntent(intent)
