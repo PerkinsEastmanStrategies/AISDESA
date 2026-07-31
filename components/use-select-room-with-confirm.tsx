@@ -4,8 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useSurvey } from "@/lib/survey-store"
 import { canSelectRoomForSurvey } from "@/lib/prewalk"
-import { computeCloseOutRoomFloorPlanEntry } from "@/lib/closeout-floor-plan"
-import { surveyTypeLabel } from "@aisd/shared"
+import {
+  computeCloseOutRoomFloorPlanEntry,
+  resolveCloseOutSessionRoom,
+} from "@/lib/closeout-floor-plan"
 
 type SelectOptions = {
   /** Called after the room is actually selected (including after Edit). */
@@ -96,32 +98,41 @@ export function useSelectRoomWithConfirm() {
       ) {
         return "blocked" as const
       }
-      if (roomId === state.selectedRoomId) {
+      if (roomId === state.selectedRoomId && state.surveyType !== "closeout") {
         selectRoom(roomId)
         options?.afterSelect?.()
         return "selected" as const
       }
 
       if (state.surveyType === "closeout") {
-        const roomSession = state.session?.rooms[roomId]
+        const roomSession = resolveCloseOutSessionRoom(state.session, roomId, state.allRooms)
+        const sessionRoomId = roomSession?.roomId ?? roomId
         const progressEntry = roomSession
           ? computeCloseOutRoomFloorPlanEntry(roomSession, state.school?.schoolClass)
           : null
-        if (roomSession?.sourceSurveyType && progressEntry) {
+        if (roomSession && progressEntry) {
           const parsed = state.allRooms.find((r) => r.id === roomId)
-          setPendingRoomName(parsed?.name ?? roomId)
+          setPendingRoomName(parsed?.name ?? roomSession.roomNumber ?? sessionRoomId)
           setPendingCloseOut({
-            sourceSurveyLabel: surveyTypeLabel(roomSession.sourceSurveyType),
+            sourceSurveyLabel: progressEntry.sourceSurveyLabel,
             spaceType: progressEntry.spaceType,
             percent: progressEntry.percent,
             complete: progressEntry.complete,
           })
           setPendingSubmitted(null)
-          setPendingRoomId(roomId)
+          setPendingRoomId(sessionRoomId)
           afterConfirmRef.current = options?.afterSelect ?? null
           onChooseDifferentRef.current = options?.onChooseDifferent ?? null
           return "confirm" as const
         }
+      }
+
+      if (state.surveyType === "closeout") {
+        const roomSession = resolveCloseOutSessionRoom(state.session, roomId, state.allRooms)
+        const sessionRoomId = roomSession?.roomId ?? roomId
+        selectRoom(sessionRoomId)
+        options?.afterSelect?.()
+        return "selected" as const
       }
 
       const submitted = findSubmittedRoomAssessment(roomId)
@@ -187,7 +198,7 @@ export function useSelectRoomWithConfirm() {
     mounted &&
     pendingRoomId &&
     createPortal(
-      <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
         <button
           type="button"
           aria-label="Dismiss"

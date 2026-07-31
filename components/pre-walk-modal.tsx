@@ -39,10 +39,13 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
     removePreWalkMapping,
     clearPreWalkMappingsForSurvey,
     completePreWalk,
+    savePreWalkToCloud,
     skipPreWalk,
   } = useSurvey()
 
   useFloorPlanDisplay(open)
+
+  const [saving, setSaving] = useState(false)
 
   const surveyOptions = useMemo(
     () => preWalkSurveyTypesForSchool(state.school?.schoolClass),
@@ -191,8 +194,16 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
   }
 
   const handleStartSurvey = () => {
-    if (initialFlow) completePreWalk()
-    onClose()
+    void (async () => {
+      setSaving(true)
+      try {
+        if (initialFlow || totalMappedCount > 0) completePreWalk()
+        await savePreWalkToCloud()
+      } finally {
+        setSaving(false)
+        onClose()
+      }
+    })()
   }
 
   const handleSkip = () => {
@@ -245,9 +256,10 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
           <button
             type="button"
             onClick={handleStartSurvey}
-            className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white active:opacity-90"
+            disabled={saving}
+            className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white active:opacity-90 disabled:cursor-wait disabled:opacity-70"
           >
-            {initialFlow ? "Start survey" : "Done"}
+            {saving ? "Saving…" : initialFlow ? "Start survey" : "Done"}
           </button>
         </div>
       </header>

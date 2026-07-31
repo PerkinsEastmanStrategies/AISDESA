@@ -375,6 +375,26 @@ export function loadDraftsForSchool(schoolId: string): PersistedSurveyDraft[] {
     .filter((d): d is PersistedSurveyDraft => d != null)
 }
 
+/** Copy school-level pre-walk data onto every local draft for that school. */
+export function propagatePreWalkToSchoolDrafts(
+  schoolId: string,
+  preWalk: PreWalkState,
+): void {
+  for (const surveyType of SURVEY_TYPES) {
+    if (surveyType === "closeout") continue
+    const draft = loadDraft(schoolId, surveyType)
+    if (!draft) continue
+    saveDraft(
+      {
+        ...draft,
+        preWalk,
+        savedAt: new Date().toISOString(),
+      },
+      { setActive: false },
+    )
+  }
+}
+
 export function formatSavedAt(iso: string): string {
   const date = new Date(iso)
   const now = new Date()

@@ -62,6 +62,10 @@ const MAX_ZOOM = 10
 const DEFAULT_ZOOM = 1
 const ZOOM_BUTTON_STEP = 0.5
 
+function isFloorPlanRoomPointerTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && !!target.closest("[data-floor-plan-room]")
+}
+
 function clampZoom(value: number, min: number = MIN_ZOOM): number {
   return Math.min(MAX_ZOOM, Math.max(min, value))
 }
@@ -183,6 +187,7 @@ export default function SurveyFloorPlan({
   photoGalleryMode = false,
   closeOutMode = false,
   closeOutProgressByRoomId,
+  onRequestSelectRoom,
 }: {
   readOnly?: boolean
   variant?: "inline" | "picker" | "prewalk"
@@ -215,9 +220,13 @@ export default function SurveyFloorPlan({
   /** Close Out: show % complete by room; uses lighter mobile SVG when available. */
   closeOutMode?: boolean
   closeOutProgressByRoomId?: Record<string, CloseOutRoomFloorPlanEntry>
+  /** When set, room taps use this handler (dialog can live in a parent that outlives the map). */
+  onRequestSelectRoom?: (roomId: string) => void
 }) {
   const { state, setLevel, levelRooms, ensureFloorPlanLevel, floorPlanDisplayLoading } = useSurvey()
-  const { requestSelectRoom, completedRoomDialog } = useSelectRoomWithConfirm()
+  const internalSelect = useSelectRoomWithConfirm()
+  const requestSelectRoom = internalSelect.requestSelectRoom
+  const completedRoomDialog = onRequestSelectRoom ? null : internalSelect.completedRoomDialog
   const viewportRef = useRef<HTMLDivElement>(null)
   const zoomRef = useRef(DEFAULT_ZOOM)
   const panRef = useRef({ x: 0, y: 0 })
@@ -336,9 +345,22 @@ export default function SurveyFloorPlan({
         onPreWalkRoomTap(roomId)
         return
       }
+      if (onRequestSelectRoom) {
+        onRequestSelectRoom(roomId)
+        return
+      }
       requestSelectRoom(roomId, { afterSelect: onRoomSelect })
     },
-    [readOnly, onPhotoRoomSelect, photoRoomHasMarker, photoRoomIds, onPreWalkRoomTap, requestSelectRoom, onRoomSelect],
+    [
+      readOnly,
+      onPhotoRoomSelect,
+      photoRoomHasMarker,
+      photoRoomIds,
+      onPreWalkRoomTap,
+      onRequestSelectRoom,
+      requestSelectRoom,
+      onRoomSelect,
+    ],
   )
 
   const rotateView = useCallback(() => {
@@ -450,6 +472,7 @@ export default function SurveyFloorPlan({
     }
 
     const onPointerDown = (e: PointerEvent) => {
+      if (isFloorPlanRoomPointerTarget(e.target)) return
       if (e.pointerType === "mouse" && e.button !== 0) return
 
       pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
@@ -519,6 +542,7 @@ export default function SurveyFloorPlan({
     }
 
     const onPointerUp = (e: PointerEvent) => {
+      if (isFloorPlanRoomPointerTarget(e.target)) return
       pointersRef.current.delete(e.pointerId)
       if (pointersRef.current.size < 2) pinchRef.current = null
       if (activePointerId.current === e.pointerId) activePointerId.current = null
@@ -1387,6 +1411,7 @@ function RoomOverlay({
   return (
     <g className={photoGalleryMode && !hasPhotoMarker ? "pointer-events-none" : "pointer-events-auto"}>
       <polygon
+        data-floor-plan-room={room.id}
         points={overlayPointsForRoom(room).map((p) => `${p.x},${p.y}`).join(" ")}
         fill={fill}
         fillRule="evenodd"
@@ -1398,7 +1423,7 @@ function RoomOverlay({
         style={{
           cursor: readOnly ? "default" : "pointer",
           pointerEvents: photoGalleryMode ? "none" : "all",
-          touchAction: "none",
+          touchAction: closeOutEntry ? "manipulation" : "none",
         }}
         onPointerDown={(e) => {
           if (readOnly || !interactive) return
@@ -1407,10 +1432,15 @@ function RoomOverlay({
           tapRef.current = { pointerId: e.pointerId, x: e.clientX, y: e.clientY }
         }}
         onPointerUp={(e) => {
-          if (readOnly || !interactive) return
+          if (readOnly || !interactive || closeOutEntry) return
           if (e.pointerType === "mouse" && e.button !== 0) return
           e.stopPropagation()
           trySelect(e.pointerId, e.clientX, e.clientY)
+        }}
+        onClick={(e) => {
+          if (readOnly || !interactive || !closeOutEntry) return
+          e.stopPropagation()
+          onSelect(room.id)
         }}
         onPointerCancel={(e) => {
           e.stopPropagation()

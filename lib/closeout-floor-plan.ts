@@ -1,4 +1,4 @@
-import type { RoomSurveySession, SurveySession, SurveyType } from "@aisd/shared"
+import type { ParsedPlanRoom, RoomSurveySession, SurveySession, SurveyType } from "@aisd/shared"
 import { getRoomSurveyRubric, surveyTypeLabel } from "@aisd/shared"
 import {
   effectiveCloseOutPendingQuestionIds,
@@ -94,6 +94,35 @@ export function computeCloseOutRoomFloorPlanEntry(
     sourceSurveyLabel,
     spaceType,
   }
+}
+
+function normalizeRoomKey(value: string): string {
+  return value.trim().toUpperCase()
+}
+
+/** Match a floor-plan or list room id to its Close Out session entry (handles id aliases). */
+export function resolveCloseOutSessionRoom(
+  session: SurveySession | null | undefined,
+  roomId: string,
+  allRooms?: ParsedPlanRoom[],
+): RoomSurveySession | null {
+  if (!session) return null
+
+  if (session.rooms[roomId]) return session.rooms[roomId]
+
+  const target = normalizeRoomKey(roomId)
+  const planRoom = allRooms?.find((room) => room.id === roomId)
+
+  for (const room of Object.values(session.rooms)) {
+    if (normalizeRoomKey(room.roomId) === target) return room
+    if (room.schoolRoomNumber && normalizeRoomKey(room.schoolRoomNumber) === target) return room
+    if (room.roomNumber && normalizeRoomKey(room.roomNumber) === target) return room
+    if (planRoom?.name && room.roomNumber && normalizeRoomKey(room.roomNumber) === normalizeRoomKey(planRoom.name)) {
+      return room
+    }
+  }
+
+  return null
 }
 
 export function buildCloseOutFloorPlanEntries(

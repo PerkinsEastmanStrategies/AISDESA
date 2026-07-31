@@ -778,3 +778,24 @@ export async function pullSurveyDraft(input: {
 export function isSurveyDbConfigured(): boolean {
   return isSupabaseServerConfigured()
 }
+
+/** Push school pre-walk mappings without requiring a registered assessor or survey session. */
+export async function pushPrewalkOnly(input: {
+  school: AisdSchoolOption
+  preWalk: PreWalkState
+}): Promise<{ updatedAt: string }> {
+  if (!isSupabaseServerConfigured()) {
+    return { updatedAt: new Date().toISOString() }
+  }
+
+  await upsertSchool(input.school)
+  await syncPrewalk(input.school, input.preWalk)
+  return { updatedAt: new Date().toISOString() }
+}
+
+/** Load pre-walk room assignments for a school from Supabase. */
+export async function pullPrewalkForSchool(schoolId: string): Promise<PreWalkState | null> {
+  if (!isSupabaseServerConfigured()) return null
+  const shared = await loadSchoolSharedDraftData(schoolId)
+  return shared.preWalk
+}

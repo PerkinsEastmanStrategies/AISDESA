@@ -1,6 +1,6 @@
 "use client"
 
-import type { AisdSchoolOption, SurveyType } from "@aisd/shared"
+import type { AisdSchoolOption, PreWalkState, SurveyType } from "@aisd/shared"
 import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
 import type { RemoteSurveyStatus } from "@/lib/survey-remote-types"
 
@@ -147,6 +147,41 @@ export async function pullRemoteDraftClient(input: {
     return payload.draft
   } catch {
     return null
+  }
+}
+
+export async function pullPrewalkClient(schoolId: string): Promise<PreWalkState | null> {
+  if (!isBrowserOnline()) return null
+
+  const params = new URLSearchParams({ schoolId })
+  try {
+    const response = await fetch(`/api/survey/prewalk?${params.toString()}`, { cache: "no-store" })
+    if (!response.ok) return null
+    const payload = (await response.json()) as { configured?: boolean; preWalk?: PreWalkState | null }
+    if (!payload.configured) return null
+    return payload.preWalk ?? null
+  } catch {
+    return null
+  }
+}
+
+export async function pushPrewalkClient(input: {
+  school: AisdSchoolOption
+  preWalk: PreWalkState
+}): Promise<"pushed" | "offline" | "error"> {
+  if (!isBrowserOnline()) return "offline"
+
+  try {
+    const response = await fetch("/api/survey/prewalk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    })
+    if (!response.ok) return "error"
+    const payload = (await response.json()) as { action?: "pushed" | "offline" }
+    return payload.action === "pushed" ? "pushed" : "error"
+  } catch {
+    return "offline"
   }
 }
 

@@ -244,22 +244,11 @@ export function lookupTableEntry(
     const match = TABLE_OF_SURVEY_ENTRIES.find(
       (entry) =>
         entry.surveyType === surveyType &&
-        (entry.spaceType === candidate || entry.spaceTypeRaw === candidate) &&
+        entry.spaceType === candidate &&
         (!level || entry.schoolLevel === level),
     )
     if (match) return match
   }
-
-  // Case-insensitive fallback for legacy / hand-entered room types.
-  const lower = normalized.toLowerCase()
-  const fuzzy = TABLE_OF_SURVEY_ENTRIES.find(
-    (entry) =>
-      entry.surveyType === surveyType &&
-      (entry.spaceType.toLowerCase() === lower ||
-        entry.spaceTypeRaw.toLowerCase() === lower) &&
-      (!level || entry.schoolLevel === level),
-  )
-  if (fuzzy) return fuzzy
 
   return null
 }
