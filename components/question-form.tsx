@@ -467,7 +467,7 @@ function QuestionField({
   onCommentChange: (comment: string) => void
   onPhotoChange: (photos: string[]) => void
 }) {
-  const rootRef = useRef<HTMLFieldSetElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
   const answered = isQuestionFullyAnswered(question, { value: value ?? "", comment })
   const noteRequired = responseRequiresUnableToAssessNote(value)
   const multiSelect = isMultiSelectQuestionType(question.questionType)
@@ -560,7 +560,7 @@ function QuestionField({
 
   if (collapsed && answered && !highlighted && !autoAnswered) {
     return (
-      <fieldset
+      <div
         ref={rootRef}
         id={id}
         className="w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-emerald-200/80 border-l-[3px] border-l-emerald-500 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] [overflow-anchor:none]"
@@ -592,12 +592,12 @@ function QuestionField({
           </div>
           <ChevronDown className="mt-1 h-4 w-4 shrink-0 text-slate-400" />
         </button>
-      </fieldset>
+      </div>
     )
   }
 
   return (
-    <fieldset
+    <div
       ref={rootRef}
       id={id}
       className={cn(
@@ -607,6 +607,10 @@ function QuestionField({
         highlighted && "border-red-300 ring-2 ring-red-100",
       )}
     >
+      <fieldset
+        disabled={disabled && !autoAnswered}
+        className="min-w-0 border-0 p-0 [margin-inline:0]"
+      >
       <div className="border-b border-slate-100 bg-gradient-to-b from-slate-50/90 to-white px-3.5 py-3.5">
         <div className="flex items-start gap-3">
           <span
@@ -720,6 +724,7 @@ function QuestionField({
           </div>
         )}
       </div>
+      </fieldset>
 
       <div
         className={cn(
@@ -743,6 +748,6 @@ function QuestionField({
           onChange={onPhotoChange}
         />
       </div>
-    </fieldset>
+    </div>
   )
 }

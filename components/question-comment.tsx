@@ -41,7 +41,15 @@ export default function QuestionComment({
   const handleClose = () => {
     speech.stop()
     if (required) return
-    if (!hasComment && !speech.displayValue.trim()) setOpen(false)
+    setOpen(false)
+  }
+
+  const handleDone = () => {
+    speech.stop()
+    const trimmed = (speech.isActive ? speech.displayValue : text).trim()
+    if (required && !trimmed) return
+    if (trimmed !== text.trim()) onChange(trimmed)
+    setOpen(false)
   }
 
   const handleClear = () => {
@@ -97,6 +105,19 @@ export default function QuestionComment({
           {required ? "Required note" : "Note"}
         </span>
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={handleDone}
+            disabled={missingRequired}
+            className={cn(
+              "rounded-md px-2 py-0.5 text-[10px] font-semibold",
+              missingRequired
+                ? "cursor-not-allowed text-slate-300"
+                : "text-[var(--color-primary)] active:bg-blue-50",
+            )}
+          >
+            Done
+          </button>
           {!required && (hasComment || speech.displayValue.trim()) && (
             <button
               type="button"
@@ -145,6 +166,7 @@ export default function QuestionComment({
           name={noteId}
           value={speech.isActive ? speech.displayValue : text}
           onChange={(e) => handleTextChange(e.target.value)}
+          onKeyDown={(e) => e.stopPropagation()}
           rows={3}
           required={required}
           aria-invalid={missingRequired || undefined}
