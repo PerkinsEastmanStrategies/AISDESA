@@ -808,7 +808,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       return { ...state, lastSavedAt: action.savedAt }
     case "RESTORE": {
       const sameSchool = state.school?.id === action.school.id
-      return stateFromDraft(
+      const restored = stateFromDraft(
         action.school,
         action.draft,
         action.showResumeBanner ?? false,
@@ -816,6 +816,12 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         sameSchool ? state.allRooms : [],
         sameSchool ? state.floorPlan : null,
       )
+      // Keep in-progress picker choices when a background sync restores an older remote draft.
+      return {
+        ...restored,
+        pendingStudioType: state.pendingStudioType ?? restored.pendingStudioType,
+        pendingNeighborhood: state.pendingNeighborhood ?? restored.pendingNeighborhood,
+      }
     }
     case "UPDATE_SCHOOL": {
       if (!state.school || state.school.id !== action.school.id) return state
@@ -823,8 +829,13 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         state.school.campusId !== action.school.campusId ||
         state.school.name !== action.school.name ||
         state.school.hasFloorPlan !== action.school.hasFloorPlan
+      // Do not wipe an in-flight floor-plan load when metadata (e.g. schoolClass) catches up.
       const shouldReloadPlan =
-        identityChanged || (action.school.hasFloorPlan && state.allRooms.length === 0)
+        (identityChanged && action.school.hasFloorPlan) ||
+        (action.school.hasFloorPlan &&
+          state.allRooms.length === 0 &&
+          !state.floorPlan &&
+          !state.floorPlanLoading)
       return {
         ...state,
         school: action.school,
@@ -1133,7 +1144,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
     }
     case "SELECT_ROOM": {
       if (!action.roomId) {
-        return { ...state, selectedRoomId: null, pendingStudioType: null, view: "survey" }
+        return { ...state, selectedRoomId: null, view: "survey" }
       }
       const campusRoom =
         isOutdoorSurveyRoomId(action.roomId) && state.surveyType === "outdoor"
@@ -2380,8 +2391,13 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
             const localAnswers = countSessionResponses(draft.session)
             const remoteAnswers = countSessionResponses(remote.session)
             if (remoteAnswers >= localAnswers) {
-              saveDraft(remote)
-              dispatch({ type: "RESTORE", school, draft: remote, showResumeBanner: false })
+              const merged = {
+                ...remote,
+                pendingStudioType: draft.pendingStudioType ?? remote.pendingStudioType,
+                pendingNeighborhood: draft.pendingNeighborhood ?? remote.pendingNeighborhood,
+              }
+              saveDraft(merged)
+              dispatch({ type: "RESTORE", school, draft: merged, showResumeBanner: false })
             }
           }
         }
@@ -2495,8 +2511,16 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-    // Re-run when the school object is upgraded (campus/name/hasFloorPlan) so rooms reload.
-  }, [state.school])
+    // Re-run when floor-plan identity changes, or after a cleared/failed load — not on metadata-only school upgrades.
+  }, [
+    state.school?.id,
+    state.school?.hasFloorPlan,
+    state.school?.campusId,
+    state.school?.name,
+    state.floorPlan,
+    state.allRooms.length,
+    state.manualRooms,
+  ])
 
   const requestFloorPlanDisplay = useCallback(() => {
     setFloorPlanDisplayRequests((count) => count + 1)
