@@ -657,6 +657,7 @@ export async function loadSchoolRoomsForSchool(
 export async function loadFloorPlanLevelDisplay(
   school: AisdSchoolOption,
   levelId: string,
+  options?: { preferMobile?: boolean },
 ): Promise<SchoolFloorPlanConfig["levels"][number] | null> {
   if (isLivelySchool(school)) {
     return loadLivelyFloorPlanLevelDisplay(school.id, levelId)
@@ -667,7 +668,8 @@ export async function loadFloorPlanLevelDisplay(
   const floor = floors.find((entry) => entry.id === levelId)
   if (!floor) return null
 
-  const result = await loadLevel(school.id, floor, false, preferMobileFloorPlan())
+  const preferMobile = options?.preferMobile ?? preferMobileFloorPlan()
+  const result = await loadLevel(school.id, floor, false, preferMobile)
   return result?.level ?? null
 }
 

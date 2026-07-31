@@ -1,6 +1,6 @@
 import type { RoomSurveySession, SurveyType } from "@aisd/shared"
 import { surveyTypeLabel } from "@aisd/shared"
-import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
+import { buildCampusScoringSnapshot, isSubmittedCampusRoom } from "@/lib/campus-scoring-tree"
 import { loadDraftsForSchool, type PersistedSurveyDraft } from "@/lib/survey-persistence"
 import type { RoomScoreResult, SurveySession } from "@aisd/shared"
 
@@ -31,7 +31,6 @@ export function roomHasAssessmentProgress(
     !!roomSession.deferredToCloseOut
   )
 }
-
 function roomInSubmittedDraft(
   draft: PersistedSurveyDraft,
   roomId: string,
@@ -47,7 +46,8 @@ function roomInSubmittedDraft(
 
   if (!campusEntry && !sessionRoom) return null
 
-  if (!roomHasAssessmentProgress(sessionRoom, campusEntry)) return null
+  if (campusEntry && !isSubmittedCampusRoom(campusEntry)) return null
+  if (!campusEntry && !roomHasAssessmentProgress(sessionRoom)) return null
 
   const spaceType =
     sessionRoom?.roomType?.trim() ||
@@ -107,10 +107,6 @@ export function schoolScoredRoomCount(input: Parameters<typeof buildSchoolCampus
 }
 
 export function schoolHasResults(input: Parameters<typeof buildSchoolCampusSnapshot>[0]): boolean {
-  const drafts = input.drafts
-  if (schoolHasAnySubmission(input.schoolId, drafts)) return true
   const snapshot = buildSchoolCampusSnapshot(input)
-  return snapshot.allRooms.some(
-    (room) => room.overallScore !== null || room.answeredCount > 0,
-  )
+  return snapshot.allRooms.length > 0
 }

@@ -2,28 +2,26 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { createPortal } from "react-dom"
-import { ArrowRight, Send, X } from "lucide-react"
+import { Check, X } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
 import { countIncompleteItems } from "@/lib/closeout"
 import type { SubmitValidationResult } from "@/lib/survey-validation"
 import { cn } from "@/lib/utils"
 
-type ConfirmIntent = "results" | "next-room"
-
 export default function SurveyActionBar() {
   const {
     state,
     canSubmit,
+    canDiscard,
     submitHint,
-    submitSurvey,
-    saveAndContinueToNextRoom,
+    saveAndCompleteAnotherSurvey,
+    discardCurrentAssessment,
     peekSubmitValidation,
     selectRoom,
-    classroomRooms,
   } = useSurvey()
 
-  const [confirmOpen, setConfirmOpen] = useState(false)
-  const [confirmIntent, setConfirmIntent] = useState<ConfirmIntent>("results")
+  const [incompleteConfirmOpen, setIncompleteConfirmOpen] = useState(false)
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false)
   const [pendingValidation, setPendingValidation] = useState<SubmitValidationResult | null>(null)
   const [mounted, setMounted] = useState(false)
 
@@ -32,12 +30,13 @@ export default function SurveyActionBar() {
   }, [])
 
   useEffect(() => {
-    if (!confirmOpen) return
+    if (!incompleteConfirmOpen && !discardConfirmOpen) return
     const prev = document.body.style.overflow
     document.body.style.overflow = "hidden"
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setConfirmOpen(false)
+        setIncompleteConfirmOpen(false)
+        setDiscardConfirmOpen(false)
         setPendingValidation(null)
       }
     }
@@ -46,7 +45,7 @@ export default function SurveyActionBar() {
       document.body.style.overflow = prev
       document.removeEventListener("keydown", onKey)
     }
-  }, [confirmOpen])
+  }, [incompleteConfirmOpen, discardConfirmOpen])
 
   const incompleteSummary = useMemo(() => {
     if (!pendingValidation) return null
@@ -55,61 +54,43 @@ export default function SurveyActionBar() {
 
   if (!state.school || state.view === "results") return null
 
-  const currentIdx = state.selectedRoomId
-    ? classroomRooms.findIndex((r) => r.id === state.selectedRoomId)
-    : -1
-  const nextRoom = currentIdx >= 0 ? classroomRooms[currentIdx + 1] : null
-  const isCampusScoped = state.surveyType === "outdoor"
-  const canAdvance = !isCampusScoped && !!nextRoom && !!state.selectedRoomId
-
-  const openConfirm = (intent: ConfirmIntent, validation: SubmitValidationResult) => {
-    setConfirmIntent(intent)
+  const openIncompleteConfirm = (validation: SubmitValidationResult) => {
     setPendingValidation(validation)
-    setConfirmOpen(true)
+    setIncompleteConfirmOpen(true)
   }
 
-  const handleSaveResultsClick = () => {
+  const handleSaveClick = () => {
     if (!canSubmit) return
     const validation = peekSubmitValidation()
     if (!validation || validation.valid) {
-      submitSurvey()
+      saveAndCompleteAnotherSurvey()
       return
     }
-    openConfirm("results", validation)
-  }
-
-  const handleSaveNextRoomClick = () => {
-    if (!canAdvance) return
-    const validation = peekSubmitValidation()
-    if (!validation || validation.valid) {
-      saveAndContinueToNextRoom()
-      return
-    }
-    openConfirm("next-room", validation)
+    openIncompleteConfirm(validation)
   }
 
   const handleAcceptDeferral = () => {
-    const intent = confirmIntent
-    setConfirmOpen(false)
+    setIncompleteConfirmOpen(false)
     setPendingValidation(null)
-    if (intent === "next-room") {
-      saveAndContinueToNextRoom({ deferIncomplete: true })
-      return
-    }
-    submitSurvey({ deferIncomplete: true })
+    saveAndCompleteAnotherSurvey({ deferIncomplete: true })
   }
 
   const handleGoBack = () => {
-    setConfirmOpen(false)
+    setIncompleteConfirmOpen(false)
     if (pendingValidation?.firstIncompleteRoomId) {
       selectRoom(pendingValidation.firstIncompleteRoomId)
     }
     setPendingValidation(null)
   }
 
-  const dialog =
+  const handleDiscardClick = () => {
+    if (!canDiscard) return
+    setDiscardConfirmOpen(true)
+  }
+
+  const incompleteDialog =
     mounted &&
-    confirmOpen &&
+    incompleteConfirmOpen &&
     pendingValidation &&
     createPortal(
       <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
@@ -136,8 +117,8 @@ export default function SurveyActionBar() {
               <p className="mt-1.5 text-sm text-[var(--color-muted-foreground)]">
                 {state.surveyType === "closeout" ? (
                   <>
-                    This room still has unanswered Close Out items. You can continue now; remaining
-                    items for this room stay in Close Out to finish later.
+                    This room still has unanswered Close Out items. You can save now; remaining items
+                    for this room stay in Close Out to finish later.
                   </>
                 ) : (
                   <>
@@ -190,14 +171,8 @@ export default function SurveyActionBar() {
               onClick={handleAcceptDeferral}
               className="flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 text-sm font-semibold text-white active:opacity-90"
             >
-              {confirmIntent === "next-room" ? (
-                <>
-                  Accept & next room
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              ) : (
-                "Accept & view results"
-              )}
+              Save and Complete Another Survey
+              <Check className="h-4 w-4" />
             </button>
             <button
               type="button"
@@ -212,6 +187,54 @@ export default function SurveyActionBar() {
       document.body,
     )
 
+  const discardDialog =
+    mounted &&
+    discardConfirmOpen &&
+    createPortal(
+      <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+        <button
+          type="button"
+          aria-label="Dismiss"
+          className="absolute inset-0 bg-slate-900/45"
+          onClick={() => setDiscardConfirmOpen(false)}
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="discard-confirm-title"
+          className="relative z-10 w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-white p-5 shadow-2xl"
+        >
+          <h2 id="discard-confirm-title" className="text-base font-semibold">
+            Discard this survey?
+          </h2>
+          <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
+            Your current answers will be removed and will not appear on the Results tab. Previously
+            saved surveys are not affected.
+          </p>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row-reverse">
+            <button
+              type="button"
+              onClick={() => {
+                setDiscardConfirmOpen(false)
+                discardCurrentAssessment()
+              }}
+              className="flex min-h-[48px] flex-1 items-center justify-center rounded-xl bg-red-600 px-4 text-sm font-semibold text-white active:opacity-90"
+            >
+              Discard
+            </button>
+            <button
+              type="button"
+              onClick={() => setDiscardConfirmOpen(false)}
+              className="flex min-h-[48px] flex-1 items-center justify-center rounded-xl border border-[var(--color-border)] px-4 text-sm font-medium active:bg-slate-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body,
+    )
+
   return (
     <>
       <div className="sticky bottom-0 z-40 border-t border-[var(--color-border)] bg-white/95 px-3 pt-3 backdrop-blur safe-bottom sm:pt-3">
@@ -219,31 +242,34 @@ export default function SurveyActionBar() {
           {submitHint}
         </p>
         <div className="mb-5 flex flex-row gap-2">
-          {canAdvance && (
-            <button
-              type="button"
-              onClick={handleSaveNextRoomClick}
-              className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-[var(--color-primary)] bg-white px-3 text-sm font-semibold text-[var(--color-primary)] active:bg-blue-50 sm:min-h-[48px] sm:gap-2 sm:px-4"
-            >
-              Save & next room
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          )}
+          <button
+            type="button"
+            disabled={!canDiscard}
+            onClick={handleDiscardClick}
+            className={cn(
+              "flex min-h-11 flex-1 items-center justify-center rounded-xl border px-3 text-sm font-semibold sm:min-h-[48px] sm:px-4",
+              canDiscard
+                ? "border-red-200 bg-white text-red-600 active:bg-red-50"
+                : "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400",
+            )}
+          >
+            Discard
+          </button>
           <button
             type="button"
             disabled={!canSubmit}
-            onClick={handleSaveResultsClick}
+            onClick={handleSaveClick}
             className={cn(
-              "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-white transition-opacity sm:min-h-[48px] sm:gap-2 sm:px-4",
+              "flex min-h-11 flex-1 items-center justify-center rounded-xl px-3 text-sm font-semibold text-white transition-opacity sm:min-h-[48px] sm:px-4",
               canSubmit ? "bg-[var(--color-primary)] active:opacity-90" : "cursor-not-allowed bg-slate-300",
             )}
           >
-            <Send className="h-4 w-4" />
-            Save & view results
+            Save and Complete Another Survey
           </button>
         </div>
       </div>
-      {dialog}
+      {incompleteDialog}
+      {discardDialog}
     </>
   )
 }

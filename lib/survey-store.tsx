@@ -210,6 +210,8 @@ type Action =
   | { type: "ACK_TRADITIONAL_STUDIO_COPY_REVIEW"; roomId: string }
   | { type: "RECALC_SCORES" }
   | { type: "SUBMIT" }
+  | { type: "SUBMIT_AND_CONTINUE" }
+  | { type: "DISCARD_CURRENT_ASSESSMENT" }
   | { type: "SET_VIEW"; view: SurveyView }
   | { type: "CONTINUE_SURVEY" }
   | { type: "RESET_SURVEY" }
@@ -286,6 +288,50 @@ function roomHasSurveyStarted(session: RoomSurveySession): boolean {
     !!session.gradeType ||
     !!session.deferredToCloseOut
   )
+}
+
+function currentAssessmentSpaceType(state: SurveyState): string {
+  if (state.pendingStudioType && isPendingSpaceType(state.pendingStudioType)) {
+    return state.pendingStudioType
+  }
+  if (state.selectedRoomId && state.session) {
+    const existing = state.session.rooms[state.selectedRoomId]
+    if (existing?.roomType && isPendingSpaceType(existing.roomType)) {
+      return existing.roomType
+    }
+  }
+  return ""
+}
+
+function currentAssessmentNeighborhood(state: SurveyState): string {
+  if (state.surveyType !== "neighborhoods") return ""
+  const pending = state.pendingNeighborhood?.trim()
+  if (pending) return pending
+  if (state.selectedRoomId && state.session) {
+    return state.session.rooms[state.selectedRoomId]?.neighborhood?.trim() ?? ""
+  }
+  return ""
+}
+
+function hasCurrentAssessmentToDiscard(state: SurveyState): boolean {
+  if (!state.session) return false
+  if (state.surveyType === "outdoor") {
+    return Object.values(state.session.rooms).some((room) => roomHasAssessmentProgress(room))
+  }
+  const spaceType = currentAssessmentSpaceType(state)
+  const neighborhood = currentAssessmentNeighborhood(state)
+  if (spaceType) {
+    const existenceKey = spaceTypeExistenceKey(spaceType, neighborhood || null)
+    if (state.session.spaceTypeExistsAtSchool?.[existenceKey] !== undefined) return true
+    const absentId = absentSpaceTypeRoomId(spaceType, neighborhood || null)
+    if (state.session.rooms[absentId]) return true
+  }
+  if (state.selectedRoomId) {
+    const room = state.session.rooms[state.selectedRoomId]
+    if (room && (roomHasAssessmentProgress(room) || room.spaceTypeMarkedAbsent)) return true
+  }
+  if (state.pendingStudioType || state.pendingNeighborhood?.trim()) return true
+  return false
 }
 
 function resolveRoomType(
@@ -754,11 +800,11 @@ function buildSubmission(state: SurveyState): SurveySubmission | null {
   const rubric = getSurveyRubric(state.surveyType)
   if (!rubric) return null
 
-  const scoredRooms: ScoredRoomEntry[] = Object.entries(state.session.rooms)
-    .filter(([, roomSession]) => roomHasAssessmentProgress(roomSession))
-    .map(([roomId, roomSession]) => {
+  const newlyComplete: ScoredRoomEntry[] = []
+  for (const [roomId, roomSession] of Object.entries(state.session.rooms)) {
+    if (!roomSurveyComplete(state, roomId, roomSession)) continue
     const detail = state.roomScoreDetails[roomId]
-    return {
+    newlyComplete.push({
       roomId,
       roomName: roomDisplayName(state, roomId),
       schoolRoomNumber: roomSession.schoolRoomNumber?.trim() || undefined,
@@ -772,18 +818,23 @@ function buildSubmission(state: SurveyState): SurveySubmission | null {
       categoryScores: detail?.categoryScores ?? [],
       answeredCount: detail?.answeredCount ?? 0,
       totalCount: detail?.totalCount ?? 0,
-      complete: detail
-          ? isRoomComplete(
-              detail,
-              roomSession.gradeType,
-              roomSession.roomType,
-              state.school?.schoolClass,
-            )
-          : false,
-    }
-  })
+      complete: true,
+    })
+  }
 
-  const campus = aggregateCampusScores(scoredRooms, {
+  const priorRooms = state.submission?.campus?.rooms ?? []
+  const merged = new Map<string, ScoredRoomEntry>()
+  for (const room of priorRooms) {
+    if (room.complete !== false) merged.set(room.roomId, room)
+  }
+  for (const room of newlyComplete) {
+    merged.set(room.roomId, room)
+  }
+
+  const mergedRooms = [...merged.values()]
+  if (mergedRooms.length === 0) return null
+
+  const campus = aggregateCampusScores(mergedRooms, {
     schoolId: state.school.id,
     schoolName: state.school.displayName,
     campusId: state.school.campusId,
@@ -1775,7 +1826,8 @@ function reducer(state: SurveyState, action: Action): SurveyState {
     }
     case "RESET_WEIGHT_OVERRIDES":
       return { ...state, weightOverrides: EMPTY_WEIGHT_OVERRIDES }
-    case "SUBMIT": {
+    case "SUBMIT":
+    case "SUBMIT_AND_CONTINUE": {
       const rubric = getSurveyRubric(state.surveyType)
       let submitState = state
       if (rubric && hasActiveWeightOverrides(state.weightOverrides)) {
@@ -1789,12 +1841,74 @@ function reducer(state: SurveyState, action: Action): SurveyState {
 
       return {
         ...submitState,
-        view: "results",
+        view: action.type === "SUBMIT_AND_CONTINUE" ? "survey" : "results",
         submission,
         selectedRoomId: null,
+        pendingStudioType: null,
+        pendingNeighborhood: null,
         submitValidation: null,
         session: submission.session,
       }
+    }
+    case "DISCARD_CURRENT_ASSESSMENT": {
+      if (!state.session || !state.school) return state
+
+      const spaceType = currentAssessmentSpaceType(state)
+      const neighborhood = currentAssessmentNeighborhood(state)
+      const rooms = { ...state.session.rooms }
+      const roomScores = { ...state.roomScores }
+      const roomScoreDetails = { ...state.roomScoreDetails }
+      const spaceTypeExistsAtSchool = { ...(state.session.spaceTypeExistsAtSchool ?? {}) }
+
+      if (state.selectedRoomId) {
+        delete rooms[state.selectedRoomId]
+        delete roomScores[state.selectedRoomId]
+        delete roomScoreDetails[state.selectedRoomId]
+      }
+
+      if (spaceType) {
+        const absentId = absentSpaceTypeRoomId(spaceType, neighborhood || null)
+        if (rooms[absentId]) {
+          delete rooms[absentId]
+          delete roomScores[absentId]
+          delete roomScoreDetails[absentId]
+        }
+        delete spaceTypeExistsAtSchool[spaceTypeExistenceKey(spaceType, neighborhood || null)]
+        if (neighborhood && isNeighborhoodOnlySpaceType(state.surveyType, spaceType)) {
+          const nhId = neighborhoodSurveyRoomId(neighborhood)
+          delete rooms[nhId]
+          delete roomScores[nhId]
+          delete roomScoreDetails[nhId]
+        }
+      }
+
+      if (state.surveyType === "outdoor") {
+        for (const roomId of Object.keys(rooms)) {
+          if (!isOutdoorSurveyRoomId(roomId)) continue
+          delete rooms[roomId]
+          delete roomScores[roomId]
+          delete roomScoreDetails[roomId]
+        }
+      }
+
+      const session: SurveySession = {
+        ...state.session,
+        rooms,
+        updatedAt: new Date().toISOString(),
+        spaceTypeExistsAtSchool:
+          Object.keys(spaceTypeExistsAtSchool).length > 0 ? spaceTypeExistsAtSchool : undefined,
+      }
+
+      return bootstrapCampusScopedSurvey({
+        ...state,
+        session,
+        selectedRoomId: null,
+        pendingStudioType: null,
+        pendingNeighborhood: null,
+        roomScores,
+        roomScoreDetails,
+        submitValidation: null,
+      })
     }
     case "SET_VIEW":
       return { ...state, view: action.view }
@@ -1949,8 +2063,10 @@ interface SurveyContextValue {
   applyTraditionalStudioCopy: (roomId: string) => void
   acknowledgeTraditionalStudioCopyReview: (roomId: string) => void
   traditionalStudioCopyOffer: { sourceRoomId: string; sourceRoomName: string; neighborhood: string } | null
-  submitSurvey: (options?: { deferIncomplete?: boolean }) => boolean
-  /** Save current room (optionally defer incomplete to Close Out) and select the next room. */
+  submitSurvey: (options?: { deferIncomplete?: boolean; continue?: boolean }) => boolean
+  saveAndCompleteAnotherSurvey: (options?: { deferIncomplete?: boolean }) => boolean
+  discardCurrentAssessment: () => void
+  /** @deprecated Use saveAndCompleteAnotherSurvey */
   saveAndContinueToNextRoom: (options?: { deferIncomplete?: boolean }) => boolean
   submitCampusAssessment: () => boolean
   setFinalComment: (comment: string) => void
@@ -1965,6 +2081,7 @@ interface SurveyContextValue {
   currentRoomSession: RoomSurveySession | null
   currentRoomScore: RoomScoreResult | null
   canSubmit: boolean
+  canDiscard: boolean
   submitHint: string
   canSubmitCampus: boolean
   submitCampusHint: string
@@ -2004,7 +2121,7 @@ interface SurveyContextValue {
   floorPlanDisplayLoading: boolean
   requestFloorPlanDisplay: () => void
   releaseFloorPlanDisplay: () => void
-  ensureFloorPlanLevel: (levelId: string) => Promise<void>
+  ensureFloorPlanLevel: (levelId: string, options?: { preferMobile?: boolean }) => Promise<void>
 }
 
 const SurveyContext = createContext<SurveyContextValue | null>(null)
@@ -2175,6 +2292,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   >(null)
   const [floorPlanDisplayRequests, setFloorPlanDisplayRequests] = useState(0)
   const [floorPlanDisplayLoading, setFloorPlanDisplayLoading] = useState(false)
+  const floorPlanDisplayRequestsRef = useRef(0)
   const lastSyncedSubmissionRef = useRef<string | null>(null)
   const floorPlanLevelInflightRef = useRef(new Map<string, Promise<void>>())
   const surveyTypeBeforeConflictRef = useRef<SurveyType>("studios")
@@ -2523,34 +2641,43 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   ])
 
   const requestFloorPlanDisplay = useCallback(() => {
-    setFloorPlanDisplayRequests((count) => count + 1)
+    setFloorPlanDisplayRequests((count) => {
+      const next = count + 1
+      floorPlanDisplayRequestsRef.current = next
+      return next
+    })
   }, [])
 
   const releaseFloorPlanDisplay = useCallback(() => {
-    setFloorPlanDisplayRequests((count) => Math.max(0, count - 1))
+    setFloorPlanDisplayRequests((count) => {
+      const next = Math.max(0, count - 1)
+      floorPlanDisplayRequestsRef.current = next
+      return next
+    })
   }, [])
 
   const ensureFloorPlanLevel = useCallback(
-    async (levelId: string) => {
+    async (levelId: string, options?: { preferMobile?: boolean }) => {
       const school = state.school
       const plan = state.floorPlan
       if (!school?.hasFloorPlan || !plan) return
 
       const existing = plan.levels.find((level) => level.id === levelId)
+      const preferMobile = options?.preferMobile ?? false
       const inlineStale =
         existing?.src &&
         isInlineFloorPlanSrc(existing.src) &&
         !hasFloorPlanDisplayCache(school.id, levelId)
       if (existing?.src && !inlineStale) return
 
-      const key = `${school.id}::${levelId}`
+      const key = `${school.id}::${levelId}${preferMobile ? ":mobile" : ""}`
       const inflight = floorPlanLevelInflightRef.current.get(key)
       if (inflight) return inflight
 
       const promise = (async () => {
         setFloorPlanDisplayLoading(true)
         try {
-          if (hasFloorPlanDisplayCache(school.id, levelId) && existing) {
+          if (!preferMobile && hasFloorPlanDisplayCache(school.id, levelId) && existing) {
             const restored = restoreFloorPlanLevelFromCache(school.id, existing)
             if (restored) {
               dispatch({ type: "PATCH_FLOOR_PLAN_LEVEL", level: restored })
@@ -2558,7 +2685,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
             }
           }
 
-          const level = await loadFloorPlanLevelDisplay(school, levelId)
+          const level = await loadFloorPlanLevelDisplay(school, levelId, { preferMobile })
           if (level) dispatch({ type: "PATCH_FLOOR_PLAN_LEVEL", level })
         } catch (err) {
           console.error(err)
@@ -2576,19 +2703,31 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   )
 
   useEffect(() => {
+    floorPlanDisplayRequestsRef.current = floorPlanDisplayRequests
+  }, [floorPlanDisplayRequests])
+
+  useEffect(() => {
     if (floorPlanDisplayRequests === 0) {
-      dispatch({ type: "STRIP_FLOOR_PLAN_DISPLAY" })
-      return
+      const timer = window.setTimeout(() => {
+        if (floorPlanDisplayRequestsRef.current === 0) {
+          dispatch({ type: "STRIP_FLOOR_PLAN_DISPLAY" })
+        }
+      }, 150)
+      return () => window.clearTimeout(timer)
     }
     if (!state.school?.hasFloorPlan || !state.floorPlan) return
 
     const levelId = state.selectedLevelId ?? state.floorPlan.defaultLevelId
-    void ensureFloorPlanLevel(levelId)
+    void ensureFloorPlanLevel(
+      levelId,
+      state.surveyType === "closeout" ? { preferMobile: true } : undefined,
+    )
   }, [
     floorPlanDisplayRequests,
     state.school,
     state.floorPlan,
     state.selectedLevelId,
+    state.surveyType,
     ensureFloorPlanLevel,
   ])
 
@@ -2633,29 +2772,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
             campusId: state.school.campusId,
             schoolClass: state.school.schoolClass,
             drafts: scoringDrafts,
-            ...(state.view === "results"
-              ? {}
-              : {
-                  liveSurveyType: state.surveyType,
-                  liveSession: state.session,
-                  liveRoomScoreDetails: state.roomScoreDetails,
-                  liveNeighborhoodResolver: (roomId: string, roomSession: RoomSurveySession) => {
-                    const fromSession = roomSession.neighborhood?.trim()
-                    if (fromSession) return fromSession
-                    return state.allRooms.find((r) => r.id === roomId)?.neighborhood?.trim()
-                  },
-                }),
           }
         : null,
-    [
-      state.school,
-      state.view,
-      scoringDrafts,
-      state.surveyType,
-      state.session,
-      state.roomScoreDetails,
-      state.allRooms,
-    ],
+    [state.school, scoringDrafts],
   )
 
   const schoolHasResultsFlag = useMemo(
@@ -2709,17 +2828,26 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     ? state.roomScoreDetails[state.selectedRoomId] ?? null
     : null
 
-  const canSubmit = surveyedRooms.length > 0
-  const completeCount = surveyedRooms.filter((r) => r.complete).length
+  const completeSurveyedRooms = useMemo(
+    () => surveyedRooms.filter((r) => r.complete),
+    [surveyedRooms],
+  )
+
+  const canSubmit = completeSurveyedRooms.length > 0
+  const canDiscard = hasCurrentAssessmentToDiscard(state)
+  const completeCount = completeSurveyedRooms.length
+  const inProgressCount = surveyedRooms.length - completeCount
   const submitHint = canSubmit
     ? state.surveyType === "outdoor"
-      ? `${completeCount ? "Outdoor survey complete" : "Outdoor survey in progress"} · auto-saved`
-      : `${surveyedRooms.length} room${surveyedRooms.length === 1 ? "" : "s"} in progress${completeCount ? ` · ${completeCount} complete` : ""} · auto-saved`
+      ? "Outdoor survey ready to save"
+      : `${completeCount} complete room${completeCount === 1 ? "" : "s"} ready to save`
     : state.surveyType === "outdoor"
-      ? "Answer outdoor questions to save progress"
+      ? "Answer outdoor questions to begin scoring"
       : state.surveyType === "closeout"
         ? "Finish deferred questions below, then submit the campus assessment"
-        : "Score at least one room to save progress"
+        : inProgressCount > 0
+          ? `${inProgressCount} room${inProgressCount === 1 ? "" : "s"} in progress — finish at least one to save`
+          : "Score at least one room to save"
 
   const closeOutPending = useMemo(() => {
     if (state.surveyType !== "closeout" || !state.session) {
@@ -2838,17 +2966,19 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   ])
 
   const submitSurvey = useCallback(
-    (options?: { deferIncomplete?: boolean }) => {
+    (options?: { deferIncomplete?: boolean; continue?: boolean }) => {
       if (!canSubmit || !state.session || !state.school) return false
+
+      const submitAction = options?.continue ? "SUBMIT_AND_CONTINUE" : "SUBMIT"
 
       if (options?.deferIncomplete) {
         if (state.surveyType === "closeout" || !state.selectedRoomId) {
           dispatch({ type: "CLEAR_SUBMIT_VALIDATION" })
-          dispatch({ type: "SUBMIT" })
+          dispatch({ type: submitAction })
           return true
         }
         if (!applyCurrentRoomDeferral()) return false
-        dispatch({ type: "SUBMIT" })
+        dispatch({ type: submitAction })
         return true
       }
 
@@ -2861,7 +2991,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       }
 
       dispatch({ type: "CLEAR_SUBMIT_VALIDATION" })
-      dispatch({ type: "SUBMIT" })
+      dispatch({ type: submitAction })
       return true
     },
     [
@@ -2874,6 +3004,15 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       applyCurrentRoomDeferral,
     ],
   )
+
+  const saveAndCompleteAnotherSurvey = useCallback(
+    (options?: { deferIncomplete?: boolean }) => submitSurvey({ ...options, continue: true }),
+    [submitSurvey],
+  )
+
+  const discardCurrentAssessment = useCallback(() => {
+    dispatch({ type: "DISCARD_CURRENT_ASSESSMENT" })
+  }, [])
 
   const saveAndContinueToNextRoom = useCallback(
     (options?: { deferIncomplete?: boolean }) => {
@@ -3167,6 +3306,8 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         acknowledgeTraditionalStudioCopyReview,
         traditionalStudioCopyOffer,
         submitSurvey,
+        saveAndCompleteAnotherSurvey,
+        discardCurrentAssessment,
         saveAndContinueToNextRoom,
         submitCampusAssessment,
         setFinalComment,
@@ -3181,6 +3322,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         currentRoomSession,
         currentRoomScore,
         canSubmit,
+        canDiscard,
         submitHint,
         canSubmitCampus,
         submitCampusHint,

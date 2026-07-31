@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useSurvey } from "@/lib/survey-store"
 import { canSelectRoomForSurvey } from "@/lib/prewalk"
+import { computeCloseOutRoomFloorPlanEntry } from "@/lib/closeout-floor-plan"
+import { surveyTypeLabel } from "@aisd/shared"
 
 type SelectOptions = {
   /** Called after the room is actually selected (including after Edit). */
@@ -29,6 +31,12 @@ export function useSelectRoomWithConfirm() {
   const [pendingSubmitted, setPendingSubmitted] = useState<ReturnType<
     typeof findSubmittedRoomAssessment
   > | null>(null)
+  const [pendingCloseOut, setPendingCloseOut] = useState<{
+    sourceSurveyLabel: string
+    spaceType: string
+    percent: number
+    complete: boolean
+  } | null>(null)
   const [mounted, setMounted] = useState(false)
   const afterConfirmRef = useRef<(() => void) | null>(null)
   const onChooseDifferentRef = useRef<(() => void) | null>(null)
@@ -40,6 +48,7 @@ export function useSelectRoomWithConfirm() {
   const clearPending = useCallback(() => {
     setPendingRoomId(null)
     setPendingSubmitted(null)
+    setPendingCloseOut(null)
     afterConfirmRef.current = null
     onChooseDifferentRef.current = null
   }, [])
@@ -91,6 +100,28 @@ export function useSelectRoomWithConfirm() {
         selectRoom(roomId)
         options?.afterSelect?.()
         return "selected" as const
+      }
+
+      if (state.surveyType === "closeout") {
+        const roomSession = state.session?.rooms[roomId]
+        const progressEntry = roomSession
+          ? computeCloseOutRoomFloorPlanEntry(roomSession, state.school?.schoolClass)
+          : null
+        if (roomSession?.sourceSurveyType && progressEntry) {
+          const parsed = state.allRooms.find((r) => r.id === roomId)
+          setPendingRoomName(parsed?.name ?? roomId)
+          setPendingCloseOut({
+            sourceSurveyLabel: surveyTypeLabel(roomSession.sourceSurveyType),
+            spaceType: progressEntry.spaceType,
+            percent: progressEntry.percent,
+            complete: progressEntry.complete,
+          })
+          setPendingSubmitted(null)
+          setPendingRoomId(roomId)
+          afterConfirmRef.current = options?.afterSelect ?? null
+          onChooseDifferentRef.current = options?.onChooseDifferent ?? null
+          return "confirm" as const
+        }
       }
 
       const submitted = findSubmittedRoomAssessment(roomId)
@@ -169,7 +200,40 @@ export function useSelectRoomWithConfirm() {
           aria-labelledby="completed-room-title"
           className="relative z-10 w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-white p-5 shadow-2xl"
         >
-          {pendingSubmitted ? (
+          {pendingCloseOut ? (
+            <>
+              <h2 id="completed-room-title" className="text-base font-semibold">
+                Close Out · {pendingRoomName}
+              </h2>
+              <p className="mt-1.5 text-sm text-[var(--color-muted-foreground)]">
+                Deferred questions from the{" "}
+                <span className="font-medium text-slate-800">
+                  {pendingCloseOut.sourceSurveyLabel}
+                </span>{" "}
+                survey ({pendingCloseOut.spaceType}
+                {pendingCloseOut.complete
+                  ? " · complete"
+                  : ` · ${pendingCloseOut.percent}% done`}
+                ).
+              </p>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row-reverse">
+                <button
+                  type="button"
+                  onClick={confirmEdit}
+                  className="flex min-h-10 flex-1 items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 text-sm font-semibold text-white active:opacity-90"
+                >
+                  {pendingCloseOut.complete ? "Review room" : "Answer questions"}
+                </button>
+                <button
+                  type="button"
+                  onClick={chooseDifferent}
+                  className="flex min-h-10 flex-1 items-center justify-center rounded-xl border border-[var(--color-border)] px-4 text-sm font-medium active:bg-slate-50"
+                >
+                  Choose different room
+                </button>
+              </div>
+            </>
+          ) : pendingSubmitted ? (
             <>
               <h2 id="completed-room-title" className="text-base font-semibold">
                 Room already assessed

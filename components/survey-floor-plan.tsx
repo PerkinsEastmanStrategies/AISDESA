@@ -33,6 +33,7 @@ import {
 import { programTypeFillColor, programTypeLegendColors } from "@/lib/program-type-colors"
 import NeighborhoodLegend from "@/components/neighborhood-legend"
 import { cn, scoreFillRgba, scoreStrokeRgba } from "@/lib/utils"
+import type { CloseOutRoomFloorPlanEntry } from "@/lib/closeout-floor-plan"
 import {
   floorPlanSvgDataUrl,
   floorPlanSvgInlineFragment,
@@ -180,6 +181,8 @@ export default function SurveyFloorPlan({
   selectedPhotoRoomMatchesPlan,
   onPhotoRoomSelect,
   photoGalleryMode = false,
+  closeOutMode = false,
+  closeOutProgressByRoomId,
 }: {
   readOnly?: boolean
   variant?: "inline" | "picker" | "prewalk"
@@ -209,6 +212,9 @@ export default function SurveyFloorPlan({
   onPhotoRoomSelect?: (roomId: string) => void
   /** Results photos tab: floor toggles only, clean plan, camera icons on photo rooms. */
   photoGalleryMode?: boolean
+  /** Close Out: show % complete by room; uses lighter mobile SVG when available. */
+  closeOutMode?: boolean
+  closeOutProgressByRoomId?: Record<string, CloseOutRoomFloorPlanEntry>
 }) {
   const { state, setLevel, levelRooms, ensureFloorPlanLevel, floorPlanDisplayLoading } = useSurvey()
   const { requestSelectRoom, completedRoomDialog } = useSelectRoomWithConfirm()
@@ -218,7 +224,7 @@ export default function SurveyFloorPlan({
   const [zoom, setZoomState] = useState(DEFAULT_ZOOM)
   const [pan, setPanState] = useState({ x: 0, y: 0 })
   const [rotation, setRotation] = useState(0)
-  const [showNeighborhoods, setShowNeighborhoods] = useState(true)
+  const [showNeighborhoods, setShowNeighborhoods] = useState(!closeOutMode)
   const [showSizeDeviation, setShowSizeDeviation] = useState(false)
   const [showRoomUse, setShowRoomUse] = useState(false)
   const [showRoomTags, setShowRoomTags] = useState(false)
@@ -284,8 +290,18 @@ export default function SurveyFloorPlan({
   useEffect(() => {
     if (!levelId || !plan || !state.school) return
     if (planBackdropReady) return
-    void ensureFloorPlanLevel(levelId)
-  }, [levelId, plan, state.school, planBackdropReady, floorPlanDisplayLoading, ensureFloorPlanLevel])
+    void ensureFloorPlanLevel(
+      levelId,
+      closeOutMode ? { preferMobile: true } : undefined,
+    )
+  }, [
+    levelId,
+    plan,
+    state.school,
+    planBackdropReady,
+    ensureFloorPlanLevel,
+    closeOutMode,
+  ])
 
   useEffect(() => {
     const el = viewportRef.current
@@ -378,6 +394,10 @@ export default function SurveyFloorPlan({
       setShowSizeDeviation(false)
     }
   }, [photoGalleryMode])
+
+  useEffect(() => {
+    if (closeOutMode) setShowNeighborhoods(false)
+  }, [closeOutMode])
 
   useEffect(() => {
     if (resultsScoreMode) setShowNeighborhoods(false)
@@ -663,7 +683,13 @@ export default function SurveyFloorPlan({
       .filter((t): t is string => Boolean(t)),
   )
 
-  const visibleLevelRooms = levelRooms.filter((room) => room.points.length >= 3)
+  const visibleLevelRooms = levelRooms.filter((room) => {
+    if (room.points.length < 3) return false
+    if (closeOutMode && closeOutProgressByRoomId) {
+      return !!closeOutProgressByRoomId[room.id]
+    }
+    return true
+  })
 
   const isPreWalk = variant === "prewalk"
   const isPicker = variant === "picker"
@@ -720,7 +746,7 @@ export default function SurveyFloorPlan({
             ))}
           </div>
         )}
-        {!photoGalleryMode && (
+        {!photoGalleryMode && !closeOutMode && (
         <div
           className={cn(
             "flex items-center gap-0.5",
@@ -977,6 +1003,7 @@ export default function SurveyFloorPlan({
                   neighborhood={resolveRoomNeighborhood(room)}
                   assessmentScore={resultsScoreMode ? resolveAssessmentScore(room) : undefined}
                   colorByAssessmentScore={!!resultsScoreMode}
+                  closeOutEntry={closeOutMode ? closeOutProgressByRoomId?.[room.id] : undefined}
                   progress={getRoomSurveyProgress(state.session?.rooms[room.id], {
                     surveyType: state.surveyType,
                     schoolClass: state.school?.schoolClass,
@@ -1083,7 +1110,29 @@ export default function SurveyFloorPlan({
         </div>
       )}
 
-      {!photoGalleryMode && !isPicker && !isPreWalk && !resultsScoreMode && showNeighborhoods && neighborhoodLegend.length > 0 && (
+      {!photoGalleryMode && closeOutMode && (
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-[var(--color-border)] bg-white px-3 py-1.5">
+          <span className="inline-flex items-center gap-1 text-[10px] text-slate-700">
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-sm border border-emerald-300 bg-emerald-500/50"
+              aria-hidden
+            />
+            Complete
+          </span>
+          <span className="inline-flex items-center gap-1 text-[10px] text-slate-700">
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-sm border border-amber-300 bg-amber-400/45"
+              aria-hidden
+            />
+            In progress
+          </span>
+          <span className="text-[10px] text-[var(--color-muted-foreground)]">
+            Tap a highlighted room to finish deferred questions
+          </span>
+        </div>
+      )}
+
+      {!photoGalleryMode && !isPicker && !isPreWalk && !resultsScoreMode && !closeOutMode && showNeighborhoods && neighborhoodLegend.length > 0 && (
         <NeighborhoodLegend items={neighborhoodLegend} />
       )}
 
@@ -1091,7 +1140,9 @@ export default function SurveyFloorPlan({
         <p className="px-3 py-1.5 text-center text-[10px] text-[var(--color-muted-foreground)]">
           {photoGalleryMode
             ? "Drag to pan · Pinch or scroll to zoom · Tap a camera icon to view room photos"
-            : readOnly
+            : closeOutMode
+              ? "Drag to pan · Pinch or scroll to zoom · Tap a room to answer deferred questions"
+              : readOnly
             ? resultsScoreMode
               ? "Drag to pan · Pinch or scroll to zoom · Colors show assessment scores"
               : "Drag to pan · Pinch or scroll to zoom · Green = complete · Yellow = in progress"
@@ -1136,6 +1187,7 @@ function RoomOverlay({
   neighborhood,
   assessmentScore,
   colorByAssessmentScore = false,
+  closeOutEntry,
   progress,
   selected,
   showNeighborhood,
@@ -1163,6 +1215,7 @@ function RoomOverlay({
   neighborhood?: string
   assessmentScore?: number | null
   colorByAssessmentScore?: boolean
+  closeOutEntry?: CloseOutRoomFloorPlanEntry
   progress: "idle" | "in_progress" | "complete"
   selected: boolean
   showNeighborhood: boolean
@@ -1188,8 +1241,18 @@ function RoomOverlay({
   onSelect: (roomId: string) => void
 }) {
   const tapRef = useRef<{ pointerId: number; x: number; y: number } | null>(null)
-  const shaded = progress === "in_progress" || progress === "complete"
-  const progressFill = shaded ? ROOM_PROGRESS_FILL[progress] : undefined
+  const closeOutComplete = closeOutEntry?.complete ?? false
+  const closeOutPercent = closeOutEntry?.percent ?? 0
+  const shaded = closeOutEntry
+    ? closeOutComplete || closeOutPercent > 0
+    : progress === "in_progress" || progress === "complete"
+  const progressFill = shaded
+    ? closeOutEntry
+      ? closeOutComplete
+        ? "#22c55e"
+        : "#eab308"
+      : ROOM_PROGRESS_FILL[progress === "complete" ? "complete" : "in_progress"]
+    : undefined
   const neighborhoodColor = showNeighborhood ? neighborhoodFillColor(neighborhood) : null
   const sizeDeviationColor =
     showSizeDeviation && sizeDeviation ? sizeDeviationFillColor(sizeDeviation) : null
@@ -1201,6 +1264,14 @@ function RoomOverlay({
   if (photoGalleryMode) {
     fill = selected ? "rgba(37, 99, 235, 0.14)" : "rgba(255, 255, 255, 0.01)"
     fillOpacity = 1
+  } else if (closeOutEntry) {
+    if (closeOutComplete) {
+      fill = "#22c55e"
+      fillOpacity = 0.48
+    } else {
+      fill = "#eab308"
+      fillOpacity = 0.22 + (closeOutPercent / 100) * 0.38
+    }
   } else if (colorByAssessmentScore) {
     fill = scoreFillRgba(assessmentScore ?? null, selected ? 0.58 : 0.45)
     fillOpacity = 1
@@ -1308,6 +1379,11 @@ function RoomOverlay({
   const labelStroke = labelLayout?.strokeWidth ?? 0
   const lineHeight = labelLayout?.lineHeight ?? 0
 
+  const labelFontSizeForCloseOut = Math.max(
+    viewBoxWidth * 0.018,
+    Math.sqrt(Math.max(room.area, 1) / Math.max(viewBoxArea, 1)) * viewBoxWidth * 0.045,
+  )
+
   return (
     <g className={photoGalleryMode && !hasPhotoMarker ? "pointer-events-none" : "pointer-events-auto"}>
       <polygon
@@ -1341,6 +1417,57 @@ function RoomOverlay({
           if (tapRef.current?.pointerId === e.pointerId) tapRef.current = null
         }}
       />
+      {closeOutEntry && (
+        <g pointerEvents="none">
+          {closeOutEntry.complete ? (
+            <>
+              <circle
+                cx={room.x}
+                cy={room.y}
+                r={labelFontSizeForCloseOut * 0.85}
+                fill="rgba(255,255,255,0.92)"
+                stroke="#16a34a"
+                strokeWidth={Math.max(1, labelFontSizeForCloseOut * 0.08)}
+                vectorEffect="non-scaling-stroke"
+              />
+              <path
+                d={`M ${room.x - labelFontSizeForCloseOut * 0.32} ${room.y + labelFontSizeForCloseOut * 0.02} L ${room.x - labelFontSizeForCloseOut * 0.06} ${room.y + labelFontSizeForCloseOut * 0.28} L ${room.x + labelFontSizeForCloseOut * 0.34} ${room.y - labelFontSizeForCloseOut * 0.24}`}
+                fill="none"
+                stroke="#16a34a"
+                strokeWidth={Math.max(1.5, labelFontSizeForCloseOut * 0.1)}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            </>
+          ) : (
+            <>
+              <rect
+                x={room.x - labelFontSizeForCloseOut * 0.75}
+                y={room.y - labelFontSizeForCloseOut * 0.55}
+                width={labelFontSizeForCloseOut * 1.5}
+                height={labelFontSizeForCloseOut * 1.1}
+                rx={labelFontSizeForCloseOut * 0.15}
+                fill="rgba(255,255,255,0.92)"
+                stroke="rgba(180, 83, 9, 0.55)"
+                strokeWidth={Math.max(1, labelFontSizeForCloseOut * 0.06)}
+                vectorEffect="non-scaling-stroke"
+              />
+              <text
+                x={room.x}
+                y={room.y + labelFontSizeForCloseOut * 0.08}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill="#92400e"
+                fontSize={labelFontSizeForCloseOut * 0.72}
+                fontWeight={700}
+              >
+                {closeOutEntry.percent}%
+              </text>
+            </>
+          )}
+        </g>
+      )}
       {labelLines.length > 0 && (
         <text
           x={room.x}

@@ -794,7 +794,8 @@ export default function RoomSelector({
         {(state.school?.hasFloorPlan || plan) &&
           !floorPlanOpen &&
           roomSelectionReady &&
-          !neighborhoodOnlyMode && (
+          !neighborhoodOnlyMode &&
+          state.surveyType !== "closeout" && (
           <div className="col-span-2">
             <button
               type="button"

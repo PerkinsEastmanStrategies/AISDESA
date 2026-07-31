@@ -6,6 +6,7 @@ import RoomSelector from "@/components/room-selector"
 import QuestionForm from "@/components/question-form"
 import SurveyActionBar from "@/components/survey-action-bar"
 import CloseOutPanel from "@/components/close-out-panel"
+import CloseOutFloorPlan from "@/components/close-out-floor-plan"
 import { PreWalkBanner } from "@/components/pre-walk-launcher"
 import TraditionalStudioCopyReviewModal from "@/components/traditional-studio-copy-review-modal"
 import OutdoorElementsMapModal from "@/components/outdoor-elements-map-modal"
@@ -130,11 +131,13 @@ export default function StudioSurvey() {
 
       {!isOutdoor && (
         <RoomSelector
-          showFloorPlan={showFloorPlan}
+          showFloorPlan={showFloorPlan && !isCloseOut}
           onOpenFloorPlan={onOpenFloorPlan}
           onCloseFloorPlan={onCloseFloorPlan}
         />
       )}
+
+      {isCloseOut && <CloseOutFloorPlan />}
 
       {isOutdoor && state.school && (
         <>
@@ -172,7 +175,7 @@ export default function StudioSurvey() {
               ? `${selectedSpaceType} was marked as not present${isNeighborhoodsSurvey && pendingNeighborhood ? ` in Neighborhood ${pendingNeighborhood}` : ""}. Save and Complete Another Survey to record a score of 0.`
               : isCloseOut
               ? closeOutPendingCount > 0
-                ? "Select a room below to answer deferred questions from other survey sections."
+                ? "Select a room from the list or open the floor plan to answer deferred questions."
                 : "Review your campus Close Out summary below, add final thoughts, and submit when ready."
               : needsSpaceType
                 ? isNeighborhoodsSurvey

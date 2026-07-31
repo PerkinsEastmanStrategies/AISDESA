@@ -15,6 +15,7 @@ import {
   type EsaQuestion,
   type EsaQuestionOption,
   type RoomQuestionResponse,
+  surveyTypeLabel,
 } from "@aisd/shared"
 import { getPreWalkRoomSpaceTypePhoto, getPreWalkRoomSpaceTypePhotoOnly } from "@/lib/prewalk"
 import { isSupabasePhotoUrl, type SurveyPhotoUploadContext } from "@/lib/photo-storage"
@@ -309,6 +310,17 @@ export default function QuestionForm() {
           )}
         </div>
       </div>
+      {state.surveyType === "closeout" && currentRoomSession?.sourceSurveyType ? (
+        <div className="mb-3 rounded-xl border border-blue-100 bg-blue-50/80 px-3 py-2.5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-blue-800">
+            From {surveyTypeLabel(currentRoomSession.sourceSurveyType)} survey
+          </p>
+          <p className="mt-0.5 text-xs text-blue-900/80">
+            {currentRoomSession.roomType?.trim() || "Room"} · finishing deferred questions from the
+            original section
+          </p>
+        </div>
+      ) : null}
       <SurveyProgressTracker roomId={roomId} questions={questions} responses={roomResponses} />
       {state.surveyType === "closeout" && questions.length === 0 ? (
         <p className="rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-8 text-center text-sm text-slate-500 shadow-sm">

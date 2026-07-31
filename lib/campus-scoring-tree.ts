@@ -33,6 +33,17 @@ import {
 import { scoreRoomSessionWithMetadata, scoreAbsentSpaceTypeRoom } from "@/lib/traditional-studio-room-score"
 import { loadDraftsForSchool, type PersistedSurveyDraft } from "@/lib/survey-persistence"
 
+/** True when a campus room entry counts as a finished submission (excludes in-progress partials). */
+export function isSubmittedCampusRoom(entry: {
+  complete?: boolean
+  answeredCount?: number
+  totalCount?: number
+}): boolean {
+  if (entry.complete === false) return false
+  if (entry.complete === true) return true
+  return (entry.totalCount ?? 0) > 0 && (entry.answeredCount ?? 0) >= (entry.totalCount ?? 0)
+}
+
 export interface AssessedRoomRecord extends ScoredRoomEntry {
   surveyType: SurveyType
   spaceType: string
@@ -346,6 +357,7 @@ export function buildCampusScoringSnapshot(input: {
     const details = { ...(roomScoreDetailsBySurveyType[surveyType] ?? {}) }
 
     for (const entry of sub.campus.rooms) {
+      if (!isSubmittedCampusRoom(entry)) continue
       const existing = details[entry.roomId]
       details[entry.roomId] = {
         roomId: entry.roomId,
@@ -363,30 +375,6 @@ export function buildCampusScoringSnapshot(input: {
 
   const allRooms: AssessedRoomRecord[] = []
 
-  for (const [surveyType, session] of Object.entries(sessionsBySurveyType) as [
-    SurveyType,
-    SurveySession,
-  ][]) {
-    const details = roomScoreDetailsBySurveyType[surveyType] ?? {}
-    for (const [roomId, roomSession] of Object.entries(session.rooms)) {
-      const neighborhood = input.liveNeighborhoodResolver?.(roomId, roomSession)
-      const detail = details[roomId]
-      if (!roomHasAssessment(detail)) continue
-
-      const record = buildAssessedRoom(
-        roomId,
-        roomSession,
-        surveyType,
-        detail,
-        input.schoolClass,
-        neighborhood,
-      )
-      if (record) allRooms.push(record)
-    }
-  }
-
-  const existingRoomKeys = new Set(allRooms.map((r) => `${r.surveyType}:${r.roomId}`))
-
   for (const draft of drafts) {
     if (draft.surveyType === "closeout") continue
     const sub = draft.lastSubmission
@@ -403,8 +391,7 @@ export function buildCampusScoringSnapshot(input: {
     }
 
     for (const entry of sub.campus.rooms) {
-      const key = `${surveyType}:${entry.roomId}`
-      if (existingRoomKeys.has(key)) continue
+      if (!isSubmittedCampusRoom(entry)) continue
 
       const roomSession = session.rooms[entry.roomId] ?? sub.session.rooms[entry.roomId]
       if (!roomSession) continue
@@ -430,10 +417,7 @@ export function buildCampusScoringSnapshot(input: {
         entry.neighborhood,
         { allowScoreWithoutAnswers: true },
       )
-      if (record) {
-        allRooms.push(record)
-        existingRoomKeys.add(key)
-      }
+      if (record) allRooms.push(record)
     }
   }
 

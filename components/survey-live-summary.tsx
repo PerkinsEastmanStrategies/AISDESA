@@ -10,8 +10,9 @@ export default function SurveyLiveSummary() {
   const { state, surveyedRooms } = useSurvey()
 
   const campus = useMemo(() => {
-    if (!state.school || !surveyedRooms.length) return null
-    return aggregateCampusScores(surveyedRooms, {
+    const completeRooms = surveyedRooms.filter((r) => r.complete)
+    if (!state.school || !completeRooms.length) return null
+    return aggregateCampusScores(completeRooms, {
       schoolId: state.school.id,
       schoolName: state.school.displayName,
       campusId: state.school.campusId,
