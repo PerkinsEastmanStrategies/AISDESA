@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useId, useState } from "react"
+import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { MessageSquare, MessageSquarePlus, Mic, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { isSpeechRecognitionSupported, useSpeechToText } from "@/lib/use-speech-to-text"
@@ -12,43 +12,88 @@ interface QuestionCommentProps {
   required?: boolean
 }
 
+function previewComment(text: string, max = 48): string {
+  const trimmed = text.trim()
+  if (!trimmed) return ""
+  if (trimmed.length <= max) return trimmed
+  return `${trimmed.slice(0, max - 1)}…`
+}
+
 export default function QuestionComment({
   comment,
   onChange,
   required = false,
 }: QuestionCommentProps) {
   const [open, setOpen] = useState(required)
+  const [draft, setDraft] = useState("")
   const noteId = useId()
-  const text = comment ?? ""
-  const hasComment = !!text.trim()
-  const missingRequired = required && !hasComment
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const savedText = comment?.trim() ?? ""
+  const hasComment = !!savedText
+  const draftTrimmed = draft.trim()
+  const missingRequired = required && !draftTrimmed && open
 
   const speech = useSpeechToText({
-    value: text,
-    onChange,
+    value: draft,
+    onChange: setDraft,
   })
 
   useEffect(() => {
     if (required) setOpen(true)
   }, [required])
 
+  useEffect(() => {
+    if (!open) return
+    const el = textareaRef.current
+    if (!el) return
+
+    const stopBubble = (event: KeyboardEvent) => {
+      event.stopPropagation()
+      event.stopImmediatePropagation()
+    }
+
+    el.addEventListener("keydown", stopBubble, true)
+    el.addEventListener("keyup", stopBubble, true)
+    return () => {
+      el.removeEventListener("keydown", stopBubble, true)
+      el.removeEventListener("keyup", stopBubble, true)
+    }
+  }, [open])
+
+  const persistDraft = useCallback(
+    (raw: string) => {
+      const trimmed = raw.trim()
+      onChange(trimmed)
+      setDraft(trimmed)
+      return trimmed
+    },
+    [onChange],
+  )
+
+  const openNote = () => {
+    setDraft(savedText)
+    setOpen(true)
+  }
+
   const handleStop = (e: React.SyntheticEvent) => {
     e.preventDefault()
     e.stopPropagation()
     speech.stop()
+    setDraft(speech.displayValue.trim())
   }
 
   const handleClose = () => {
     speech.stop()
     if (required) return
+    persistDraft(draft)
     setOpen(false)
   }
 
   const handleDone = () => {
     speech.stop()
-    const trimmed = (speech.isActive ? speech.displayValue : text).trim()
+    const next = speech.isActive ? speech.displayValue : draft
+    const trimmed = persistDraft(next)
     if (required && !trimmed) return
-    if (trimmed !== text.trim()) onChange(trimmed)
     setOpen(false)
   }
 
@@ -56,21 +101,23 @@ export default function QuestionComment({
     if (required) return
     speech.stop()
     onChange("")
+    setDraft("")
     setOpen(false)
   }
 
   const handleTextChange = (next: string) => {
     if (speech.isActive) speech.stop()
-    onChange(next)
+    setDraft(next)
   }
 
   if (!open) {
+    const preview = previewComment(savedText)
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={openNote}
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors",
+          "inline-flex max-w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors",
           hasComment
             ? "bg-blue-50 text-[var(--color-primary)] ring-1 ring-blue-100"
             : "bg-white text-slate-500 ring-1 ring-slate-200/80 active:bg-slate-50 active:text-slate-700",
@@ -79,7 +126,7 @@ export default function QuestionComment({
         {hasComment ? (
           <>
             <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">Note added</span>
+            <span className="min-w-0 truncate text-left">{preview || "Note added"}</span>
           </>
         ) : (
           <>
@@ -92,6 +139,7 @@ export default function QuestionComment({
   }
 
   const speechSupported = isSpeechRecognitionSupported()
+  const displayValue = speech.isActive ? speech.displayValue : draft
 
   return (
     <div className="w-full basis-full border-t border-dashed border-slate-200 pt-2.5">
@@ -118,7 +166,7 @@ export default function QuestionComment({
           >
             Done
           </button>
-          {!required && (hasComment || speech.displayValue.trim()) && (
+          {!required && (draftTrimmed || savedText) && (
             <button
               type="button"
               onClick={handleClear}
@@ -162,14 +210,20 @@ export default function QuestionComment({
           {required ? "Required note explaining why this could not be assessed" : "Optional note"}
         </label>
         <textarea
+          ref={textareaRef}
           id={noteId}
           name={noteId}
-          value={speech.isActive ? speech.displayValue : text}
+          value={displayValue}
           onChange={(e) => handleTextChange(e.target.value)}
-          onKeyDown={(e) => e.stopPropagation()}
+          onBlur={() => {
+            if (!speech.isActive) persistDraft(draft)
+          }}
           rows={3}
           required={required}
           aria-invalid={missingRequired || undefined}
+          autoComplete="off"
+          autoCorrect="on"
+          spellCheck
           placeholder={
             required
               ? "Explain why you were not able to assess…"
@@ -199,6 +253,12 @@ export default function QuestionComment({
           </button>
         )}
       </div>
+
+      {savedText && (
+        <p className="mt-2 text-[10px] text-slate-500">
+          Saved note: <span className="font-medium text-slate-700">{previewComment(savedText, 120)}</span>
+        </p>
+      )}
 
       {missingRequired && (
         <p className="mt-1 text-[10px] font-medium text-amber-800" role="alert">

@@ -222,23 +222,29 @@ export default function QuestionForm() {
     ? resolveRoomNeighborhoodForCopy(state.allRooms, roomId, currentRoomSession)
     : ""
 
-  const responses = new Map(currentRoomSession?.responses.map((r) => [r.questionId, r]) ?? [])
   const roomResponses = currentRoomSession?.responses ?? []
+  const responses = new Map(roomResponses.map((r) => [r.questionId, r]))
 
-  const updateResponse = (questionId: string, patch: Partial<RoomQuestionResponse>) => {
-    const existing = responses.get(questionId)
-    const q = rubric.questions.find((item) => item.questionId === questionId)!
-    setResponse(roomId, {
-      questionId,
-      value:
-        patch.value !== undefined
-          ? patch.value
-          : existing?.value ?? (isMultiSelectQuestionType(q.questionType) ? [] : ""),
-      comment:
-        patch.comment !== undefined ? patch.comment.trim() || undefined : existing?.comment,
-      ...mergeResponsePhotoFields(existing, patch),
-    })
-  }
+  const roomSessionRef = useRef(currentRoomSession)
+  roomSessionRef.current = currentRoomSession
+
+  const updateResponse = useCallback(
+    (questionId: string, patch: Partial<RoomQuestionResponse>) => {
+      const existing = roomSessionRef.current?.responses.find((r) => r.questionId === questionId)
+      const q = rubric.questions.find((item) => item.questionId === questionId)!
+      setResponse(roomId, {
+        questionId,
+        value:
+          patch.value !== undefined
+            ? patch.value
+            : existing?.value ?? (isMultiSelectQuestionType(q.questionType) ? [] : ""),
+        comment:
+          patch.comment !== undefined ? patch.comment.trim() || undefined : existing?.comment,
+        ...mergeResponsePhotoFields(existing, patch),
+      })
+    },
+    [roomId, rubric, setResponse],
+  )
 
   return (
     <>
@@ -589,6 +595,11 @@ function QuestionField({
               {summary}
               {hasExtras ? " · note/photo" : ""}
             </p>
+            {comment?.trim() && (
+              <p className="mt-1 line-clamp-2 break-words text-xs leading-relaxed text-slate-600">
+                Note: {comment.trim()}
+              </p>
+            )}
           </div>
           <ChevronDown className="mt-1 h-4 w-4 shrink-0 text-slate-400" />
         </button>
