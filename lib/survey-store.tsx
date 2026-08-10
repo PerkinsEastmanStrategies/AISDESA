@@ -1071,6 +1071,10 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       const assessor = resolveCampusAssessor(state.assessorByType, state.surveyType)
       const session = newSession(action.school, state.surveyType, assessor)
       const stamped = withCampusAssessorOnSession(session, state.assessorByType, state.surveyType)
+      const preWalkPromptPending = shouldPromptPreWalkOnSchoolSelect(
+        EMPTY_PREWALK,
+        action.school.schoolClass,
+      )
       return bootstrapCampusScopedSurvey({
         ...state,
         school: action.school,
@@ -1079,7 +1083,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         selectedRoomId: null,
         selectedLevelId: null,
         floorPlan: null,
-        floorPlanLoading: action.school.hasFloorPlan,
+        floorPlanLoading: action.school.hasFloorPlan && !preWalkPromptPending,
         allRooms: [],
         manualRooms: [],
         view: "survey",
@@ -1089,10 +1093,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         pendingStudioType: null,
         pendingNeighborhood: null,
         preWalk: EMPTY_PREWALK,
-        preWalkPromptPending: shouldPromptPreWalkOnSchoolSelect(
-          EMPTY_PREWALK,
-          action.school.schoolClass,
-        ),
+        preWalkPromptPending,
         preWalkRequested: false,
         ...emptyScoreState(),
       })
@@ -2651,6 +2652,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    // Keep the pre-walk yes/no dialog responsive — Bear Creek parses 3 floors on select.
+    if (state.preWalkPromptPending) return
+
     const attemptKey = [
       state.school.id,
       state.school.hasFloorPlan,
@@ -2688,6 +2692,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     state.floorPlan,
     state.allRooms.length,
     state.manualRooms,
+    state.preWalkPromptPending,
   ])
 
   const requestFloorPlanDisplay = useCallback(() => {

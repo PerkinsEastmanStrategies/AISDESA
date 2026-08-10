@@ -617,6 +617,17 @@ export async function loadFloorPlanForSchool(
   }
 }
 
+/** Let the UI process taps between heavy per-floor SVG parses (iPhone). */
+function yieldToMainThread(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(() => resolve())
+    } else {
+      setTimeout(resolve, 0)
+    }
+  })
+}
+
 /**
  * Parse room metadata for every floor without keeping SVG blobs in memory.
  * Used during survey scoring so the room dropdown works without loading the map.
@@ -645,6 +656,7 @@ export async function loadSchoolRoomsForSchool(
     for (const floor of floors) {
       const result = await loadLevelRoomsOnly(school.id, floor, preferMobile)
       if (result) loadedById.set(floor.id, result)
+      await yieldToMainThread()
     }
   } else {
     const results = await Promise.all(
