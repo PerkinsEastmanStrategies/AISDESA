@@ -10,6 +10,7 @@
     "generate:admin": "node scripts/generate-admin-rubric.mjs",
     "generate:arrival-admin": "node scripts/generate-arrival-admin-rubric.mjs",
     "generate:neighborhood": "node scripts/generate-neighborhood-rubric.mjs",
+    "sync:floor-plan-manifest": "node scripts/sync-floor-plan-manifest.mjs",
     "postinstall": "node scripts/copy-mapbox-worker.mjs",
     "start": "next start -p 3002",
     "lint": "eslint ."
