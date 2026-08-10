@@ -104,6 +104,7 @@ import {
   restoreFloorPlanLevelFromCache,
   revokeFloorPlanBlobUrls,
 } from "@/lib/floor-plan-loader"
+import { preferMobileFloorPlan } from "@/lib/floor-plans"
 import { loadAisdSchoolOptions } from "@/lib/load-aisd-schools"
 import {
   deferIncompleteToCloseOut,
@@ -2319,6 +2320,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const floorPlanDisplayRequestsRef = useRef(0)
   const lastSyncedSubmissionRef = useRef<string | null>(null)
   const floorPlanLevelInflightRef = useRef(new Map<string, Promise<void>>())
+  const roomsLoadAttemptedKeyRef = useRef<string | null>(null)
   const surveyTypeBeforeConflictRef = useRef<SurveyType>("studios")
   const [state, dispatch] = useReducer(reducer, {
     surveyType: "studios",
@@ -2636,15 +2638,30 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const levelId = state.selectedLevelId ?? plan?.defaultLevelId
 
   useEffect(() => {
-    if (!state.school) return
+    if (!state.school) {
+      roomsLoadAttemptedKeyRef.current = null
+      return
+    }
     if (!state.school.hasFloorPlan) {
+      roomsLoadAttemptedKeyRef.current = null
       const manualsOnly = mergeManualRooms([], state.manualRooms)
       if (state.floorPlan || state.allRooms.length !== manualsOnly.length) {
         dispatch({ type: "SET_FLOOR_PLAN", plan: null, rooms: [] })
       }
       return
     }
+
+    const attemptKey = [
+      state.school.id,
+      state.school.hasFloorPlan,
+      state.school.campusId ?? "",
+      state.school.name,
+    ].join("|")
+
     if (state.floorPlan && state.allRooms.length > 0) return
+    if (roomsLoadAttemptedKeyRef.current === attemptKey) return
+
+    roomsLoadAttemptedKeyRef.current = attemptKey
 
     let cancelled = false
     dispatch({ type: "SET_FLOOR_PLAN_LOADING", loading: true })
@@ -2696,7 +2713,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       if (!school?.hasFloorPlan || !plan) return
 
       const existing = plan.levels.find((level) => level.id === levelId)
-      const preferMobile = options?.preferMobile ?? false
+      const preferMobile = options?.preferMobile ?? preferMobileFloorPlan()
       const inlineStale =
         existing?.src &&
         isInlineFloorPlanSrc(existing.src) &&
@@ -2751,16 +2768,12 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     if (!state.school?.hasFloorPlan || !state.floorPlan) return
 
     const levelId = state.selectedLevelId ?? state.floorPlan.defaultLevelId
-    void ensureFloorPlanLevel(
-      levelId,
-      state.surveyType === "closeout" ? { preferMobile: true } : undefined,
-    )
+    void ensureFloorPlanLevel(levelId)
   }, [
     floorPlanDisplayRequests,
     state.school,
     state.floorPlan,
     state.selectedLevelId,
-    state.surveyType,
     ensureFloorPlanLevel,
   ])
 

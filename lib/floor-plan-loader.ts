@@ -176,6 +176,30 @@ interface LevelLoadResult {
   svgText: string
 }
 
+/** Parse viewBox from raw SVG without restyling paths (room-metadata loads only). */
+function resolveFloorPlanViewBoxOnly(rawSvg: string): {
+  x: number
+  y: number
+  w: number
+  h: number
+} | null {
+  const fromText = parseSvgViewBoxFromText(rawSvg)
+  if (fromText) {
+    return { x: fromText.x, y: fromText.y, w: fromText.width, h: fromText.height }
+  }
+
+  if (typeof DOMParser === "undefined") return null
+
+  const doc = new DOMParser().parseFromString(rawSvg, "image/svg+xml")
+  const svg = doc.documentElement as unknown as SVGSVGElement
+  if (!svg || svg.tagName.toLowerCase() !== "svg") return null
+  if (doc.querySelector("parsererror")) return null
+
+  const resolved = resolveSvgViewBox(svg, rawSvg.length)
+  if (!resolved) return null
+  return { x: resolved.x, y: resolved.y, w: resolved.width, h: resolved.height }
+}
+
 /** Restyle SVG, crop viewBox to content so the plan fills the panel, return text + viewBox. */
 function prepareDistrictFloorPlanSvg(rawSvg: string): {
   svgText: string
@@ -235,11 +259,10 @@ async function loadLevelRoomsOnly(
   const rawSvg = await fetchFloorPlanSvgByFilename(floor.filename, { preferMobile })
   if (!rawSvg || isEmptyOrStubFloorPlanSvg(rawSvg)) return null
 
-  const prepared = prepareDistrictFloorPlanSvg(rawSvg)
-  if (!prepared) return null
+  const viewBox = resolveFloorPlanViewBoxOnly(rawSvg)
+  if (!viewBox) return null
 
-  const { svgText, viewBox } = prepared
-  const rooms = parsePlanRoomsFromSvg(svgText, floor.id)
+  const rooms = parsePlanRoomsFromSvg(rawSvg, floor.id)
   evictFloorPlanSvgFromMemoryCache(floor.filename)
 
   return {
@@ -616,15 +639,22 @@ export async function loadSchoolRoomsForSchool(
   if (!floors.length) return { plan: null, rooms: [] }
 
   const preferMobile = preferMobileFloorPlan()
-  const results = await Promise.all(
-    floors.map((floor) => loadLevelRoomsOnly(school.id, floor, preferMobile)),
-  )
-
   const loadedById = new Map<string, LevelLoadResult>()
-  floors.forEach((floor, i) => {
-    const result = results[i]
-    if (result) loadedById.set(floor.id, result)
-  })
+
+  if (preferMobile) {
+    for (const floor of floors) {
+      const result = await loadLevelRoomsOnly(school.id, floor, preferMobile)
+      if (result) loadedById.set(floor.id, result)
+    }
+  } else {
+    const results = await Promise.all(
+      floors.map((floor) => loadLevelRoomsOnly(school.id, floor, preferMobile)),
+    )
+    floors.forEach((floor, i) => {
+      const result = results[i]
+      if (result) loadedById.set(floor.id, result)
+    })
+  }
 
   const ordered = floors
     .map((floor) => loadedById.get(floor.id))

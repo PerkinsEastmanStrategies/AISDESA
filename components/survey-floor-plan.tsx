@@ -299,17 +299,13 @@ export default function SurveyFloorPlan({
   useEffect(() => {
     if (!levelId || !plan || !state.school) return
     if (planBackdropReady) return
-    void ensureFloorPlanLevel(
-      levelId,
-      closeOutMode ? { preferMobile: true } : undefined,
-    )
+    void ensureFloorPlanLevel(levelId)
   }, [
     levelId,
     plan,
     state.school,
     planBackdropReady,
     ensureFloorPlanLevel,
-    closeOutMode,
   ])
 
   useEffect(() => {
