@@ -521,40 +521,41 @@ export function neighborhoodForRoom(
 }
 
 /** Distinct fills for neighborhood letters A–N and numeric labels from the live sheet. */
+/** Neighborhood fill colors 1–20 from the AISD ESA neighborhood legend. */
 const NEIGHBORHOOD_PALETTE: Record<string, string> = {
-  A: "#3b82f6",
-  B: "#22c55e",
-  C: "#f59e0b",
-  D: "#a855f7",
-  E: "#ef4444",
-  F: "#14b8a6",
-  G: "#f97316",
-  H: "#6366f1",
-  I: "#ec4899",
-  J: "#84cc16",
-  K: "#0ea5e9",
-  L: "#d946ef",
-  M: "#eab308",
-  N: "#64748b",
-  "1": "#2563eb",
-  "2": "#16a34a",
-  "3": "#d97706",
-  "4": "#9333ea",
-  "5": "#dc2626",
-  "6": "#0d9488",
-  "7": "#ea580c",
-  "8": "#4f46e5",
-  "9": "#db2777",
-  "10": "#65a30d",
-  "11": "#0284c7",
-  "12": "#c026d3",
-  "13": "#ca8a04",
-  "14": "#475569",
+  "1": "#CCEDAF",
+  "2": "#40AEAB",
+  "3": "#5E8EDD",
+  "4": "#7E48C6",
+  "5": "#B397E2",
+  "6": "#F6BDBB",
+  "7": "#FDE156",
+  "8": "#E0822D",
+  "9": "#9D37E2",
+  "10": "#B352AB",
+  "11": "#4AF8BF",
+  "12": "#8D29F7",
+  "13": "#EA5913",
+  "14": "#363475",
+  "15": "#10A36C",
+  "16": "#9C2776",
+  "17": "#F1F400",
+  "18": "#581793",
+  "19": "#597F41",
+  "20": "#AD0B32",
+}
+
+function neighborhoodPaletteKey(raw: string): string {
+  const key = raw.trim().toUpperCase()
+  if (/^\d+$/.test(key)) return key
+  const letterIndex = key.charCodeAt(0) - "A".charCodeAt(0) + 1
+  if (letterIndex >= 1 && letterIndex <= 20 && key.length === 1) return String(letterIndex)
+  return key
 }
 
 export function neighborhoodFillColor(neighborhood: string | null | undefined): string | null {
   if (!neighborhood) return null
-  const key = neighborhood.trim().toUpperCase()
+  const key = neighborhoodPaletteKey(neighborhood)
   if (!key) return null
   if (NEIGHBORHOOD_PALETTE[key]) return NEIGHBORHOOD_PALETTE[key]
   const hue = [...key].reduce((acc, ch) => acc + ch.charCodeAt(0) * 17, 0) % 360
