@@ -7,6 +7,7 @@ import { useSurvey } from "@/lib/survey-store"
 import { formatSavedAt } from "@/lib/survey-persistence"
 import { resolveCampusAssessor } from "@/lib/assessor"
 import { PreWalkHeaderButton } from "@/components/pre-walk-launcher"
+import { BUILD_COMMIT_URL, buildVersionLabel } from "@/lib/build-info"
 import { cn } from "@/lib/utils"
 
 function AssessorProfileMenu() {
@@ -101,6 +102,21 @@ function AssessorProfileMenu() {
                 {state.school.displayName}
               </p>
             )}
+            <p className="mt-1.5 text-[10px] leading-snug text-slate-400">
+              {BUILD_COMMIT_URL ? (
+                <a
+                  href={BUILD_COMMIT_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="tabular-nums hover:text-slate-600 hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {buildVersionLabel()}
+                </a>
+              ) : (
+                <span className="tabular-nums">{buildVersionLabel()}</span>
+              )}
+            </p>
           </div>
 
           {pickingSchool ? (
