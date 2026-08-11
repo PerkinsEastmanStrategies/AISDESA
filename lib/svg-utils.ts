@@ -94,17 +94,53 @@ function robustUnionBboxes(boxes: DOMRect[]): DOMRect | null {
   return unionBboxes(kept);
 }
 
-function shapeBboxesInGroup(group: Element): DOMRect[] {
+function shapeBboxesInGroup(group: Element, root: SVGSVGElement): DOMRect[] {
   const boxes: DOMRect[] = [];
   for (const el of group.querySelectorAll(PLAN_FRAME_SHAPE_SELECTOR)) {
     try {
-      const bbox = (el as SVGGraphicsElement).getBBox();
-      if (bbox.width > 0 && bbox.height > 0) boxes.push(bbox);
+      const graphics = el as SVGGraphicsElement;
+      const bbox = bboxInRootSvg(graphics, root);
+      if (bbox && bbox.width > 0 && bbox.height > 0) boxes.push(bbox);
     } catch {
       continue;
     }
   }
   return boxes;
+}
+
+/** Map a shape bbox through its CTM into root SVG user space (handles Y-flip groups). */
+function bboxInRootSvg(
+  el: SVGGraphicsElement,
+  root: SVGSVGElement,
+): DOMRect | null {
+  const local = el.getBBox();
+  if (local.width <= 0 || local.height <= 0) return null;
+
+  const ctm = el.getCTM();
+  const rootCTM = root.getCTM();
+  if (!ctm || !rootCTM) return local;
+
+  const toRoot = rootCTM.inverse().multiply(ctm);
+  const corners = [
+    { x: local.x, y: local.y },
+    { x: local.x + local.width, y: local.y },
+    { x: local.x, y: local.y + local.height },
+    { x: local.x + local.width, y: local.y + local.height },
+  ];
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const point of corners) {
+    const transformed = new DOMPoint(point.x, point.y).matrixTransform(toRoot);
+    minX = Math.min(minX, transformed.x);
+    minY = Math.min(minY, transformed.y);
+    maxX = Math.max(maxX, transformed.x);
+    maxY = Math.max(maxY, transformed.y);
+  }
+
+  return new DOMRect(minX, minY, maxX - minX, maxY - minY);
 }
 
 function viewBoxFromGroupIds(
@@ -115,7 +151,7 @@ function viewBoxFromGroupIds(
   for (const id of groupIds) {
     const group = root.getElementById(id);
     if (!group) continue;
-    boxes.push(...shapeBboxesInGroup(group));
+    boxes.push(...shapeBboxesInGroup(group, root));
   }
   return robustUnionBboxes(boxes);
 }
@@ -236,9 +272,32 @@ export function resolveSvgViewBox(
     return declared;
   }
 
-  const tight =
-    getPlanContentViewBox(svgElement) ?? getTightSvgViewBox(svgElement);
-  return tight ?? declared;
+  const planContent = getPlanContentViewBox(svgElement);
+  const tight = getTightSvgViewBox(svgElement);
+
+  // CAFM exports with a root Y-flip used to measure #CAFM_SPACE in local coords only,
+  // producing a viewBox that misses the real linework (plan appears above the viewport).
+  if (planContent && declared && !viewBoxesOverlap(planContent, declared)) {
+    return tight ?? declared;
+  }
+
+  return planContent ?? tight ?? declared;
+}
+
+function viewBoxesOverlap(a: SvgViewBox, b: SvgViewBox, minOverlapRatio = 0.2): boolean {
+  const xOverlap = Math.max(
+    0,
+    Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x),
+  );
+  const yOverlap = Math.max(
+    0,
+    Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y),
+  );
+  if (xOverlap <= 0 || yOverlap <= 0) return false;
+
+  const overlapArea = xOverlap * yOverlap;
+  const minArea = Math.min(a.width * a.height, b.width * b.height);
+  return minArea > 0 && overlapArea / minArea >= minOverlapRatio;
 }
 
 export function applySvgViewBox(
