@@ -16,6 +16,7 @@ import {
   type FloorPlanLevelEntry,
 } from "@/lib/floor-plan-manifest"
 import {
+  deferFloorPlanDisplayWork,
   evictFloorPlanSvgFromMemoryCache,
   fetchFloorPlanSvgByFilename,
   needsInlineFloorPlanSvg,
@@ -106,6 +107,12 @@ function clearFloorPlanDisplaySvgCache(schoolId: string): void {
   for (const key of displaySvgTextByKey.keys()) {
     if (key.startsWith(prefix)) displaySvgTextByKey.delete(key)
   }
+}
+
+/** Drop display SVG text and blob URLs so Safari can reclaim heap after room select. */
+export function releaseFloorPlanDisplayMemory(schoolId: string): void {
+  clearFloorPlanDisplaySvgCache(schoolId)
+  revokeFloorPlanBlobUrls(schoolId)
 }
 
 function createFloorPlanLevelSrc(
@@ -248,6 +255,53 @@ function prepareDistrictFloorPlanSvg(rawSvg: string): {
   }
 }
 
+/** Mobile/touch: crop viewBox only — `.mobile.svg` assets are already simplified. */
+function prepareDistrictFloorPlanSvgLight(rawSvg: string): {
+  svgText: string
+  viewBox: { x: number; y: number; w: number; h: number }
+} | null {
+  const fromText = parseSvgViewBoxFromText(rawSvg)
+  if (fromText && typeof DOMParser === "undefined") {
+    return {
+      svgText: rawSvg,
+      viewBox: { x: fromText.x, y: fromText.y, w: fromText.width, h: fromText.height },
+    }
+  }
+
+  if (typeof DOMParser === "undefined") return null
+
+  const doc = new DOMParser().parseFromString(rawSvg, "image/svg+xml")
+  const svg = doc.documentElement as unknown as SVGSVGElement
+  if (!svg || svg.tagName.toLowerCase() !== "svg") return null
+  if (doc.querySelector("parsererror")) return null
+
+  const resolved = resolveSvgViewBox(svg, rawSvg.length)
+  if (!resolved) return null
+  applySvgViewBox(svg, resolved)
+
+  const svgText =
+    typeof XMLSerializer !== "undefined"
+      ? new XMLSerializer().serializeToString(doc)
+      : rawSvg
+
+  return {
+    svgText,
+    viewBox: { x: resolved.x, y: resolved.y, w: resolved.width, h: resolved.height },
+  }
+}
+
+function prepareDistrictFloorPlanSvgForDisplay(
+  rawSvg: string,
+  preferMobile: boolean,
+): {
+  svgText: string
+  viewBox: { x: number; y: number; w: number; h: number }
+} | null {
+  return preferMobile
+    ? prepareDistrictFloorPlanSvgLight(rawSvg)
+    : prepareDistrictFloorPlanSvg(rawSvg)
+}
+
 /** Plan levels without blob URLs — SVG display is loaded on demand. */
 const EMPTY_FLOOR_PLAN_SRC = ""
 
@@ -286,7 +340,7 @@ async function loadLevel(
   const rawSvg = await fetchFloorPlanSvgByFilename(floor.filename, { preferMobile })
   if (!rawSvg || isEmptyOrStubFloorPlanSvg(rawSvg)) return null
 
-  const prepared = prepareDistrictFloorPlanSvg(rawSvg)
+  const prepared = prepareDistrictFloorPlanSvgForDisplay(rawSvg, preferMobile)
   if (!prepared) return null
 
   const { svgText, viewBox } = prepared
@@ -363,6 +417,7 @@ async function loadLivelySchoolRooms(school: AisdSchoolOption): Promise<FloorPla
 async function loadLivelyFloorPlanLevelDisplay(
   schoolId: string,
   levelId: string,
+  preferMobile: boolean = preferMobileFloorPlan(),
 ): Promise<SchoolFloorPlanConfig["levels"][number] | null> {
   const level = LIVELY_FLOOR_PLAN.levels.find((entry) => entry.id === levelId)
   if (!level) return null
@@ -373,7 +428,7 @@ async function loadLivelyFloorPlanLevelDisplay(
     const raw = await response.text()
     if (isEmptyOrStubFloorPlanSvg(raw)) return null
 
-    const prepared = prepareDistrictFloorPlanSvg(raw)
+    const prepared = prepareDistrictFloorPlanSvgForDisplay(raw, preferMobile)
     if (!prepared) return null
 
     const src = createFloorPlanLevelSrc(schoolId, levelId, prepared.svgText)
@@ -701,8 +756,9 @@ export async function loadFloorPlanLevelDisplay(
   levelId: string,
   options?: { preferMobile?: boolean },
 ): Promise<SchoolFloorPlanConfig["levels"][number] | null> {
+  const preferMobile = options?.preferMobile ?? preferMobileFloorPlan()
   if (isLivelySchool(school)) {
-    return loadLivelyFloorPlanLevelDisplay(school.id, levelId)
+    return loadLivelyFloorPlanLevelDisplay(school.id, levelId, preferMobile)
   }
 
   const manifest = await loadFloorPlanManifest()
@@ -710,7 +766,6 @@ export async function loadFloorPlanLevelDisplay(
   const floor = floors.find((entry) => entry.id === levelId)
   if (!floor) return null
 
-  const preferMobile = options?.preferMobile ?? preferMobileFloorPlan()
   const result = await loadLevel(school.id, floor, false, preferMobile)
   return result?.level ?? null
 }

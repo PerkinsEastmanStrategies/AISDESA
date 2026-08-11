@@ -101,10 +101,11 @@ import {
   hasFloorPlanDisplayCache,
   isInlineFloorPlanSrc,
   loadSchoolRoomsForSchool,
+  releaseFloorPlanDisplayMemory,
   restoreFloorPlanLevelFromCache,
   revokeFloorPlanBlobUrls,
 } from "@/lib/floor-plan-loader"
-import { preferMobileFloorPlan } from "@/lib/floor-plans"
+import { deferFloorPlanDisplayWork, preferMobileFloorPlan } from "@/lib/floor-plans"
 import { loadAisdSchoolOptions } from "@/lib/load-aisd-schools"
 import {
   deferIncompleteToCloseOut,
@@ -2730,6 +2731,10 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       if (inflight) return inflight
 
       const promise = (async () => {
+        if (preferMobile) {
+          await deferFloorPlanDisplayWork(300)
+          if (floorPlanDisplayRequestsRef.current === 0) return
+        }
         setFloorPlanDisplayLoading(true)
         try {
           if (!preferMobile && hasFloorPlanDisplayCache(school.id, levelId) && existing) {
@@ -2741,7 +2746,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
           }
 
           const level = await loadFloorPlanLevelDisplay(school, levelId, { preferMobile })
-          if (level) dispatch({ type: "PATCH_FLOOR_PLAN_LEVEL", level })
+          if (level && floorPlanDisplayRequestsRef.current > 0) {
+            dispatch({ type: "PATCH_FLOOR_PLAN_LEVEL", level })
+          }
         } catch (err) {
           console.error(err)
         } finally {
@@ -3157,12 +3164,28 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     [state.surveyType],
   )
 
+  const stripFloorPlanForRoomSelect = useCallback((schoolId: string | undefined) => {
+    floorPlanLevelInflightRef.current.clear()
+    floorPlanDisplayRequestsRef.current = 0
+    setFloorPlanDisplayRequests(0)
+    if (schoolId) releaseFloorPlanDisplayMemory(schoolId)
+    dispatch({ type: "STRIP_FLOOR_PLAN_DISPLAY" })
+  }, [])
+
   const setLevel = useCallback((levelId: string) => dispatch({ type: "SET_LEVEL", levelId }), [])
-  const selectRoom = useCallback((roomId: string | null) => dispatch({ type: "SELECT_ROOM", roomId }), [])
+  const selectRoom = useCallback(
+    (roomId: string | null) => {
+      if (roomId) stripFloorPlanForRoomSelect(state.school?.id)
+      dispatch({ type: "SELECT_ROOM", roomId })
+    },
+    [state.school?.id, stripFloorPlanForRoomSelect],
+  )
   const addManualRoom = useCallback(
-    (roomNumber: string, building?: string) =>
-      dispatch({ type: "ADD_MANUAL_ROOM", roomNumber, building }),
-    [],
+    (roomNumber: string, building?: string) => {
+      stripFloorPlanForRoomSelect(state.school?.id)
+      dispatch({ type: "ADD_MANUAL_ROOM", roomNumber, building })
+    },
+    [state.school?.id, stripFloorPlanForRoomSelect],
   )
   const setGrade = useCallback(
     (roomId: string, grade: string) => dispatch({ type: "SET_GRADE", roomId, gradeType: grade }),

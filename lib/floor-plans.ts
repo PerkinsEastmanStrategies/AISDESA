@@ -25,10 +25,25 @@ export function preferMobileFloorPlan(): boolean {
   if (typeof window === "undefined") return false
   try {
     if (window.matchMedia("(max-width: 767px)").matches) return true
+    if (window.matchMedia("(pointer: coarse)").matches) return true
   } catch {
     /* ignore */
   }
-  return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  const ua = navigator.userAgent
+  if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) return true
+  return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1
+}
+
+/** Yield before heavy floor-plan work so picker/gate UI can settle (Safari memory). */
+export function deferFloorPlanDisplayWork(delayMs: number = 300): Promise<void> {
+  if (delayMs <= 0) return Promise.resolve()
+  return new Promise((resolve) => {
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback(() => resolve(), { timeout: delayMs + 150 })
+      return
+    }
+    setTimeout(resolve, delayMs)
+  })
 }
 
 /**
@@ -121,14 +136,18 @@ export function evictFloorPlanSvgFromMemoryCache(filename: string): void {
 
 export async function fetchFloorPlanSvgByFilename(
   filename: string,
-  options?: { preferMobile?: boolean },
+  options?: { preferMobile?: boolean; allowDesktopFallback?: boolean },
 ): Promise<string | null> {
   if (!filename) return null
 
   const preferMobile = options?.preferMobile ?? preferMobileFloorPlan()
+  const allowDesktopFallback =
+    options?.allowDesktopFallback ?? !preferMobile
   const candidates =
     preferMobile && !/\.mobile\.svg$/i.test(filename)
-      ? [toMobileFloorPlanFilename(filename), filename]
+      ? allowDesktopFallback
+        ? [toMobileFloorPlanFilename(filename), filename]
+        : [toMobileFloorPlanFilename(filename)]
       : [filename]
 
   for (const candidate of candidates) {

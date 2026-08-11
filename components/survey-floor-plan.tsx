@@ -40,6 +40,7 @@ import {
   getFloorPlanDisplaySvg,
   isInlineFloorPlanSrc,
 } from "@/lib/floor-plan-loader"
+import { preferMobileFloorPlan } from "@/lib/floor-plans"
 import { neighborhoodGroupId, NEIGHBORHOOD_OPTIONS } from "@aisd/shared"
 
 function colorWithAlpha(color: string, alpha: number): string {
@@ -233,7 +234,10 @@ export default function SurveyFloorPlan({
   const [zoom, setZoomState] = useState(DEFAULT_ZOOM)
   const [pan, setPanState] = useState({ x: 0, y: 0 })
   const [rotation, setRotation] = useState(0)
-  const [showNeighborhoods, setShowNeighborhoods] = useState(!closeOutMode)
+  const mobileTouchDevice = preferMobileFloorPlan()
+  const [showNeighborhoods, setShowNeighborhoods] = useState(
+    () => !closeOutMode && !(variant === "picker" && preferMobileFloorPlan()),
+  )
   const [showSizeDeviation, setShowSizeDeviation] = useState(false)
   const [showRoomUse, setShowRoomUse] = useState(false)
   const [showRoomTags, setShowRoomTags] = useState(false)
@@ -387,6 +391,14 @@ export default function SurveyFloorPlan({
       }
       return
     }
+    const needsSheetLookups =
+      showNeighborhoods || showRoomUse || showSizeDeviation || variant === "prewalk" || resultsScoreMode
+    if (mobileTouchDevice && variant === "picker" && !needsSheetLookups) {
+      setRoomUseMap(new Map())
+      setNeighborhoodMap(new Map())
+      setSizeDeviationMap(new Map())
+      return
+    }
     let cancelled = false
     void (async () => {
       const [useMap, nbhMap, deviationMap] = await Promise.all([
@@ -402,7 +414,17 @@ export default function SurveyFloorPlan({
     return () => {
       cancelled = true
     }
-  }, [photoGalleryMode, state.school?.id, state.school?.name])
+  }, [
+    photoGalleryMode,
+    state.school?.id,
+    state.school?.name,
+    mobileTouchDevice,
+    variant,
+    showNeighborhoods,
+    showRoomUse,
+    showSizeDeviation,
+    resultsScoreMode,
+  ])
 
   useEffect(() => {
     if (photoGalleryMode) {
