@@ -14,18 +14,27 @@ const MANIFEST_URL =
   process.env.NEXT_PUBLIC_FLOOR_PLAN_MANIFEST_URL ??
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vTGFUvsaGfYsp9TK7ZjHT8_ZHaUq4xqxiPSedQC9XeGpmY5QCS2rkcyGuZJm517sB4RWRsNqhmxFaW_/pub?output=csv"
 
-const OUTPUT_COLUMNS = [
-  "school_name",
-  "school_level",
-  "class_code",
-  "campus_id",
+const FLOOR_COLUMNS = [
   "Basement",
   "Floor 1",
   "Floor 2",
   "Floor 3",
   "Floor 4",
   "Floor 5",
+  "Floor 6",
+  "Floor 7",
+  "Floor 8",
+  "Floor 9",
+  "Athletics Building",
   "Mezzanine",
+]
+
+const OUTPUT_COLUMNS = [
+  "school_name",
+  "school_level",
+  "class_code",
+  "campus_id",
+  ...FLOOR_COLUMNS,
   "UpdatedName",
 ]
 
@@ -125,14 +134,10 @@ for (const row of liveRows) {
     school_level: row.school_level ?? "",
     class_code: row.class_code ?? "",
     campus_id: campusId,
-    Basement: row.Basement ?? "",
-    "Floor 1": row["Floor 1"] ?? "",
-    "Floor 2": row["Floor 2"] ?? "",
-    "Floor 3": row["Floor 3"] ?? "",
-    "Floor 4": row["Floor 4"] ?? "",
-    "Floor 5": row["Floor 5"] ?? "",
-    Mezzanine: row.Mezzanine ?? "",
     UpdatedName: row.UpdatedName ?? "",
+  }
+  for (const column of FLOOR_COLUMNS) {
+    outRow[column] = row[column] ?? ""
   }
 
   outputLines.push(
