@@ -9,19 +9,99 @@ export interface SvgViewBox {
 export const LARGE_SVG_CHAR_THRESHOLD = 9 * 1024 * 1024;
 
 /** Layer ids that define the visible plan footprint (CAFM exports + legacy plans). */
-const PLAN_CONTENT_GROUP_IDS = [
-  "CAFM_SPACE",
-  "CAFM_ID",
+const PLAN_FRAME_PRIMARY_GROUP_IDS = ["CAFM_SPACE", "planRooms"] as const;
+const PLAN_FRAME_SECONDARY_GROUP_IDS = [
   "WALLS",
-  "DOORS",
-  "FIXTURES",
   "CAFM_BLDG_OTLN",
   "CAFM_BLDG-OTLN",
   "planWalls",
-  "planRooms",
   "planBuildings",
-  "planDetail",
 ] as const;
+
+const PLAN_FRAME_SHAPE_SELECTOR =
+  "path,polygon,polyline,rect,circle,ellipse,line";
+
+function unionBboxes(boxes: DOMRect[]): DOMRect | null {
+  if (!boxes.length) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const b of boxes) {
+    minX = Math.min(minX, b.x);
+    minY = Math.min(minY, b.y);
+    maxX = Math.max(maxX, b.x + b.width);
+    maxY = Math.max(maxY, b.y + b.height);
+  }
+  return new DOMRect(minX, minY, maxX - minX, maxY - minY);
+}
+
+function median(values: number[]): number {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)] ?? sorted[0] ?? 0;
+}
+
+/** Drop stray CAD marks far from the main room cluster (desktop WALLS/DOORS often have these). */
+function robustUnionBboxes(boxes: DOMRect[]): DOMRect | null {
+  if (!boxes.length) return null;
+  if (boxes.length <= 2) return unionBboxes(boxes);
+
+  const maxArea = Math.max(...boxes.map((b) => b.width * b.height));
+  const minArea = maxArea * 0.00005;
+  const sized = boxes.filter((b) => b.width * b.height >= minArea);
+  if (!sized.length) return unionBboxes(boxes);
+
+  const centers = sized.map((b) => ({
+    x: b.x + b.width / 2,
+    y: b.y + b.height / 2,
+    box: b,
+  }));
+
+  const medianX = median(centers.map((c) => c.x));
+  const medianY = median(centers.map((c) => c.y));
+  const dists = centers
+    .map((c) => Math.hypot(c.x - medianX, c.y - medianY))
+    .sort((a, b) => a - b);
+  const medianDist = median(dists);
+  const p90 = dists[Math.floor(dists.length * 0.9)] ?? medianDist;
+  const maxDist = Math.max(medianDist * 3.5, p90 * 1.15, 1);
+
+  const kept = centers
+    .filter((c) => Math.hypot(c.x - medianX, c.y - medianY) <= maxDist)
+    .map((c) => c.box);
+
+  if (kept.length < Math.max(3, Math.floor(sized.length * 0.45))) {
+    return unionBboxes(sized);
+  }
+  return unionBboxes(kept);
+}
+
+function shapeBboxesInGroup(group: Element): DOMRect[] {
+  const boxes: DOMRect[] = [];
+  for (const el of group.querySelectorAll(PLAN_FRAME_SHAPE_SELECTOR)) {
+    try {
+      const bbox = (el as SVGGraphicsElement).getBBox();
+      if (bbox.width > 0 && bbox.height > 0) boxes.push(bbox);
+    } catch {
+      continue;
+    }
+  }
+  return boxes;
+}
+
+function viewBoxFromGroupIds(
+  root: SVGSVGElement,
+  groupIds: readonly string[],
+): DOMRect | null {
+  const boxes: DOMRect[] = [];
+  for (const id of groupIds) {
+    const group = root.getElementById(id);
+    if (!group) continue;
+    boxes.push(...shapeBboxesInGroup(group));
+  }
+  return robustUnionBboxes(boxes);
+}
 
 function mountSvgClone(svgElement: SVGSVGElement): {
   mount: HTMLDivElement;
@@ -102,6 +182,9 @@ export function getTightSvgViewBox(
  * Crop to plan layers only (#CAFM_SPACE, #WALLS, etc.) so CAD sheet padding
  * does not shrink the building on screen. More consistent across WebKit/desktop
  * than measuring the entire SVG root.
+ *
+ * Framing uses room boundaries first; desktop-only DOORS/FIXTURES and distant
+ * CAFM_ID labels are excluded so stray CAD debris does not widen the viewBox.
  */
 export function getPlanContentViewBox(
   svgElement: SVGSVGElement,
@@ -112,35 +195,11 @@ export function getPlanContentViewBox(
   const { mount, clone } = mountSvgClone(svgElement);
 
   try {
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    let hit = false;
-
-    for (const id of PLAN_CONTENT_GROUP_IDS) {
-      const group = clone.getElementById(id);
-      if (!group) continue;
-
-      try {
-        const bbox = (group as SVGGraphicsElement).getBBox();
-        if (bbox.width <= 0 || bbox.height <= 0) continue;
-        hit = true;
-        minX = Math.min(minX, bbox.x);
-        minY = Math.min(minY, bbox.y);
-        maxX = Math.max(maxX, bbox.x + bbox.width);
-        maxY = Math.max(maxY, bbox.y + bbox.height);
-      } catch {
-        continue;
-      }
-    }
-
-    if (!hit) return null;
-
-    return viewBoxFromBBox(
-      new DOMRect(minX, minY, maxX - minX, maxY - minY),
-      paddingRatio,
-    );
+    const primary = viewBoxFromGroupIds(clone, PLAN_FRAME_PRIMARY_GROUP_IDS);
+    const secondary = viewBoxFromGroupIds(clone, PLAN_FRAME_SECONDARY_GROUP_IDS);
+    const bbox = primary ?? secondary;
+    if (!bbox) return null;
+    return viewBoxFromBBox(bbox, paddingRatio);
   } finally {
     document.body.removeChild(mount);
   }
