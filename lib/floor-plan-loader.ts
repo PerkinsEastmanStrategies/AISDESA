@@ -209,19 +209,18 @@ interface LevelLoadResult {
   svgText: string
 }
 
-/** Parse viewBox from raw SVG without restyling paths (room-metadata loads only). */
+/** Parse viewBox cropped to plan content (same framing desktop + mobile/iPad use). */
 function resolveFloorPlanViewBoxOnly(rawSvg: string): {
   x: number
   y: number
   w: number
   h: number
 } | null {
-  const fromText = parseSvgViewBoxFromText(rawSvg)
-  if (fromText) {
+  if (typeof DOMParser === "undefined") {
+    const fromText = parseSvgViewBoxFromText(rawSvg)
+    if (!fromText) return null
     return { x: fromText.x, y: fromText.y, w: fromText.width, h: fromText.height }
   }
-
-  if (typeof DOMParser === "undefined") return null
 
   const doc = new DOMParser().parseFromString(rawSvg, "image/svg+xml")
   const svg = doc.documentElement as unknown as SVGSVGElement
@@ -283,17 +282,13 @@ function prepareDistrictFloorPlanSvg(rawSvg: string): {
 
 function prepareDistrictFloorPlanSvgForDisplay(
   rawSvg: string,
-  preferMobile: boolean,
+  _preferMobile: boolean,
 ): {
   svgText: string
   viewBox: { x: number; y: number; w: number; h: number }
 } | null {
-  if (preferMobile) {
-    const styled = prepareFloorPlanSvgForDisplay(rawSvg)
-    const viewBox = resolveFloorPlanViewBoxOnly(styled)
-    if (!viewBox) return null
-    return { svgText: styled, viewBox }
-  }
+  // Always crop to building content — mobile previously skipped this and showed
+  // the full CAD sheet viewBox (tiny plan on iPad, inconsistent vs desktop).
   return prepareDistrictFloorPlanSvg(rawSvg)
 }
 
