@@ -134,10 +134,15 @@ export function evictFloorPlanSvgFromMemoryCache(filename: string): void {
   svgCache.delete(toMobileFloorPlanFilename(filename))
 }
 
-export async function fetchFloorPlanSvgByFilename(
+export type FloorPlanSvgFetchResult = {
+  text: string
+  filename: string
+}
+
+export async function fetchFloorPlanSvgWithFilename(
   filename: string,
   options?: { preferMobile?: boolean; allowDesktopFallback?: boolean },
-): Promise<string | null> {
+): Promise<FloorPlanSvgFetchResult | null> {
   if (!filename) return null
 
   const preferMobile = options?.preferMobile ?? preferMobileFloorPlan()
@@ -152,7 +157,7 @@ export async function fetchFloorPlanSvgByFilename(
 
   for (const candidate of candidates) {
     const cached = svgCache.get(candidate)
-    if (cached) return cached
+    if (cached) return { text: cached, filename: candidate }
 
     let inflight = svgInflight.get(candidate)
     if (!inflight) {
@@ -165,11 +170,19 @@ export async function fetchFloorPlanSvgByFilename(
     const svg = await inflight
     if (svg) {
       svgCache.set(candidate, svg)
-      return svg
+      return { text: svg, filename: candidate }
     }
   }
 
   return null
+}
+
+export async function fetchFloorPlanSvgByFilename(
+  filename: string,
+  options?: { preferMobile?: boolean; allowDesktopFallback?: boolean },
+): Promise<string | null> {
+  const result = await fetchFloorPlanSvgWithFilename(filename, options)
+  return result?.text ?? null
 }
 
 /** Warm the cache for other floors without blocking the UI. */

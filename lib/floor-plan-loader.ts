@@ -19,6 +19,7 @@ import {
   deferFloorPlanDisplayWork,
   evictFloorPlanSvgFromMemoryCache,
   fetchFloorPlanSvgByFilename,
+  fetchFloorPlanSvgWithFilename,
   needsInlineFloorPlanSvg,
   preferMobileFloorPlan,
   prefetchFloorPlanSvgs,
@@ -46,6 +47,7 @@ const STUB_SVG_MAX_BYTES = 1000
 
 const blobUrlsBySchool = new Map<string, string[]>()
 const displaySvgTextByKey = new Map<string, string>()
+const displayFilenameByKey = new Map<string, string>()
 
 /** Sentinel `src` when SVG text is cached for WebKit data-URL rendering. */
 export const INLINE_FLOOR_PLAN_SRC = "aisd:inline-floor-plan"
@@ -102,10 +104,32 @@ export function floorPlanSvgInlineFragment(svgText: string): string | null {
   }
 }
 
+function displayFilenameKey(schoolId: string, levelId: string): string {
+  return `${schoolId}::${levelId}::display-filename`
+}
+
+function cacheFloorPlanDisplayFilename(
+  schoolId: string,
+  levelId: string,
+  filename: string,
+): void {
+  displayFilenameByKey.set(displayFilenameKey(schoolId, levelId), filename)
+}
+
+export function getFloorPlanDisplayFilename(
+  schoolId: string,
+  levelId: string,
+): string | null {
+  return displayFilenameByKey.get(displayFilenameKey(schoolId, levelId)) ?? null
+}
+
 function clearFloorPlanDisplaySvgCache(schoolId: string): void {
   const prefix = `${schoolId}::`
   for (const key of displaySvgTextByKey.keys()) {
     if (key.startsWith(prefix)) displaySvgTextByKey.delete(key)
+  }
+  for (const key of displayFilenameByKey.keys()) {
+    if (key.startsWith(prefix)) displayFilenameByKey.delete(key)
   }
 }
 
@@ -119,8 +143,10 @@ function createFloorPlanLevelSrc(
   schoolId: string,
   levelId: string,
   svgText: string,
+  displayFilename?: string,
 ): string {
   cacheFloorPlanDisplaySvg(schoolId, levelId, svgText)
+  if (displayFilename) cacheFloorPlanDisplayFilename(schoolId, levelId, displayFilename)
   if (needsInlineFloorPlanSvg()) {
     return INLINE_FLOOR_PLAN_SRC
   }
@@ -255,41 +281,6 @@ function prepareDistrictFloorPlanSvg(rawSvg: string): {
   }
 }
 
-/** Mobile/touch: crop viewBox only — `.mobile.svg` assets are already simplified. */
-function prepareDistrictFloorPlanSvgLight(rawSvg: string): {
-  svgText: string
-  viewBox: { x: number; y: number; w: number; h: number }
-} | null {
-  const fromText = parseSvgViewBoxFromText(rawSvg)
-  if (fromText && typeof DOMParser === "undefined") {
-    return {
-      svgText: rawSvg,
-      viewBox: { x: fromText.x, y: fromText.y, w: fromText.width, h: fromText.height },
-    }
-  }
-
-  if (typeof DOMParser === "undefined") return null
-
-  const doc = new DOMParser().parseFromString(rawSvg, "image/svg+xml")
-  const svg = doc.documentElement as unknown as SVGSVGElement
-  if (!svg || svg.tagName.toLowerCase() !== "svg") return null
-  if (doc.querySelector("parsererror")) return null
-
-  const resolved = resolveSvgViewBox(svg, rawSvg.length)
-  if (!resolved) return null
-  applySvgViewBox(svg, resolved)
-
-  const svgText =
-    typeof XMLSerializer !== "undefined"
-      ? new XMLSerializer().serializeToString(doc)
-      : rawSvg
-
-  return {
-    svgText,
-    viewBox: { x: resolved.x, y: resolved.y, w: resolved.width, h: resolved.height },
-  }
-}
-
 function prepareDistrictFloorPlanSvgForDisplay(
   rawSvg: string,
   preferMobile: boolean,
@@ -297,9 +288,13 @@ function prepareDistrictFloorPlanSvgForDisplay(
   svgText: string
   viewBox: { x: number; y: number; w: number; h: number }
 } | null {
-  return preferMobile
-    ? prepareDistrictFloorPlanSvgLight(rawSvg)
-    : prepareDistrictFloorPlanSvg(rawSvg)
+  if (preferMobile) {
+    const styled = prepareFloorPlanSvgForDisplay(rawSvg)
+    const viewBox = resolveFloorPlanViewBoxOnly(styled)
+    if (!viewBox) return null
+    return { svgText: styled, viewBox }
+  }
+  return prepareDistrictFloorPlanSvg(rawSvg)
 }
 
 /** Plan levels without blob URLs — SVG display is loaded on demand. */
@@ -337,14 +332,14 @@ async function loadLevel(
   parseRooms: boolean,
   preferMobile: boolean,
 ): Promise<LevelLoadResult | null> {
-  const rawSvg = await fetchFloorPlanSvgByFilename(floor.filename, { preferMobile })
-  if (!rawSvg || isEmptyOrStubFloorPlanSvg(rawSvg)) return null
+  const fetched = await fetchFloorPlanSvgWithFilename(floor.filename, { preferMobile })
+  if (!fetched || isEmptyOrStubFloorPlanSvg(fetched.text)) return null
 
-  const prepared = prepareDistrictFloorPlanSvgForDisplay(rawSvg, preferMobile)
+  const prepared = prepareDistrictFloorPlanSvgForDisplay(fetched.text, preferMobile)
   if (!prepared) return null
 
   const { svgText, viewBox } = prepared
-  const src = createFloorPlanLevelSrc(schoolId, floor.id, svgText)
+  const src = createFloorPlanLevelSrc(schoolId, floor.id, svgText, fetched.filename)
 
   return {
     level: {
@@ -431,7 +426,8 @@ async function loadLivelyFloorPlanLevelDisplay(
     const prepared = prepareDistrictFloorPlanSvgForDisplay(raw, preferMobile)
     if (!prepared) return null
 
-    const src = createFloorPlanLevelSrc(schoolId, levelId, prepared.svgText)
+    const displayFilename = level.src.split("/").pop() ?? level.src
+    const src = createFloorPlanLevelSrc(schoolId, levelId, prepared.svgText, displayFilename)
 
     return {
       ...level,

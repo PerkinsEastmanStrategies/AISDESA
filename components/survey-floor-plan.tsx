@@ -37,6 +37,7 @@ import type { CloseOutRoomFloorPlanEntry } from "@/lib/closeout-floor-plan"
 import {
   floorPlanSvgDataUrl,
   floorPlanSvgInlineFragment,
+  getFloorPlanDisplayFilename,
   getFloorPlanDisplaySvg,
   isInlineFloorPlanSrc,
 } from "@/lib/floor-plan-loader"
@@ -299,6 +300,9 @@ export default function SurveyFloorPlan({
   const planBackdropReady =
     Boolean(level?.src) &&
     (!isInlineFloorPlanSrc(level?.src) || Boolean(webKitPlanImageUrl))
+
+  const displayFilename =
+    state.school && levelId ? getFloorPlanDisplayFilename(state.school.id, levelId) : null
 
   useEffect(() => {
     if (!levelId || !plan || !state.school) return
@@ -1192,6 +1196,15 @@ export default function SurveyFloorPlan({
           {!photoGalleryMode && canExpand && !expanded ? " · Expand for a larger view" : !photoGalleryMode && canExpand && expanded ? " · Minimize to compact view" : ""}
         </p>
       )}
+
+      {displayFilename ? (
+        <p
+          className="border-t border-slate-100 px-3 py-1 text-center text-[9px] leading-tight text-slate-400 tabular-nums"
+          title="Floor plan SVG source file"
+        >
+          {displayFilename}
+        </p>
+      ) : null}
     </div>
   )
 
