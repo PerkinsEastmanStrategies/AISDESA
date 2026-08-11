@@ -24,14 +24,14 @@ export default function QuestionComment({
   onChange,
   required = false,
 }: QuestionCommentProps) {
-  const [open, setOpen] = useState(required)
-  const [draft, setDraft] = useState("")
+  const savedText = comment?.trim() ?? ""
+  const hasSavedComment = !!savedText
+  const [open, setOpen] = useState(() => required && !hasSavedComment)
+  const [draft, setDraft] = useState(savedText)
   const noteId = useId()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const savedText = comment?.trim() ?? ""
-  const hasComment = !!savedText
   const draftTrimmed = draft.trim()
-  const missingRequired = required && !draftTrimmed && open
+  const missingRequired = required && open && !draftTrimmed && !hasSavedComment
 
   const speech = useSpeechToText({
     value: draft,
@@ -39,8 +39,16 @@ export default function QuestionComment({
   })
 
   useEffect(() => {
-    if (required) setOpen(true)
-  }, [required])
+    if (!open) setDraft(savedText)
+  }, [savedText, open])
+
+  useEffect(() => {
+    if (!required) {
+      setOpen(false)
+      return
+    }
+    if (!hasSavedComment) setOpen(true)
+  }, [required, hasSavedComment])
 
   useEffect(() => {
     if (!open) return
@@ -92,8 +100,12 @@ export default function QuestionComment({
   const handleDone = () => {
     speech.stop()
     const next = speech.isActive ? speech.displayValue : draft
-    const trimmed = persistDraft(next)
-    if (required && !trimmed) return
+    const trimmed = next.trim()
+    if (trimmed) {
+      persistDraft(next)
+    } else if (required && !hasSavedComment) {
+      return
+    }
     setOpen(false)
   }
 
@@ -118,12 +130,12 @@ export default function QuestionComment({
         onClick={openNote}
         className={cn(
           "inline-flex max-w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors",
-          hasComment
+          hasSavedComment
             ? "bg-blue-50 text-[var(--color-primary)] ring-1 ring-blue-100"
             : "bg-white text-slate-500 ring-1 ring-slate-200/80 active:bg-slate-50 active:text-slate-700",
         )}
       >
-        {hasComment ? (
+        {hasSavedComment ? (
           <>
             <MessageSquare className="h-3.5 w-3.5 shrink-0" />
             <span className="min-w-0 truncate text-left">{preview || "Note added"}</span>
