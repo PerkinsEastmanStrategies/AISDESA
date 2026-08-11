@@ -28,7 +28,6 @@ import {
   resolveRoomUseLabelLayout,
   roomLabelBounds,
   ROOM_LABEL_FILL,
-  ROOM_LABEL_STROKE,
 } from "@/lib/room-plan-labels"
 import { programTypeFillColor, programTypeLegendColors } from "@/lib/program-type-colors"
 import NeighborhoodLegend from "@/components/neighborhood-legend"
@@ -1434,7 +1433,6 @@ function RoomOverlay({
       : null
   const labelLines = labelLayout?.lines ?? []
   const labelFontSize = labelLayout?.fontSize ?? 0
-  const labelStroke = labelLayout?.strokeWidth ?? 0
   const lineHeight = labelLayout?.lineHeight ?? 0
 
   const labelFontSizeForCloseOut = Math.max(
@@ -1544,9 +1542,6 @@ function RoomOverlay({
           textAnchor="middle"
           dominantBaseline="middle"
           fill={ROOM_LABEL_FILL}
-          stroke={ROOM_LABEL_STROKE}
-          strokeWidth={labelStroke}
-          paintOrder="stroke"
           fontSize={labelFontSize}
           fontWeight={500}
           pointerEvents="none"

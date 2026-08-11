@@ -5,7 +5,6 @@ export type RoomUseLabelMode = "hidden" | "id" | "full"
 /** Fixed on-screen typography — every visible tag uses the same base size. */
 const ROOM_LABEL_FONT_PX = 13
 const ROOM_LABEL_LINE_HEIGHT_PX = 14.5
-const ROOM_LABEL_STROKE_PX = 1.5
 const ROOM_LABEL_CHAR_WIDTH_EM = 0.56
 const ROOM_LABEL_FIT_PADDING = 1.12
 
@@ -15,7 +14,6 @@ const ROOM_LABEL_ZOOM_MIN = 0.75
 const ROOM_LABEL_SCALE_AT_MIN = 0.6
 
 export const ROOM_LABEL_FILL = "#475569"
-export const ROOM_LABEL_STROKE = "#ffffff"
 
 function roomUseLabelZoomFontScale(zoom: number): number {
   const z = Math.max(zoom, ROOM_LABEL_ZOOM_MIN)
@@ -164,15 +162,13 @@ export function roomLabelFitsAtZoom(
 function roomUseLabelRenderMetrics(
   zoom: number,
   meetScale: number,
-): Pick<ReturnType<typeof resolveRoomUseLabelLayout>, "fontSize" | "strokeWidth" | "lineHeight"> {
+): Pick<ReturnType<typeof resolveRoomUseLabelLayout>, "fontSize" | "lineHeight"> {
   const zoomScale = roomUseLabelZoomFontScale(zoom)
   const fontPx = ROOM_LABEL_FONT_PX * zoomScale
   const lineHeightPx = ROOM_LABEL_LINE_HEIGHT_PX * zoomScale
-  const strokePx = ROOM_LABEL_STROKE_PX * zoomScale
   const scale = Math.max(meetScale * zoom, 0.05)
   return {
     fontSize: fontPx / scale,
-    strokeWidth: strokePx / scale,
     lineHeight: lineHeightPx / scale,
   }
 }
@@ -180,7 +176,6 @@ function roomUseLabelRenderMetrics(
 const EMPTY_LAYOUT = {
   lines: [] as string[],
   fontSize: 0,
-  strokeWidth: 0,
   lineHeight: 0,
   mode: "hidden" as const,
 }
@@ -199,7 +194,6 @@ export function resolveRoomUseLabelLayout(input: {
 }): {
   lines: string[]
   fontSize: number
-  strokeWidth: number
   lineHeight: number
   mode: RoomUseLabelMode
 } {
