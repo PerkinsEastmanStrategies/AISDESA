@@ -634,22 +634,41 @@ function getCafmLabelGroupId(textEl: Element): string | null {
   return null;
 }
 
+/** True when <text> sits directly under #CAFM_ID (DXF converter output without wrappers). */
+function isBareCafmIdLabel(textEl: Element): boolean {
+  let node: Element | null = textEl.parentElement;
+  while (node) {
+    if (node.id === "CAFM_ID") return true;
+    if (isCafmLabelGroup(node)) return false;
+    node = node.parentElement;
+  }
+  return false;
+}
+
+/** Prefer first tspan so MTEXT subtext (line 2+) does not corrupt the room id. */
+function cafmLabelRawText(textEl: SVGTextElement): string {
+  const firstTspan = textEl.querySelector("tspan");
+  const raw = (firstTspan?.textContent ?? textEl.textContent ?? "").trim();
+  return raw.toUpperCase().replace(/\s+/g, "");
+}
+
 function parseCafmTextLabel(
   textEl: SVGTextElement,
   svgRoot: SVGSVGElement
 ): CafmLabel | null {
-  const rawText = (textEl.textContent ?? "").trim().toUpperCase().replace(/\s+/g, "");
+  const rawText = cafmLabelRawText(textEl);
   if (!isValidCafmLabelText(rawText)) return null;
 
   const groupId = getCafmLabelGroupId(textEl) ?? "";
   const isMtext = groupId.startsWith("MTEXT");
   const isText = groupId.startsWith("TEXT");
-  if (!isMtext && !isText) return null;
+  const isBareCafm = !isMtext && !isText && isBareCafmIdLabel(textEl);
+  if (!isMtext && !isText && !isBareCafm) return null;
 
   const position = getSvgTextPosition(textEl, svgRoot);
   if (!position) return null;
 
-  const priority = isMtext ? 2 : 1;
+  const priority = isMtext ? 2 : isBareCafm ? 0 : 1;
   const { key, kind } = cafmRoomKeyFromLabel(rawText);
 
   return {
@@ -714,7 +733,7 @@ export function auditCafmFloorPlan(svgRoot: SVGSVGElement): CafmFloorPlanAudit {
   }
   if (hasCafmId && rawTexts.length > 0 && parsedLabels.length === 0) {
     warnings.push(
-      "CAFM labels could not be parsed — room detection and polygon matching may not work."
+      "CAFM labels could not be parsed — check #CAFM_ID structure (TEXT/MTEXT wrappers or bare <text> labels)."
     );
   }
   if (hasCafmSpace && allShapes.length === 0) {
