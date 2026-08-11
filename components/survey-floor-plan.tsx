@@ -242,7 +242,9 @@ export default function SurveyFloorPlan({
   const [neighborhoodMap, setNeighborhoodMap] = useState<RoomNeighborhoodMap>(new Map())
   const [sizeDeviationMap, setSizeDeviationMap] = useState<RoomSizeDeviationMap>(new Map())
   const [isPanning, setIsPanning] = useState(false)
-  const [internalExpanded, setInternalExpanded] = useState(false)
+  const [internalExpanded, setInternalExpanded] = useState(
+    () => variant === "picker" && startExpanded && panelVisible,
+  )
   const expanded = expandedProp ?? internalExpanded
   const setExpanded = onExpandedChange ?? setInternalExpanded
   const canExpand = variant === "picker" || variant === "inline"
@@ -297,6 +299,13 @@ export default function SurveyFloorPlan({
     Boolean(level?.src) &&
     (!isInlineFloorPlanSrc(level?.src) || Boolean(webKitPlanImageUrl))
 
+  /** Viewport DOM is mounted (not on the loading placeholder). */
+  const mapViewportMounted =
+    !state.floorPlanLoading &&
+    !floorPlanDisplayLoading &&
+    planBackdropReady &&
+    Boolean(plan && level)
+
   const displayFilename =
     state.school && levelId ? getFloorPlanDisplayFilename(state.school.id, levelId) : null
 
@@ -329,7 +338,7 @@ export default function SurveyFloorPlan({
     const observer = new ResizeObserver(updateSize)
     observer.observe(el)
     return () => observer.disconnect()
-  }, [levelId, expanded, panelVisible, variant])
+  }, [levelId, expanded, panelVisible, variant, mapViewportMounted])
 
   const handleRoomSelect = useCallback(
     (roomId: string) => {
@@ -621,7 +630,7 @@ export default function SurveyFloorPlan({
       el.removeEventListener("touchend", onTouchEnd, { capture: true })
       el.removeEventListener("touchcancel", onTouchEnd, { capture: true })
     }
-  }, [setZoom, setPan, panelVisible, levelId, state.school?.id])
+  }, [setZoom, setPan, panelVisible, levelId, state.school?.id, expanded, mapViewportMounted])
 
   const resolveRoomNeighborhood = useCallback(
     (room: ParsedPlanRoom): string | undefined =>
