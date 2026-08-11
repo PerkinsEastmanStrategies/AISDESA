@@ -25,22 +25,24 @@ export function skipsAllRemainingQuestionsOnNo(
   )
 }
 
-/** Parent → dependent skip rules (answer "No" clears / skips dependents). */
-const DEPENDENCY_RULES: ReadonlyArray<{
-  parentId: string
-  dependentIds: readonly string[]
-}> = [
-  { parentId: "ST-004", dependentIds: ["ST-005", "ST-006"] },
-  { parentId: "ST-016", dependentIds: ["ST-017"] },
-  { parentId: "SL-005", dependentIds: ["SL-006", "SL-007"] },
-  { parentId: "SL-013", dependentIds: ["SL-014"] },
-  { parentId: "VL-005", dependentIds: ["VL-006", "VL-007"] },
-  { parentId: "VL-013", dependentIds: ["VL-014"] },
-  { parentId: "LS-005", dependentIds: ["LS-006", "LS-007"] },
-  { parentId: "LS-013", dependentIds: ["LS-014"] },
-  { parentId: "SF-005", dependentIds: ["SF-006", "SF-007"] },
-  { parentId: "SF-013", dependentIds: ["SF-014"] },
-]
+/** Yes/No parent: "Are there exterior windows?" (or community-room variant). */
+export function isExteriorWindowsParentQuestion(
+  question: Pick<EsaQuestion, "question">,
+): boolean {
+  const text = question.question.trim()
+  return (
+    text === "Are there exterior windows?" ||
+    text.startsWith("Does the community room have exterior windows?")
+  )
+}
+
+/** Dependent questions skipped when the parent exterior-windows answer is "No". */
+export function isExteriorWindowsSkipWhenNoDependent(
+  question: Pick<EsaQuestion, "question">,
+): boolean {
+  const text = question.question.trim()
+  return /^Select all that apply \(exterior windows/i.test(text)
+}
 
 /**
  * Parent answer → auto-fill a dependent question (kept in scoring; locked in UI).
@@ -51,21 +53,10 @@ const AUTO_ANSWER_RULES: ReadonlyArray<{
   dependentId: string
   dependentValue: string
   reason: string
-}> = [
-  {
-    parentId: "ST-009",
-    parentValue: "No permanent whiteboards or writable surfaces are present",
-    dependentId: "ST-010",
-    dependentValue: "Less than 6 linear feet",
-    reason: "Auto-answered — no permanent whiteboards or writable surfaces.",
-  },
-]
+}> = []
 
-/** @deprecated Prefer DEPENDENCY_RULES — kept for callers that import these IDs */
-export const EXTERIOR_WINDOWS_QUESTION_ID = "ST-004"
-export const EXTERIOR_WINDOWS_DEPENDENT_IDS = ["ST-005", "ST-006"] as const
-export const INTERIOR_VISIBILITY_QUESTION_ID = "ST-016"
-export const INTERIOR_VISIBILITY_DEPENDENT_IDS = ["ST-017"] as const
+/** @deprecated Prefer isExteriorWindowsParentQuestion — kept for legacy callers */
+export const EXTERIOR_WINDOWS_QUESTION_ID = "ST-006"
 
 function responseValue(response: RoomQuestionResponse | undefined): string | undefined {
   if (!response) return undefined
@@ -86,6 +77,26 @@ function questionIdsAfterParent(
   return questions.slice(parentIndex + 1).map((q) => q.questionId)
 }
 
+function exteriorWindowsSkipDependentIds(
+  parentId: string,
+  questions: readonly EsaQuestion[],
+): readonly string[] {
+  const parentIndex = questions.findIndex((q) => q.questionId === parentId)
+  if (parentIndex < 0) return []
+
+  const ids: string[] = []
+  for (let i = parentIndex + 1; i < questions.length; i++) {
+    const q = questions[i]
+    if (isExteriorWindowsParentQuestion(q)) break
+    if (isExteriorWindowsSkipWhenNoDependent(q)) {
+      ids.push(q.questionId)
+      continue
+    }
+    if (ids.length > 0) break
+  }
+  return ids
+}
+
 function isSkippedAfterAvailabilityNo(
   questionId: string,
   responses: RoomQuestionResponse[],
@@ -102,12 +113,31 @@ function isSkippedAfterAvailabilityNo(
   return false
 }
 
-export function isExteriorWindowsNo(responses: RoomQuestionResponse[]): boolean {
-  return isParentAnsweredNo(EXTERIOR_WINDOWS_QUESTION_ID, responses)
+function isSkippedByExteriorWindowsNo(
+  questionId: string,
+  responses: RoomQuestionResponse[],
+  questions: readonly EsaQuestion[],
+): boolean {
+  for (const question of questions) {
+    if (!isExteriorWindowsParentQuestion(question)) continue
+    if (!isParentAnsweredNo(question.questionId, responses)) continue
+    if (exteriorWindowsSkipDependentIds(question.questionId, questions).includes(questionId)) {
+      return true
+    }
+  }
+  return false
 }
 
-export function isInteriorVisibilityNo(responses: RoomQuestionResponse[]): boolean {
-  return isParentAnsweredNo(INTERIOR_VISIBILITY_QUESTION_ID, responses)
+export function isExteriorWindowsNo(
+  responses: RoomQuestionResponse[],
+  questions?: readonly EsaQuestion[],
+): boolean {
+  if (questions?.length) {
+    return questions.some(
+      (q) => isExteriorWindowsParentQuestion(q) && isParentAnsweredNo(q.questionId, responses),
+    )
+  }
+  return isParentAnsweredNo(EXTERIOR_WINDOWS_QUESTION_ID, responses)
 }
 
 export function isSkippedDependentQuestion(
@@ -116,9 +146,8 @@ export function isSkippedDependentQuestion(
   questions?: readonly EsaQuestion[],
 ): boolean {
   if (isSkippedAfterAvailabilityNo(questionId, responses, questions)) return true
-  for (const rule of DEPENDENCY_RULES) {
-    if (!(rule.dependentIds as readonly string[]).includes(questionId)) continue
-    if (isParentAnsweredNo(rule.parentId, responses)) return true
+  if (questions?.length && isSkippedByExteriorWindowsNo(questionId, responses, questions)) {
+    return true
   }
   return false
 }
@@ -171,28 +200,29 @@ export function dependentQuestionDisabledReason(
     if (responseValue(parent) === rule.parentValue) return rule.reason
   }
 
-  if (!isSkippedDependentQuestion(questionId, responses, questions)) return undefined
-
   if (
-    questionId === "ST-005" ||
-    questionId === "ST-006" ||
-    questionId === "SL-006" ||
-    questionId === "SL-007" ||
-    questionId === "VL-006" ||
-    questionId === "VL-007" ||
-    questionId === "LS-006" ||
-    questionId === "LS-007" ||
-    questionId === "SF-006" ||
-    questionId === "SF-007"
+    questions?.length &&
+    isSkippedByExteriorWindowsNo(questionId, responses, questions)
   ) {
     return "Skipped — no exterior windows in this space."
   }
-  return "Skipped — no interior visibility into this space."
+
+  if (!isSkippedDependentQuestion(questionId, responses, questions)) return undefined
+  return "Skipped — this question does not apply based on a previous answer."
 }
 
-/** @deprecated Use isSkippedDependentQuestion */
-export function isExteriorWindowsDependentQuestion(questionId: string): boolean {
-  return (EXTERIOR_WINDOWS_DEPENDENT_IDS as readonly string[]).includes(questionId)
+/** @deprecated Prefer isExteriorWindowsSkipWhenNoDependent with rubric context */
+export function isExteriorWindowsDependentQuestion(
+  questionId: string,
+  questions?: readonly EsaQuestion[],
+): boolean {
+  if (questions?.length) {
+    return questions.some(
+      (q) =>
+        isExteriorWindowsSkipWhenNoDependent(q) && q.questionId === questionId,
+    )
+  }
+  return false
 }
 
 export function applyQuestionDependencies(
@@ -204,20 +234,17 @@ export function applyQuestionDependencies(
   map.set(incoming.questionId, incoming)
 
   const value = responseValue(incoming)
-  if (value === "No") {
-    for (const rule of DEPENDENCY_RULES) {
-      if (incoming.questionId !== rule.parentId) continue
-      for (const id of rule.dependentIds) {
+  if (value === "No" && questions?.length) {
+    const incomingQuestion = questions.find((q) => q.questionId === incoming.questionId)
+    if (incomingQuestion && isExteriorWindowsParentQuestion(incomingQuestion)) {
+      for (const id of exteriorWindowsSkipDependentIds(incoming.questionId, questions)) {
         map.delete(id)
       }
     }
 
-    if (questions?.length) {
-      const incomingQuestion = questions.find((q) => q.questionId === incoming.questionId)
-      if (incomingQuestion && skipsAllRemainingQuestionsOnNo(incomingQuestion)) {
-        for (const id of questionIdsAfterParent(incoming.questionId, questions)) {
-          map.delete(id)
-        }
+    if (incomingQuestion && skipsAllRemainingQuestionsOnNo(incomingQuestion)) {
+      for (const id of questionIdsAfterParent(incoming.questionId, questions)) {
+        map.delete(id)
       }
     }
   }

@@ -328,7 +328,12 @@ export default function QuestionForm() {
         </p>
       ) : null}
       <div className="min-w-0 space-y-3.5">
-        {questions.map((q, index) => {
+        {questions
+          .filter(
+            (q) =>
+              !isSkippedDependentQuestion(q.questionId, roomResponses, rubric.questions),
+          )
+          .map((q, index) => {
           const response = responses.get(q.questionId)
           const skipped = isSkippedDependentQuestion(q.questionId, roomResponses, rubric.questions)
           const autoAnswered = isAutoAnsweredQuestion(q.questionId, roomResponses)
