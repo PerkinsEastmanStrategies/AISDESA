@@ -21,6 +21,12 @@ export function toMobileFloorPlanFilename(filename: string): string {
   return `${trimmed}.mobile.svg`
 }
 
+/** Load `.mobile.svg` floor plan assets on every device (lighter, fewer CAD layers). */
+export function useMobileFloorPlanFiles(): boolean {
+  return true
+}
+
+/** Touch / narrow viewports — defers heavy map work and adjusts picker UX. */
 export function preferMobileFloorPlan(): boolean {
   if (typeof window === "undefined") return false
   try {
@@ -145,7 +151,7 @@ export async function fetchFloorPlanSvgWithFilename(
 ): Promise<FloorPlanSvgFetchResult | null> {
   if (!filename) return null
 
-  const preferMobile = options?.preferMobile ?? preferMobileFloorPlan()
+  const preferMobile = options?.preferMobile ?? useMobileFloorPlanFiles()
   const allowDesktopFallback =
     options?.allowDesktopFallback ?? !preferMobile
   const candidates =
@@ -190,7 +196,7 @@ export function prefetchFloorPlanSvgs(
   filenames: string[],
   options?: { preferMobile?: boolean },
 ): void {
-  const preferMobile = options?.preferMobile ?? preferMobileFloorPlan()
+  const preferMobile = options?.preferMobile ?? useMobileFloorPlanFiles()
   for (const filename of filenames) {
     if (!filename) continue
     void fetchFloorPlanSvgByFilename(filename, { preferMobile })

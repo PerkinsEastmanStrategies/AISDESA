@@ -23,6 +23,7 @@ import {
   needsInlineFloorPlanSvg,
   preferMobileFloorPlan,
   prefetchFloorPlanSvgs,
+  useMobileFloorPlanFiles,
 } from "@/lib/floor-plans"
 import { prepareFloorPlanSvgForDisplay } from "@/lib/floor-plan-style"
 import {
@@ -407,7 +408,7 @@ async function loadLivelySchoolRooms(school: AisdSchoolOption): Promise<FloorPla
 async function loadLivelyFloorPlanLevelDisplay(
   schoolId: string,
   levelId: string,
-  preferMobile: boolean = preferMobileFloorPlan(),
+  preferMobile: boolean = useMobileFloorPlanFiles(),
 ): Promise<SchoolFloorPlanConfig["levels"][number] | null> {
   const level = LIVELY_FLOOR_PLAN.levels.find((entry) => entry.id === levelId)
   if (!level) return null
@@ -586,7 +587,7 @@ export async function loadFloorPlanForSchool(
   const floors = getAvailableFloorsForSchool(school, manifest)
   if (!floors.length) return { plan: null, rooms: [] }
 
-  const preferMobile = preferMobileFloorPlan()
+  const preferMobileFiles = useMobileFloorPlanFiles()
 
   // Prefer Floor 1 when available; skip empty stubs so a blank L1 does not block L2 (Bryker Woods).
   const preferredIndex = floors.findIndex((floor) => floor.id === PREFERRED_DEFAULT_FLOOR_LEVEL_ID)
@@ -598,7 +599,7 @@ export async function loadFloorPlanForSchool(
   let defaultIndex = -1
   let defaultResult: LevelLoadResult | null = null
   for (const i of defaultCandidateIndexes) {
-    const result = await loadLevel(school.id, floors[i], false, preferMobile)
+    const result = await loadLevel(school.id, floors[i], false, preferMobileFiles)
     if (result) {
       defaultIndex = i
       defaultResult = result
@@ -612,7 +613,7 @@ export async function loadFloorPlanForSchool(
 
   prefetchFloorPlanSvgs(
     remainingFloors.map((f) => f.filename),
-    { preferMobile },
+    { preferMobile: preferMobileFiles },
   )
 
   onFirstFloorReady?.({
@@ -629,7 +630,7 @@ export async function loadFloorPlanForSchool(
     Promise.resolve().then(() =>
       parsePlanRoomsFromSvg(defaultResult.svgText, defaultFloor.id),
     ),
-    ...remainingFloors.map((floor) => loadLevel(school.id, floor, true, preferMobile)),
+    ...remainingFloors.map((floor) => loadLevel(school.id, floor, true, preferMobileFiles)),
   ])
 
   const loadedById = new Map<string, LevelLoadResult>()
@@ -695,18 +696,19 @@ export async function loadSchoolRoomsForSchool(
   const floors = getAvailableFloorsForSchool(school, manifest)
   if (!floors.length) return { plan: null, rooms: [] }
 
-  const preferMobile = preferMobileFloorPlan()
+  const preferMobileFiles = useMobileFloorPlanFiles()
   const loadedById = new Map<string, LevelLoadResult>()
+  const sequentialRoomLoads = preferMobileFloorPlan()
 
-  if (preferMobile) {
+  if (sequentialRoomLoads) {
     for (const floor of floors) {
-      const result = await loadLevelRoomsOnly(school.id, floor, preferMobile)
+      const result = await loadLevelRoomsOnly(school.id, floor, preferMobileFiles)
       if (result) loadedById.set(floor.id, result)
       await yieldToMainThread()
     }
   } else {
     const results = await Promise.all(
-      floors.map((floor) => loadLevelRoomsOnly(school.id, floor, preferMobile)),
+      floors.map((floor) => loadLevelRoomsOnly(school.id, floor, preferMobileFiles)),
     )
     floors.forEach((floor, i) => {
       const result = results[i]
@@ -747,9 +749,9 @@ export async function loadFloorPlanLevelDisplay(
   levelId: string,
   options?: { preferMobile?: boolean },
 ): Promise<SchoolFloorPlanConfig["levels"][number] | null> {
-  const preferMobile = options?.preferMobile ?? preferMobileFloorPlan()
+  const preferMobileFiles = options?.preferMobile ?? useMobileFloorPlanFiles()
   if (isLivelySchool(school)) {
-    return loadLivelyFloorPlanLevelDisplay(school.id, levelId, preferMobile)
+    return loadLivelyFloorPlanLevelDisplay(school.id, levelId, preferMobileFiles)
   }
 
   const manifest = await loadFloorPlanManifest()
@@ -757,7 +759,7 @@ export async function loadFloorPlanLevelDisplay(
   const floor = floors.find((entry) => entry.id === levelId)
   if (!floor) return null
 
-  const result = await loadLevel(school.id, floor, false, preferMobile)
+  const result = await loadLevel(school.id, floor, false, preferMobileFiles)
   return result?.level ?? null
 }
 

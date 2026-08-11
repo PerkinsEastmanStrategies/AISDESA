@@ -105,7 +105,7 @@ import {
   restoreFloorPlanLevelFromCache,
   revokeFloorPlanBlobUrls,
 } from "@/lib/floor-plan-loader"
-import { deferFloorPlanDisplayWork, preferMobileFloorPlan } from "@/lib/floor-plans"
+import { deferFloorPlanDisplayWork, preferMobileFloorPlan, useMobileFloorPlanFiles } from "@/lib/floor-plans"
 import { loadAisdSchoolOptions } from "@/lib/load-aisd-schools"
 import {
   deferIncompleteToCloseOut,
@@ -2719,25 +2719,25 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       if (!school?.hasFloorPlan || !plan) return
 
       const existing = plan.levels.find((level) => level.id === levelId)
-      const preferMobile = options?.preferMobile ?? preferMobileFloorPlan()
+      const preferMobileFiles = options?.preferMobile ?? useMobileFloorPlanFiles()
       const inlineStale =
         existing?.src &&
         isInlineFloorPlanSrc(existing.src) &&
         !hasFloorPlanDisplayCache(school.id, levelId)
       if (existing?.src && !inlineStale) return
 
-      const key = `${school.id}::${levelId}${preferMobile ? ":mobile" : ""}`
+      const key = `${school.id}::${levelId}:mobile`
       const inflight = floorPlanLevelInflightRef.current.get(key)
       if (inflight) return inflight
 
       const promise = (async () => {
-        if (preferMobile) {
+        if (preferMobileFloorPlan()) {
           await deferFloorPlanDisplayWork(300)
           if (floorPlanDisplayRequestsRef.current === 0) return
         }
         setFloorPlanDisplayLoading(true)
         try {
-          if (!preferMobile && hasFloorPlanDisplayCache(school.id, levelId) && existing) {
+          if (hasFloorPlanDisplayCache(school.id, levelId) && existing) {
             const restored = restoreFloorPlanLevelFromCache(school.id, existing)
             if (restored) {
               dispatch({ type: "PATCH_FLOOR_PLAN_LEVEL", level: restored })
@@ -2745,7 +2745,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
             }
           }
 
-          const level = await loadFloorPlanLevelDisplay(school, levelId, { preferMobile })
+          const level = await loadFloorPlanLevelDisplay(school, levelId, {
+            preferMobile: preferMobileFiles,
+          })
           if (level && floorPlanDisplayRequestsRef.current > 0) {
             dispatch({ type: "PATCH_FLOOR_PLAN_LEVEL", level })
           }
