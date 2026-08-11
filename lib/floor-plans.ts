@@ -1,3 +1,5 @@
+import { sanitizeFloorPlanSvgXml } from "@/lib/svg-utils"
+
 /** Supabase Storage public URL for a floor plan SVG filename. */
 export function getSupabaseFloorPlanUrlForFilename(filename: string): string | null {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -114,7 +116,7 @@ async function fetchFloorPlanSvgFromSources(filename: string): Promise<string | 
 
   for (const url of sources) {
     const cached = await readCachedFloorPlan(url)
-    if (cached) return cached
+    if (cached) return sanitizeFloorPlanSvgXml(cached)
   }
 
   for (const url of sources) {
@@ -122,7 +124,7 @@ async function fetchFloorPlanSvgFromSources(filename: string): Promise<string | 
       const response = await fetch(url)
       if (!response.ok) continue
 
-      const text = await response.text()
+      const text = sanitizeFloorPlanSvgXml(await response.text())
       void writeCachedFloorPlan(url, text)
       return text
     } catch {

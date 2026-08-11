@@ -5,6 +5,23 @@ export interface SvgViewBox {
   height: number;
 }
 
+const SERIF_XMLNS = 'xmlns:serif="http://www.serif.com/"';
+
+/**
+ * DXF converter exports use `serif:id` on TEXT/MTEXT groups like native CAFM SVGs.
+ * Without `xmlns:serif` on the root `<svg>`, strict XML parsers (browser DOMParser)
+ * fail and floor plans never leave "Loading floor plan…".
+ */
+export function sanitizeFloorPlanSvgXml(svgText: string): string {
+  if (!svgText || !/serif:id=/.test(svgText) || /xmlns:serif=/.test(svgText)) {
+    return svgText;
+  }
+  return svgText.replace(
+    /<svg\b([^>]*)>/i,
+    (_match, attrs: string) => `<svg ${SERIF_XMLNS}${attrs}>`,
+  );
+}
+
 /** Above this size, skip getBBox-based cropping when a viewBox is already declared. */
 export const LARGE_SVG_CHAR_THRESHOLD = 9 * 1024 * 1024;
 
