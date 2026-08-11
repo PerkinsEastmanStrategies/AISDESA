@@ -11,6 +11,8 @@
     "generate:arrival-admin": "node scripts/generate-arrival-admin-rubric.mjs",
     "generate:neighborhood": "node scripts/generate-neighborhood-rubric.mjs",
     "sync:floor-plan-manifest": "node scripts/sync-floor-plan-manifest.mjs",
+    "sync:survey-csv-package": "node scripts/sync-survey-csv-package.mjs",
+    "compare:survey-csv-package": "node scripts/compare-survey-csv-package.mjs",
     "postinstall": "node scripts/copy-mapbox-worker.mjs",
     "start": "next start -p 3002",
     "lint": "eslint ."

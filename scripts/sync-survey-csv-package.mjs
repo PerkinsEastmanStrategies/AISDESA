@@ -7,8 +7,9 @@ const root = path.resolve(__dirname, "..")
 
 const sourceDir =
   process.argv[2] ||
-  path.join(process.env.USERPROFILE ?? "", "Downloads", "AISD_ESA_All_Tabs_CSV_Package")
+  path.join(process.env.USERPROFILE ?? "", "Downloads", "AISD_ESA_8_10_26_CSV_Package")
 
+/** Authoritative v4 CSV set — compiled to TypeScript at build time (not loaded in the browser). */
 const files = [
   "01_Surveys.csv",
   "02_SpaceTypes.csv",
@@ -23,6 +24,7 @@ const targets = [
   path.join(root, "packages", "shared", "src", "data", "outdoor-survey"),
   path.join(root, "packages", "shared", "src", "data", "admin-survey"),
   path.join(root, "packages", "shared", "src", "data", "arrival-admin-survey"),
+  path.join(root, "packages", "shared", "src", "data", "neighborhood-survey"),
 ]
 
 if (!fs.existsSync(sourceDir)) {
@@ -38,6 +40,11 @@ for (const file of files) {
   }
 }
 
+let totalBytes = 0
+for (const file of files) {
+  totalBytes += fs.statSync(path.join(sourceDir, file)).size
+}
+
 for (const dir of targets) {
   fs.mkdirSync(dir, { recursive: true })
   for (const file of files) {
@@ -46,4 +53,6 @@ for (const dir of targets) {
   console.log(`Synced ${files.length} CSVs -> ${path.relative(root, dir)}`)
 }
 
-console.log("Done.")
+console.log(
+  `Done. Source package ~${Math.round(totalBytes / 1024)} KB (build-time only; not shipped to clients as CSV).`,
+)

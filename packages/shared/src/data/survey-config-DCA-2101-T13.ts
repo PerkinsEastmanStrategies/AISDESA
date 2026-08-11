@@ -255,7 +255,7 @@ export function gradeTypeFromSchoolClass(
 }
 
 /**
- * Filter Neighborhood questions by ES / MS / HS / MS+HS applicability.
+ * Filter Neighborhood questions by ES / MS / HS / ES+MS / MS+HS applicability.
  * Unbanded (ALL) questions always show; banded ones wait until a grade band is known.
  */
 export function filterNeighborhoodRubricByGrade(
@@ -267,6 +267,7 @@ export function filterNeighborhoodRubricByGrade(
     const appl = String(q.gradeApplicability ?? "ALL").trim().toUpperCase() || "ALL"
     if (appl === "ALL") return true
     if (!band) return false
+    if (appl === "ES+MS") return band === "ES" || band === "MS"
     if (appl === "MS+HS") return band === "MS" || band === "HS"
     return appl === band
   })

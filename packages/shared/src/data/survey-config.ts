@@ -335,7 +335,7 @@ export function normalizeGradeApplicability(
 
 /**
  * Whether a CSV SchoolLevel / gradeApplicability value applies to the school's CLASS.
- * Supports ALL, ES, MS, HS, MS+HS, and comma-separated combos (e.g. "ES, MS").
+ * Supports ALL, ES, MS, HS, ES+MS, MS+HS, and comma-separated combos (e.g. "ES, MS").
  */
 export function questionAppliesToSchoolClass(
   gradeApplicability: string | null | undefined,
@@ -361,6 +361,8 @@ export function questionAppliesToSchoolClass(
     if (token === "ES" || token === "ELEM" || token === "ELEMENTARY") return isElem
     if (token === "MS" || token === "MID" || token === "MIDDLE") return isMid
     if (token === "HS" || token === "HIGH") return isHigh
+    if (token === "ES+MS") return isElem || isMid
+    if (token.includes("ES") && token.includes("MS") && !token.includes("HS")) return isElem || isMid
     if (token === "MS+HS" || token === "SECONDARY") return isMid || isHigh
     if (token.includes("MS") && token.includes("HS")) return isMid || isHigh
     return false
@@ -427,7 +429,7 @@ export function neighborhoodGradeBand(
 }
 
 /**
- * Filter Neighborhood questions by ES / MS / HS / MS+HS applicability.
+ * Filter Neighborhood questions by ES / MS / HS / ES+MS / MS+HS applicability.
  * Unbanded (ALL) questions always show; banded ones wait until a grade band is known.
  */
 export function filterNeighborhoodRubricByGrade(
@@ -439,6 +441,7 @@ export function filterNeighborhoodRubricByGrade(
     const appl = String(q.gradeApplicability ?? "ALL").trim().toUpperCase() || "ALL"
     if (appl === "ALL") return true
     if (!band) return false
+    if (appl === "ES+MS") return band === "ES" || band === "MS"
     if (appl === "MS+HS") return band === "MS" || band === "HS"
     return appl === band
   })

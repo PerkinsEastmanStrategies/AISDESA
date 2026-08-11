@@ -30,26 +30,26 @@ const outPath = path.join(
 
 const PACKAGES = [
   {
-    spaceTypeId: "SPT-MAIN-ENTRY-RECEPTION",
+    spaceTypeId: "SPT-MAIN-ENTRY-RECEPTION-CC5A87",
     assessmentArea: "Arrival/Main Office",
     versionConst: "MAIN_OFFICE_RUBRIC_VERSION",
-    version: 2,
+    version: 3,
     prefix: "MAIN_OFFICE",
     label: "Main Entry/Reception",
   },
   {
-    spaceTypeId: "SPT-MAIN-ADMIN-SUITE",
+    spaceTypeId: "SPT-MAIN-ADMIN-SUITE-6009C0",
     assessmentArea: "Arrival/Main Office",
     versionConst: "MAIN_ADMIN_SUITE_RUBRIC_VERSION",
-    version: 1,
+    version: 2,
     prefix: "MAIN_ADMIN_SUITE",
     label: "Main Admin Suite",
   },
   {
-    spaceTypeId: "SPT-COMMUNITY-PARTNERS-SUITE",
+    spaceTypeId: "SPT-COMMUNITY-PARTNERS-SUITE-8EC0EC",
     assessmentArea: "Arrival/Main Office",
     versionConst: "COMMUNITY_PARTNER_RUBRIC_VERSION",
-    version: 2,
+    version: 3,
     prefix: "COMMUNITY_PARTNER",
     label: "Community Partners Suite",
   },

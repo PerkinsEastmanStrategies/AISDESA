@@ -17,26 +17,26 @@ const outPath = path.join(workspaceRoot, "packages", "shared", "src", "data", "a
 
 const PACKAGES = [
   {
-    spaceTypeId: "SPT-ADMIN-OFFICES",
+    spaceTypeId: "SPT-ADMIN-OFFICES-C36ECE",
     assessmentArea: "Administration",
     versionConst: "ADMIN_OFFICE_RUBRIC_VERSION",
-    version: 2,
+    version: 3,
     prefix: "ADMIN_OFFICE",
     label: "Admin Offices",
   },
   {
-    spaceTypeId: "SPT-MENTAL-WELLNESS-AND-COUNSELING-S",
+    spaceTypeId: "SPT-MW-AND-COUNSELING-SUITE-3ACB29",
     assessmentArea: "Administration",
     versionConst: "COUNSELING_SUITE_RUBRIC_VERSION",
-    version: 2,
+    version: 3,
     prefix: "COUNSELING_SUITE",
-    label: "Mental Wellness and Counseling Suite",
+    label: "MW and Counseling Suite",
   },
   {
-    spaceTypeId: "SPT-PROFESSIONAL-LEARNING-CENTER",
+    spaceTypeId: "SPT-PROFESSIONAL-LEARNING-CENTER-A2E7B5",
     assessmentArea: "Administration",
     versionConst: "PLC_RUBRIC_VERSION",
-    version: 2,
+    version: 3,
     prefix: "PLC",
     label: "Professional Learning Center",
   },

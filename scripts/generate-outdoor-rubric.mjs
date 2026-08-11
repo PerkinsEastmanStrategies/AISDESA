@@ -22,9 +22,9 @@ const csvDir = path.join(workspaceRoot, "packages", "shared", "src", "data", "st
 const outPath = path.join(workspaceRoot, "packages", "shared", "src", "data", "outdoor-rubric.ts")
 
 const PACKAGE = {
-  spaceTypeId: "SPT-OUTDOOR-SPACES",
+  spaceTypeId: "SPT-OUTDOOR-SPACES-F4EC64",
   versionConst: "OUTDOOR_SPACES_RUBRIC_VERSION",
-  version: 2,
+  version: 3,
   prefix: "OUTDOOR_SPACES",
   label: "Outdoor Spaces",
   assessmentArea: "Outdoor",

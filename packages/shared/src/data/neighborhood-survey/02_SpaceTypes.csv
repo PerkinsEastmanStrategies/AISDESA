@@ -1,4 +1,57 @@
-﻿SpaceTypeID,SurveyID,ParentSpaceTypeID,SpaceTypeName,DisplayOrder,IsActive,Description
-SPT-NEIGHBORHOOD,SRV-NEIGHBORHOOD,,Neighborhood,10,True,Overall learning neighborhood assessment.
-SPT-GROUP-ROOM,SRV-NEIGHBORHOOD,,Group Room,20,True,Small- and large-group room assessment within a learning neighborhood.
-SPT-OPEN-COLLAB,SRV-NEIGHBORHOOD,,Open Collaboration Space,30,True,Open collaboration and shared learning space assessment.
+﻿SpaceTypeID,SurveyID,SurveyFocusArea,ScoreFocusArea,SpaceTypeName,DisplayOrder,IsActive
+SPT-TRADITIONAL-STUDIO-78A63C,SRV-STUDIOS,Studios,Studios,Traditional Studio,10,True
+SPT-OUTDOOR-SPACES-F4EC64,SRV-OUTDOOR,Outdoor,Outdoor,Outdoor Spaces,20,True
+SPT-ADMIN-OFFICES-C36ECE,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Admin Offices,30,True
+SPT-MAIN-ADMIN-SUITE-6009C0,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Main Admin Suite,40,True
+SPT-COMMUNITY-PARTNERS-SUITE-8EC0EC,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Community Partners Suite,50,True
+SPT-MW-AND-COUNSELING-SUITE-3ACB29,SRV-ADMINISTRATION,Administration,Administration,MW and Counseling Suite,60,True
+SPT-PROFESSIONAL-LEARNING-CENTER-A2E7B5,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Professional Learning Center,70,True
+SPT-MAIN-ENTRY-RECEPTION-CC5A87,SRV-ARRIVAL-ADMINISTRATION,Arrival/Administration,Arrival/Administration,Main Entry/Reception,80,True
+SPT-SCIENCE-2593B2,SRV-STUDIOS,Studios,Studios,Science,90,True
+SPT-SCIENCE-PREP-ROOM-C6879C,SRV-STUDIOS,Studios,Studios,Science Prep Room,100,True
+SPT-EARLY-CHILDHOOD-STUDIO-49159F,SRV-STUDIOS,Studios,Studios,Early childhood studio,110,True
+SPT-EARLY-CHILDHOOD-SPECIAL-EDUCAT-0E3811,SRV-STUDIOS,Studios,Special Education,Early Childhood Special Education studio,120,True
+SPT-MAKER-SPACE-57653D,SRV-STUDIOS,Studios,Studios,Maker Space,130,True
+SPT-SPECIAL-EDUCATION-SUITE-87FB39,SRV-SPECIAL-EDUCATION,Special Education,Special Education,Special Education Suite,140,True
+SPT-SENSORY-MOTOR-LAB-3CE0F0,SRV-SPECIAL-EDUCATION,Special Education,Special Education,Sensory Motor Lab,150,True
+SPT-LIFE-SKILLS-STUDIO-923127,SRV-SPECIAL-EDUCATION,Special Education,Special Education,Life Skills Studio,160,True
+SPT-VOCATIONAL-LAB-534CA6,SRV-SPECIAL-EDUCATION,Special Education,Special Education,Vocational Lab,170,True
+SPT-SPED-FLEX-STUDIO-8EBAD0,SRV-STUDIOS,Studios,Special Education,SPED Flex Studio,180,True
+SPT-LIBRARY-MEDIA-CENTER-951EE9,SRV-SHARED-SPACES,Shared Spaces,Shared Spaces,Library Media Center,190,True
+SPT-COMPETITION-GYM-D05D49,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Competition Gym,200,True
+SPT-MULTIPURPOSE-GYM-99D091,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Multipurpose Gym,210,True
+SPT-PRACTICE-GYM-8CB861,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Practice Gym,220,True
+SPT-ES-GYMNASIUM-4911CC,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,ES Gymnasium,230,True
+SPT-WEIGHT-ROOM-9E9F80,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Weight Room,240,True
+SPT-WRESTLING-A78FB6,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Wrestling,250,True
+SPT-LOCKER-ROOMS-5ED7DB,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Locker rooms,260,True
+SPT-PE-FITNESS-ROOM-F9EFD1,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,PE Fitness Room,270,True
+SPT-ATHLETICS-WING-31743B,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Athletics Wing,280,True
+SPT-OUTDOOR-ATHLETICS-DEC8BC,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Outdoor Athletics,290,True
+SPT-DINING-COMMONS-B2FE05,SRV-SHARED-SPACES,Shared Spaces,Shared Spaces,Dining Commons,300,True
+SPT-KITCHEN-B9C465,SRV-SHARED-SPACES,Shared Spaces,Shared Spaces,Kitchen,310,True
+SPT-EMPOWER-CENTER-B88577,SRV-EMPOWER-CENTER,Empower Center,Empower Center,Empower Center,320,True
+SPT-NEIGHBORHOOD-D091AE,SRV-NEIGHBORHOODS,Neighborhoods,Neighborhoods,Neighborhood,330,True
+SPT-EARLY-CHILDHOOD-NEIGHBORHOOD-A22ECD,SRV-NEIGHBORHOODS,Neighborhoods,Neighborhoods,Early Childhood Neighborhood,340,True
+SPT-GROUP-ROOM-4362E2,SRV-NEIGHBORHOODS,Neighborhoods,Neighborhoods,Group Room,350,True
+SPT-OPEN-COLLABORATION-0308C2,SRV-NEIGHBORHOODS,Neighborhoods,Neighborhoods,Open Collaboration,360,True
+SPT-CTE-STUDIO-143933,SRV-CTE,CTE,CTE,CTE Studio,370,True
+SPT-LOW-INTENSITY-LAB-05F8AF,SRV-CTE,CTE,CTE,Low Intensity Lab,380,True
+SPT-MEDIUM-INTENSITY-LAB-C658FD,SRV-CTE,CTE,CTE,Medium Intensity Lab,390,True
+SPT-HIGH-INTENSITY-LAB-BF5D1A,SRV-CTE,CTE,CTE,High Intensity Lab,400,True
+SPT-ART-STUDIO-B083D5,SRV-STUDIOS,Studios,Studios,Art Studio,410,True
+SPT-2D-ART-STUDIO-4FF189,SRV-STUDIOS,Studios,Studios,2D Art Studio,420,True
+SPT-3D-ART-STUDIO-41C678,SRV-STUDIOS,Studios,Studios,3D Art Studio,430,True
+SPT-DIGITAL-ARTS-STUDIO-9AC3E8,SRV-STUDIOS,Studios,Studios,Digital Arts Studio,440,True
+SPT-THEATER-ARTS-STUDIO-66AF54,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Theater Arts Studio,450,True
+SPT-THEATER-ARTS-SUITE-E7A662,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Theater Arts Suite,460,True
+SPT-AUDITORIUM-A69CC4,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Auditorium,470,True
+SPT-BLACK-BOX-AFA947,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Black Box,480,True
+SPT-DANCE-9926FD,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Dance,490,True
+SPT-MUSIC-STUDIO-7170B4,SRV-STUDIOS,Studios,Studios,Music Studio,500,True
+SPT-MUSIC-SUITE-96730D,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Music Suite,510,True
+SPT-REHEARSAL-HALL-4608D6,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Rehearsal Hall,520,True
+SPT-CAMPUS-8C248A,SRV-CLOSEOUT,Closeout,Closeout,Campus,530,True
+SPT-OUTDOOR-ENTRY-481ED6,SRV-CLOSEOUT,Closeout,Closeout,Outdoor Entry,540,True
+SPT-PARKING-LOT-E557D2,SRV-CLOSEOUT,Closeout,Closeout,Parking Lot,550,True
+SPT-SITE-5D8E29,SRV-CLOSEOUT,Closeout,Closeout,Site,560,True

@@ -18,14 +18,6 @@ function resolveWorkspaceRoot() {
 }
 
 const workspaceRoot = resolveWorkspaceRoot()
-const legacyCsvDir = path.join(
-  workspaceRoot,
-  "packages",
-  "shared",
-  "src",
-  "data",
-  "traditional-studios-v3",
-)
 const v4CsvDir = path.join(workspaceRoot, "packages", "shared", "src", "data", "studios-outdoor")
 const outPath = path.join(
   workspaceRoot,
@@ -38,9 +30,9 @@ const outPath = path.join(
 
 const PACKAGES = [
   {
-    spaceTypeId: "SPT-TRADITIONAL-STUDIO",
+    spaceTypeId: "SPT-TRADITIONAL-STUDIO-78A63C",
     versionConst: "TRADITIONAL_STUDIOS_RUBRIC_VERSION",
-    version: 5,
+    version: 6,
     prefix: "TRADITIONAL_STUDIO",
     label: "Traditional Studio",
     assessmentArea: "Studios",
@@ -48,9 +40,9 @@ const PACKAGES = [
     format: "v4",
   },
   {
-    spaceTypeId: "SPT-MAKER-SPACE",
+    spaceTypeId: "SPT-MAKER-SPACE-57653D",
     versionConst: "MAKER_SPACE_RUBRIC_VERSION",
-    version: 1,
+    version: 2,
     prefix: "MAKER_SPACE",
     label: "Maker Space",
     assessmentArea: "Studios",
@@ -58,44 +50,44 @@ const PACKAGES = [
     format: "v4",
   },
   {
-    spaceTypeId: "SPT-SENSORY-LAB",
+    spaceTypeId: "SPT-SENSORY-MOTOR-LAB-3CE0F0",
     versionConst: "SENSORY_LAB_RUBRIC_VERSION",
-    version: 3,
+    version: 4,
     prefix: "SENSORY_LAB",
-    label: "Sensory Lab",
-    assessmentArea: "Studios",
-    csvDir: legacyCsvDir,
-    format: "legacy",
+    label: "Sensory Motor Lab",
+    assessmentArea: "Special Education",
+    csvDir: v4CsvDir,
+    format: "v4",
   },
   {
-    spaceTypeId: "SPT-VOC-LAB",
+    spaceTypeId: "SPT-VOCATIONAL-LAB-534CA6",
     versionConst: "VOCATIONAL_LAB_RUBRIC_VERSION",
-    version: 3,
+    version: 4,
     prefix: "VOCATIONAL_LAB",
     label: "Vocational Lab",
-    assessmentArea: "Studios",
-    csvDir: legacyCsvDir,
-    format: "legacy",
+    assessmentArea: "Special Education",
+    csvDir: v4CsvDir,
+    format: "v4",
   },
   {
-    spaceTypeId: "SPT-LIFE-SKILLS",
+    spaceTypeId: "SPT-LIFE-SKILLS-STUDIO-923127",
     versionConst: "LIFE_SKILLS_RUBRIC_VERSION",
-    version: 3,
+    version: 4,
     prefix: "LIFE_SKILLS",
-    label: "Life Skills Room",
-    assessmentArea: "Studios",
-    csvDir: legacyCsvDir,
-    format: "legacy",
+    label: "Life Skills Studio",
+    assessmentArea: "Special Education",
+    csvDir: v4CsvDir,
+    format: "v4",
   },
   {
-    spaceTypeId: "SPT-SPED-FLEX",
+    spaceTypeId: "SPT-SPED-FLEX-STUDIO-8EBAD0",
     versionConst: "SPED_FLEX_RUBRIC_VERSION",
-    version: 3,
+    version: 4,
     prefix: "SPED_FLEX",
-    label: "Sped Flex Studio",
-    assessmentArea: "Studios",
-    csvDir: legacyCsvDir,
-    format: "legacy",
+    label: "SPED Flex Studio",
+    assessmentArea: "Special Education",
+    csvDir: v4CsvDir,
+    format: "v4",
   },
 ]
 
@@ -368,9 +360,7 @@ export const ${pkg.prefix}_QUESTION_OPTIONS: (EsaQuestionOption & {
 let file = `import type { EsaCategory, EsaQuestion, EsaQuestionOption, EsaSubcategory } from "../types/survey"
 
 /** Package studio rubrics — regenerate via scripts/generate-traditional-studio-rubric.mjs
- *  Traditional Studio: packages/shared/src/data/studios-outdoor (v4 CSV)
- *  Other packages: packages/shared/src/data/traditional-studios-v3
- *  Outdoor: packages/shared/src/data/outdoor-survey (generate-outdoor-rubric.mjs)
+ *  Source CSVs: packages/shared/src/data/studios-outdoor (v4 CSV package)
  */
 `
 
