@@ -64,10 +64,6 @@ const MAX_ZOOM = 10
 const DEFAULT_ZOOM = 1
 const ZOOM_BUTTON_STEP = 0.5
 
-function isFloorPlanRoomPointerTarget(target: EventTarget | null): boolean {
-  return target instanceof Element && !!target.closest("[data-floor-plan-room]")
-}
-
 function clampZoom(value: number, min: number = MIN_ZOOM): number {
   return Math.min(MAX_ZOOM, Math.max(min, value))
 }
@@ -494,7 +490,6 @@ export default function SurveyFloorPlan({
     }
 
     const onPointerDown = (e: PointerEvent) => {
-      if (isFloorPlanRoomPointerTarget(e.target)) return
       if (e.pointerType === "mouse" && e.button !== 0) return
 
       pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
@@ -564,7 +559,6 @@ export default function SurveyFloorPlan({
     }
 
     const onPointerUp = (e: PointerEvent) => {
-      if (isFloorPlanRoomPointerTarget(e.target)) return
       pointersRef.current.delete(e.pointerId)
       if (pointersRef.current.size < 2) pinchRef.current = null
       if (activePointerId.current === e.pointerId) activePointerId.current = null
@@ -1459,13 +1453,18 @@ function RoomOverlay({
         onPointerDown={(e) => {
           if (readOnly || !interactive) return
           if (e.pointerType === "mouse" && e.button !== 0) return
-          e.stopPropagation()
           tapRef.current = { pointerId: e.pointerId, x: e.clientX, y: e.clientY }
+        }}
+        onPointerMove={(e) => {
+          const start = tapRef.current
+          if (!start || start.pointerId !== e.pointerId) return
+          if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > PAN_THRESHOLD_PX) {
+            tapRef.current = null
+          }
         }}
         onPointerUp={(e) => {
           if (readOnly || !interactive || closeOutEntry) return
           if (e.pointerType === "mouse" && e.button !== 0) return
-          e.stopPropagation()
           trySelect(e.pointerId, e.clientX, e.clientY)
         }}
         onClick={(e) => {

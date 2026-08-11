@@ -12,7 +12,11 @@ export function isSpaceTypePresentQuestion(
 export function isDedicatedSpaceAvailabilityQuestion(
   question: Pick<EsaQuestion, "question">,
 ): boolean {
-  return question.question.trim().startsWith("Is there a dedicated")
+  const text = question.question.trim()
+  if (!text.startsWith("Is there a dedicated")) return false
+  // In-room features (Peace Center within a studio) are scored normally — "No" must not skip the rubric.
+  if (/\bwithin\b/i.test(text)) return false
+  return true
 }
 
 /** When answered "No", all following questions in the rubric are skipped. */
