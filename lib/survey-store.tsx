@@ -145,9 +145,6 @@ import {
   schoolScoredRoomCount,
   type SubmittedRoomAssessment,
 } from "@/lib/school-assessment-index"
-import {
-  mergeSchoolDrafts,
-} from "@/lib/school-draft-merge"
 
 export type SurveyView = "landing" | "admin" | "home" | "survey" | "results"
 
@@ -2589,18 +2586,19 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
     setRemoteSchoolDraftsLoading(true)
     try {
+      // Push any queued local edits first so a cloud pull does not clobber unsynced work.
+      await flushSurveySyncQueue({
+        schools,
+        loadDraft,
+      })
       const result = await pullRemoteDraftsForSchoolClient(state.school.id)
       if (result.configured) {
-        const localDrafts = SURVEY_TYPES.filter((t) => t !== "closeout").flatMap((surveyType) => {
-          const draft = loadDraft(state.school!.id, surveyType)
-          return draft ? [draft] : []
-        })
-        const merged = mergeSchoolDrafts(localDrafts, result.drafts)
-        for (const draft of merged) {
+        // Supabase is the shared source of truth for multi-assessor Results.
+        for (const draft of result.drafts) {
           saveDraft(draft, { setActive: false })
         }
         setRemoteDraftsConfigured(true)
-        setRemoteSchoolDrafts(merged)
+        setRemoteSchoolDrafts(result.drafts)
       } else {
         setRemoteDraftsConfigured(false)
         setRemoteSchoolDrafts(null)
@@ -2608,7 +2606,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     } finally {
       setRemoteSchoolDraftsLoading(false)
     }
-  }, [state.school])
+  }, [state.school, schools])
 
   useEffect(() => {
     if (!state.school) {
@@ -3019,12 +3017,12 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
   const scoringDrafts = useMemo(() => {
     if (!state.school) return undefined
-    const local = loadDraftsForSchool(state.school.id)
-    if (!remoteDraftsConfigured || remoteSchoolDrafts === null) {
-      return local.length ? local : undefined
+    // Online Results: use Supabase drafts only so stale local history cannot resurrect deleted rooms.
+    if (remoteDraftsConfigured && remoteSchoolDrafts !== null) {
+      return remoteSchoolDrafts.length ? remoteSchoolDrafts : undefined
     }
-    const merged = mergeSchoolDrafts(local, remoteSchoolDrafts)
-    return merged.length ? merged : undefined
+    const local = loadDraftsForSchool(state.school.id)
+    return local.length ? local : undefined
   }, [remoteDraftsConfigured, remoteSchoolDrafts, state.school?.id])
 
   const campusSnapshotInput = useMemo(

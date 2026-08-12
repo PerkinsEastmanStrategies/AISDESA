@@ -10,7 +10,7 @@ const QA_KEY = "aisd-survey-qa-finalizations"
 const FIELD_DATA_RESET_KEY = "aisd-survey-field-data-reset-v"
 
 /** Bump when a one-time browser cleanup should run for all users. */
-export const FIELD_DATA_RESET_VERSION = 1
+export const FIELD_DATA_RESET_VERSION = 2
 
 const PRESERVED_PREFIXES = [
   "aisd-survey-draft-",
