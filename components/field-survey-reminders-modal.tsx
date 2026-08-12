@@ -42,7 +42,7 @@ export default function FieldSurveyRemindersModal({
   if (!open || typeof document === "undefined") return null
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[500] flex items-end justify-center sm:items-center sm:p-4">
       <button
         type="button"
         aria-label="Close reminders"
@@ -86,7 +86,7 @@ export default function FieldSurveyRemindersModal({
           ))}
         </ol>
 
-        <div className="shrink-0 border-t border-[var(--color-border)] bg-slate-50 px-4 py-3">
+        <div className="shrink-0 border-t border-[var(--color-border)] bg-slate-50 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={onContinue}

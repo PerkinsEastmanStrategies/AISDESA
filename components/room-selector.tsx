@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { createPortal } from "react-dom"
 import { Check, CheckCircle2, ChevronDown, CircleHelp, Map as MapIcon, Search, X } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
 import SurveyFloorPlan from "@/components/survey-floor-plan"
@@ -53,6 +54,13 @@ import SpaceTypeAssessmentGuidanceModal from "@/components/space-type-assessment
 import SpaceTypeExistenceGate from "@/components/space-type-existence-gate"
 import TraditionalStudioCopyOffer from "@/components/traditional-studio-copy-offer"
 import NeighborhoodLegend from "@/components/neighborhood-legend"
+
+function BodyPortal({ children }: { children: ReactNode }) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  if (!mounted) return null
+  return createPortal(children, document.body)
+}
 
 interface RoomSelectorProps {
   showFloorPlan: boolean
@@ -224,6 +232,30 @@ export default function RoomSelector({
   const sortRoomsByName = (rooms: typeof state.allRooms) =>
     [...rooms].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
 
+  const dedupeRoomsById = (
+    rooms: typeof state.allRooms,
+    preferredLevelId?: string | null,
+  ) => {
+    const byId = new Map<string, (typeof state.allRooms)[number]>()
+    for (const room of rooms) {
+      const key = room.id.trim().toUpperCase()
+      if (!key) continue
+      const existing = byId.get(key)
+      if (!existing) {
+        byId.set(key, room)
+        continue
+      }
+      if (
+        preferredLevelId &&
+        room.levelId === preferredLevelId &&
+        existing.levelId !== preferredLevelId
+      ) {
+        byId.set(key, room)
+      }
+    }
+    return [...byId.values()]
+  }
+
   const { pinnedRoomOptions, otherRoomOptions } = useMemo(() => {
     const schoolClass = state.school?.schoolClass
     const mappedTypeForRoom = (roomId: string) =>
@@ -241,7 +273,9 @@ export default function RoomSelector({
             (room) => room.id.toUpperCase() === roomSession.roomId.toUpperCase(),
           )
         if (matched) {
-          pending.push(matched)
+          if (!pending.some((room) => room.id.toUpperCase() === matched.id.toUpperCase())) {
+            pending.push(matched)
+          }
           continue
         }
         const neighborhoodLabel = neighborhoodFromSurveyRoomId(roomSession.roomId)
@@ -261,7 +295,10 @@ export default function RoomSelector({
           points: [],
         })
       }
-      return { pinnedRoomOptions: [], otherRoomOptions: sortRoomsByName(pending) }
+      return {
+        pinnedRoomOptions: [],
+        otherRoomOptions: sortRoomsByName(dedupeRoomsById(pending, effectiveLevelId)),
+      }
     }
 
     let onFloor = state.allRooms.filter((r) => {
@@ -274,23 +311,29 @@ export default function RoomSelector({
     let pinned: typeof onFloor = []
 
     if (preWalkMapped) {
-      const pinnedSource = state.allRooms.filter(eligibleForPreWalk)
+      const pinnedSource = dedupeRoomsById(
+        state.allRooms.filter(eligibleForPreWalk),
+        effectiveLevelId,
+      )
       if (selectedSpaceType) {
         pinned = pinnedSource.filter((r) => mappedTypeForRoom(r.id) === selectedSpaceType)
       } else {
         pinned = pinnedSource.filter((r) => !!mappedTypeForRoom(r.id))
       }
-      for (const room of pinned) pinnedIds.add(room.id)
+      for (const room of pinned) {
+        pinnedIds.add(room.id)
+        pinnedIds.add(room.id.toUpperCase())
+      }
       pinned = sortRoomsByName(pinned)
     }
 
     let other = onFloor.filter((r) => {
-      if (pinnedIds.has(r.id)) return false
+      if (pinnedIds.has(r.id) || pinnedIds.has(r.id.toUpperCase())) return false
       const mappedType = mappedTypeForRoom(r.id)
       if (selectedSpaceType && mappedType && mappedType !== selectedSpaceType) return false
       return true
     })
-    other = sortRoomsByName(other)
+    other = sortRoomsByName(dedupeRoomsById(other, effectiveLevelId))
 
     if (selectedId) {
       const selected = state.allRooms.find((r) => r.id === selectedId)
@@ -920,7 +963,8 @@ export default function RoomSelector({
       )}
 
       {studioTypePickerOpen && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
+        <BodyPortal>
+        <div className="fixed inset-0 z-[500] flex items-end justify-center sm:items-center sm:p-4">
           <button
             type="button"
             aria-label={`Close ${spaceTypeNoun} list`}
@@ -1041,10 +1085,12 @@ export default function RoomSelector({
             </ul>
           </div>
         </div>
+        </BodyPortal>
       )}
 
       {roomPickerOpen && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
+        <BodyPortal>
+        <div className="fixed inset-0 z-[500] flex items-end justify-center sm:items-center sm:p-4">
           <button
             type="button"
             aria-label="Close room list"
@@ -1319,10 +1365,12 @@ export default function RoomSelector({
             )}
           </div>
         </div>
+        </BodyPortal>
       )}
 
       {gradePickerOpen && showGrade && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
+        <BodyPortal>
+        <div className="fixed inset-0 z-[500] flex items-end justify-center sm:items-center sm:p-4">
           <button
             type="button"
             aria-label="Close grade list"
@@ -1391,10 +1439,12 @@ export default function RoomSelector({
             </ul>
           </div>
         </div>
+        </BodyPortal>
       )}
 
       {neighborhoodPickerOpen && showNeighborhoodPicker && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
+        <BodyPortal>
+        <div className="fixed inset-0 z-[500] flex items-end justify-center sm:items-center sm:p-4">
           <button
             type="button"
             aria-label="Close neighborhood list"
@@ -1475,6 +1525,7 @@ export default function RoomSelector({
             </ul>
           </div>
         </div>
+        </BodyPortal>
       )}
 
       {selectedSpaceType && (

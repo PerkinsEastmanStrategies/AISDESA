@@ -1,5 +1,7 @@
 "use client"
 
+import { useEffect, useState } from "react"
+import { createPortal } from "react-dom"
 import { X } from "lucide-react"
 import { lookupSpaceTypeAssessmentGuidance } from "@aisd/shared"
 
@@ -64,14 +66,34 @@ export default function SpaceTypeAssessmentGuidanceModal({
   open: boolean
   onClose: () => void
 }) {
-  if (!open) return null
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose()
+    }
+    document.addEventListener("keydown", onKey)
+    return () => {
+      document.body.style.overflow = prev
+      document.removeEventListener("keydown", onKey)
+    }
+  }, [open, onClose])
+
+  if (!open || !mounted) return null
 
   const guidance = lookupSpaceTypeAssessmentGuidance(spaceType, schoolClass)
   const title = guidance?.title ?? `${spaceType} Assessment Selection Guidance`
   const titleId = "space-type-guidance-title"
 
-  return (
-    <div className="fixed inset-0 z-[110] flex items-end justify-center sm:items-center sm:p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[500] flex items-end justify-center sm:items-center sm:p-4">
       <button
         type="button"
         aria-label="Close guidance"
@@ -108,7 +130,7 @@ export default function SpaceTypeAssessmentGuidanceModal({
           )}
         </div>
 
-        <div className="shrink-0 border-t border-slate-200/80 px-4 py-3">
+        <div className="shrink-0 border-t border-slate-200/80 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={onClose}
@@ -118,6 +140,7 @@ export default function SpaceTypeAssessmentGuidanceModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

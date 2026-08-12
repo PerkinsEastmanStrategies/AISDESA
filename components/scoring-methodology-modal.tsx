@@ -87,7 +87,7 @@ export default function ScoringMethodologyModal({
   if (!open || typeof document === "undefined") return null
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[500] flex items-end justify-center sm:items-center sm:p-4">
       <button
         type="button"
         aria-label="Close scoring information"
@@ -193,7 +193,7 @@ export default function ScoringMethodologyModal({
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-slate-200 px-4 py-3 sm:px-5">
+        <div className="shrink-0 border-t border-slate-200 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">
           <button
             type="button"
             onClick={onClose}

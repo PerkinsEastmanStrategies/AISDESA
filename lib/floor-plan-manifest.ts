@@ -57,44 +57,62 @@ function getManifestUrl(): string {
   return process.env.NEXT_PUBLIC_FLOOR_PLAN_MANIFEST_URL ?? DEFAULT_FLOOR_PLAN_MANIFEST_URL
 }
 
-function parseCsvLine(line: string): string[] {
-  const values: string[] = []
+/** Parse CSV into records, keeping newlines that appear inside quoted cells. */
+function parseCsvRecords(csvText: string): string[][] {
+  const rows: string[][] = []
+  let row: string[] = []
   let current = ""
   let inQuotes = false
+  const text = csvText.replace(/^\uFEFF/, "")
 
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i]
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"'
-        i++
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i]
+    if (inQuotes) {
+      if (char === '"') {
+        if (text[i + 1] === '"') {
+          current += '"'
+          i++
+        } else {
+          inQuotes = false
+        }
       } else {
-        inQuotes = !inQuotes
+        current += char
       }
       continue
     }
-    if (char === "," && !inQuotes) {
-      values.push(current)
+    if (char === '"') {
+      inQuotes = true
+      continue
+    }
+    if (char === ",") {
+      row.push(current)
       current = ""
+      continue
+    }
+    if (char === "\n" || char === "\r") {
+      if (char === "\r" && text[i + 1] === "\n") i++
+      row.push(current)
+      current = ""
+      if (row.some((cell) => cell.trim())) rows.push(row.map((cell) => cell.trim()))
+      row = []
       continue
     }
     current += char
   }
 
-  values.push(current)
-  return values
+  if (current.length > 0 || row.length > 0) {
+    row.push(current)
+    if (row.some((cell) => cell.trim())) rows.push(row.map((cell) => cell.trim()))
+  }
+
+  return rows
 }
 
 function parseManifestCsv(csvText: string): FloorPlanManifestRow[] {
-  const lines = csvText
-    .replace(/^\uFEFF/, "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
+  const records = parseCsvRecords(csvText)
+  if (records.length < 2) return []
 
-  if (lines.length < 2) return []
-
-  const headers = parseCsvLine(lines[0]).map((header) => header.trim())
+  const headers = records[0].map((header) => header.trim())
   const schoolNameIndex = headers.indexOf("school_name")
   if (schoolNameIndex === -1) return []
 
@@ -109,10 +127,10 @@ function parseManifestCsv(csvText: string): FloorPlanManifestRow[] {
 
   const rows: FloorPlanManifestRow[] = []
 
-  for (const line of lines.slice(1)) {
-    const cells = parseCsvLine(line)
+  for (const cells of records.slice(1)) {
     const schoolName = cells[schoolNameIndex]?.trim()
     if (!schoolName) continue
+    if (/^note:/i.test(schoolName)) continue
 
     const floors: Partial<Record<FloorLevelId, string>> = {}
     for (const { id, index } of floorColumnIndexes) {
@@ -139,7 +157,10 @@ function parseManifestCsv(csvText: string): FloorPlanManifestRow[] {
 
 async function fetchManifestCsv(url: string): Promise<string | null> {
   try {
-    const response = await fetch(url, { cache: "no-store" })
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 8000)
+    const response = await fetch(url, { cache: "no-store", signal: controller.signal })
+    clearTimeout(timer)
     if (!response.ok) return null
     return await response.text()
   } catch {
@@ -193,10 +214,14 @@ export function getManifestRowForAisdSchool(
   school: AisdSchoolOption,
 ): FloorPlanManifestRow | undefined {
   const normalizedName = school.name.toUpperCase().replace(/\s+/g, " ").trim()
+  const normalizedDisplay = school.displayName.toUpperCase().replace(/\s+/g, " ").trim()
   return manifest.find((row) => {
     const rowName = row.schoolName.toUpperCase().replace(/\s+/g, " ").trim()
+    const updatedName = row.updatedName?.toUpperCase().replace(/\s+/g, " ").trim()
     return (
       rowName === normalizedName ||
+      rowName === normalizedDisplay ||
+      (!!updatedName && (updatedName === normalizedName || updatedName === normalizedDisplay)) ||
       (!!row.campusId && row.campusId === school.campusId)
     )
   })
