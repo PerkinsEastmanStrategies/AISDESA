@@ -862,7 +862,7 @@ export function neighborhoodFromSurveyRoomId(roomId: string): string | null {
 export function spaceTypeFromNeighborhoodSurveyRoomId(
   roomId: string | null | undefined,
 ): string | null {
-  if (!isNeighborhoodSurveyRoomId(roomId)) return null
+  if (!roomId || !isNeighborhoodSurveyRoomId(roomId)) return null
   const rest = roomId.slice(NEIGHBORHOOD_SURVEY_ROOM_PREFIX.length).trim()
   const sep = rest.indexOf("::")
   if (sep < 0) return "Neighborhood"
