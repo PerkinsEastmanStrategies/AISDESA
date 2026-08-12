@@ -265,7 +265,7 @@ export default function RoomSelector({
       const seen = new Set<string>()
       const pending: typeof state.allRooms = []
       for (const roomSession of Object.values(state.session.rooms)) {
-        if (!roomNeedsCloseOut(roomSession) || seen.has(roomSession.roomId)) continue
+        if (!roomNeedsCloseOut(roomSession, schoolClass) || seen.has(roomSession.roomId)) continue
         seen.add(roomSession.roomId)
         const matched =
           state.allRooms.find((room) => room.id === roomSession.roomId) ??
@@ -559,15 +559,11 @@ export default function RoomSelector({
     if (isNeighborhoodsSurvey) {
       const trimmed = neighborhood.trim()
       setPendingNeighborhood(trimmed || null)
-      if (!trimmed) {
-        if (neighborhoodOnlyMode) selectRoom(null)
-        return
-      }
-      if (neighborhoodOnlyMode) {
-        selectRoom(null)
-        return
-      }
-      if (selectedId) {
+      // Neighborhood / Open Collaboration: SET_PENDING_NEIGHBORHOOD owns the synthetic
+      // session (clears when empty/unconfirmed, binds when existence is already Yes).
+      // Do not selectRoom(null) here — that undoes the auto-bind.
+      if (neighborhoodOnlyMode) return
+      if (trimmed && selectedId) {
         setNeighborhood(selectedId, trimmed)
       }
       return
@@ -700,7 +696,7 @@ export default function RoomSelector({
                 : isNeighborhoodsSurvey
                   ? "Choose a space type, then select the neighborhood you are assessing"
                   : neighborhoodOnlyMode
-                    ? "Choose Neighborhood, then select which neighborhood to assess"
+                    ? "Choose a space type, then select which neighborhood to assess"
                     : `Choose a ${spaceTypeNoun} before selecting a room`}
             </p>
           )}

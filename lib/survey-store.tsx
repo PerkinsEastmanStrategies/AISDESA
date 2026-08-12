@@ -47,8 +47,10 @@ import {
   absentSpaceTypeRoomDisplayName,
   parseAbsentSpaceTypeRoomId,
   spaceTypeExistenceKey,
+  readSpaceTypeExistsAtSchool,
   isNeighborhoodOnlySpaceType,
   neighborhoodSurveyRoomId,
+  spaceTypeFromNeighborhoodSurveyRoomId,
   isRoomComplete,
   isSecondaryGrade,
   neighborhoodFromSurveyRoomId,
@@ -352,7 +354,12 @@ function resolveRoomType(
     return "Outdoor Spaces"
   }
   if (isNeighborhoodSurveyRoomId(roomId) && state.surveyType === "neighborhoods") {
-    return "Neighborhood"
+    return (
+      spaceTypeFromNeighborhoodSurveyRoomId(roomId) ??
+      (isNeighborhoodOnlySpaceType(state.surveyType, state.pendingStudioType)
+        ? state.pendingStudioType!
+        : "Neighborhood")
+    )
   }
 
   const preWalkType = preWalkSpaceTypeForRoom(
@@ -566,11 +573,16 @@ function ensureRoomSession(
   const neighborhoodLabel = neighborhoodFromSurveyRoomId(roomId)
   if (neighborhoodLabel && state.surveyType === "neighborhoods") {
     const label = neighborhoodSurveyRoomDisplayName(neighborhoodLabel)
+    const roomType =
+      spaceTypeFromNeighborhoodSurveyRoomId(roomId) ??
+      (isNeighborhoodOnlySpaceType(state.surveyType, state.pendingStudioType)
+        ? state.pendingStudioType!
+        : "Neighborhood")
     if (existing) {
       return {
         ...existing,
-        roomType: "Neighborhood",
-        roomNumber: label,
+        roomType: existing.roomType?.trim() || roomType,
+        roomNumber: existing.roomNumber?.trim() || label,
         neighborhood: neighborhoodLabel,
         levelId: "campus",
       }
@@ -578,7 +590,7 @@ function ensureRoomSession(
     return {
       roomId,
       roomNumber: label,
-      roomType: "Neighborhood",
+      roomType,
       gradeType: "",
       neighborhood: neighborhoodLabel,
       preWalkNote1: "",
@@ -1237,6 +1249,18 @@ function reducer(state: SurveyState, action: Action): SurveyState {
     }
     case "SET_PENDING_STUDIO_TYPE": {
       const clearNeighborhood = action.roomType !== state.pendingStudioType
+      const switchingNeighborhoodOnly =
+        isNeighborhoodSurveyRoomId(state.selectedRoomId) ||
+        isNeighborhoodOnlySpaceType(state.surveyType, action.roomType) ||
+        isNeighborhoodOnlySpaceType(state.surveyType, state.pendingStudioType)
+      if (switchingNeighborhoodOnly && clearNeighborhood) {
+        return {
+          ...state,
+          pendingStudioType: action.roomType,
+          pendingNeighborhood: null,
+          selectedRoomId: null,
+        }
+      }
       if (state.selectedRoomId && state.session && action.roomType) {
         const existing = state.session.rooms[state.selectedRoomId]
         const updated = ensureRoomSession(state, state.selectedRoomId, existing)
@@ -1284,10 +1308,42 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       const neighborhoodOnly =
         state.surveyType === "neighborhoods" &&
         isNeighborhoodOnlySpaceType(state.surveyType, state.pendingStudioType)
+      if (!neighborhoodOnly) {
+        return { ...state, pendingNeighborhood: nextNeighborhood }
+      }
+      if (!nextNeighborhood || !state.pendingStudioType) {
+        return { ...state, pendingNeighborhood: nextNeighborhood, selectedRoomId: null }
+      }
+      const exists = readSpaceTypeExistsAtSchool(
+        state.session,
+        state.pendingStudioType,
+        nextNeighborhood,
+      )
+      if (exists !== true || !state.session) {
+        return { ...state, pendingNeighborhood: nextNeighborhood, selectedRoomId: null }
+      }
+      const roomId = neighborhoodSurveyRoomId(nextNeighborhood, state.pendingStudioType)
+      const ensured = ensureRoomSession(
+        { ...state, pendingNeighborhood: nextNeighborhood },
+        roomId,
+        state.session.rooms[roomId],
+      )
       return {
         ...state,
         pendingNeighborhood: nextNeighborhood,
-        ...(neighborhoodOnly ? { selectedRoomId: null } : {}),
+        selectedRoomId: roomId,
+        session: {
+          ...state.session,
+          updatedAt: new Date().toISOString(),
+          rooms: {
+            ...state.session.rooms,
+            [roomId]: {
+              ...ensured,
+              neighborhood: nextNeighborhood,
+              roomType: state.pendingStudioType,
+            },
+          },
+        },
       }
     }
     case "SET_SPACE_TYPE_EXISTS": {
@@ -1315,7 +1371,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
           (state.pendingStudioType === action.spaceType ||
             state.session.rooms[selectedRoomId]?.roomType === action.spaceType ||
             (isNeighborhoodSurveyRoomId(selectedRoomId) &&
-              action.spaceType === "Neighborhood"))
+              isNeighborhoodOnlySpaceType(state.surveyType, action.spaceType)))
         if (clearSelection) selectedRoomId = null
 
         const ensured = ensureRoomSession({ ...state, session }, absentRoomId)
@@ -1338,24 +1394,22 @@ function reducer(state: SurveyState, action: Action): SurveyState {
           session = { ...session, rooms: restRooms }
         }
 
-        const activeSpaceType =
-          state.pendingStudioType ??
-          (selectedRoomId ? session.rooms[selectedRoomId]?.roomType : null) ??
-          action.spaceType
+        const activeSpaceType = action.spaceType || state.pendingStudioType
 
         if (
           state.surveyType === "neighborhoods" &&
           neighborhood &&
+          activeSpaceType &&
           isNeighborhoodOnlySpaceType(state.surveyType, activeSpaceType)
         ) {
-          const roomId = neighborhoodSurveyRoomId(neighborhood)
+          const roomId = neighborhoodSurveyRoomId(neighborhood, activeSpaceType)
           selectedRoomId = roomId
           const ensured = ensureRoomSession({ ...state, session }, roomId, session.rooms[roomId])
           session = {
             ...session,
             rooms: {
               ...session.rooms,
-              [roomId]: { ...ensured, neighborhood, roomType: "Neighborhood" },
+              [roomId]: { ...ensured, neighborhood, roomType: activeSpaceType },
             },
           }
         }
@@ -1421,12 +1475,12 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       const gradedBase = { ...updated, responses }
       const graded =
         state.surveyType === "closeout"
-          ? withPendingUpdatedForGrade(gradedBase, action.gradeType)
+          ? withPendingUpdatedForGrade(gradedBase, action.gradeType, state.school?.schoolClass)
           : { ...gradedBase, gradeType: action.gradeType as RoomSurveySession["gradeType"] }
       const clearSelection =
         state.surveyType === "closeout" &&
         state.selectedRoomId === action.roomId &&
-        !roomNeedsCloseOut(graded)
+        !roomNeedsCloseOut(graded, state.school?.schoolClass)
       return {
         ...state,
         selectedRoomId: clearSelection ? null : state.selectedRoomId,
@@ -1748,12 +1802,18 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       )
       let nextRoom: RoomSurveySession = { ...base, responses }
       if (state.surveyType === "closeout" && rubric) {
-        nextRoom = withPendingUpdatedForResponse(nextRoom, action.response, rubric.questions)
+        nextRoom = withPendingUpdatedForResponse(
+          nextRoom,
+          action.response,
+          rubric.questions,
+          state.school?.schoolClass,
+        )
       } else if (rubric && (base.deferredQuestionIds?.length ?? 0) > 0) {
         const cleared = withPendingUpdatedForResponse(
           { ...nextRoom, pendingQuestionIds: [...(base.deferredQuestionIds ?? [])] },
           action.response,
           rubric.questions,
+          state.school?.schoolClass,
         )
         nextRoom = {
           ...nextRoom,
@@ -1765,7 +1825,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       const clearSelection =
         state.surveyType === "closeout" &&
         state.selectedRoomId === action.roomId &&
-        !roomNeedsCloseOut(nextRoom)
+        !roomNeedsCloseOut(nextRoom, state.school?.schoolClass)
       return {
         ...state,
         selectedRoomId: clearSelection ? null : state.selectedRoomId,
@@ -1904,7 +1964,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         }
         delete spaceTypeExistsAtSchool[spaceTypeExistenceKey(spaceType, neighborhood || null)]
         if (neighborhood && isNeighborhoodOnlySpaceType(state.surveyType, spaceType)) {
-          const nhId = neighborhoodSurveyRoomId(neighborhood)
+          const nhId = neighborhoodSurveyRoomId(neighborhood, spaceType)
           delete rooms[nhId]
           delete roomScores[nhId]
           delete roomScoreDetails[nhId]
@@ -2956,7 +3016,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       return { roomIds: [] as string[], roomLabels: [] as string[] }
     }
     const roomIds = Object.values(state.session.rooms)
-      .filter((room) => roomNeedsCloseOut(room))
+      .filter((room) => roomNeedsCloseOut(room, state.school?.schoolClass))
       .map((room) => room.roomId)
       .sort((a, b) => roomDisplayName(state, a).localeCompare(roomDisplayName(state, b)))
     return {

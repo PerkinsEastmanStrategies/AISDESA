@@ -31,6 +31,9 @@ export function effectiveCloseOutPendingQuestionIds(
   room: RoomSurveySession,
   schoolClass?: string | null,
 ): string[] {
+  const pending = room.pendingQuestionIds ?? []
+  if (pending.length === 0) return []
+
   const rubric = room.sourceSurveyType
     ? getRoomSurveyRubric(
         "closeout",
@@ -40,23 +43,35 @@ export function effectiveCloseOutPendingQuestionIds(
         room.sourceSurveyType,
       )
     : null
+  // Without a rubric we cannot tell which IDs are answerable — keep the raw list.
+  if (!rubric) return [...pending]
+
   const responseMap = new Map(room.responses.map((response) => [response.questionId, response]))
-  return (room.pendingQuestionIds ?? []).filter((id) => {
-    if (isSkippedDependentQuestion(id, room.responses, rubric?.questions)) return false
-    const question = rubric?.questions.find((item) => item.questionId === id)
-    if (!question) return true
+  return pending.filter((id) => {
+    if (isSkippedDependentQuestion(id, room.responses, rubric.questions)) return false
+    const question = rubric.questions.find((item) => item.questionId === id)
+    // Drop IDs outside the current rubric — they are not shown and cannot be answered.
+    if (!question) return false
     return !isQuestionFullyAnswered(question, responseMap.get(id))
   })
 }
 
 /** True when this Close Out room still has unanswered, non-skipped work. */
-export function roomNeedsCloseOut(room: RoomSurveySession): boolean {
-  return effectiveCloseOutPendingQuestionIds(room).length > 0 || !!room.pendingGrade
+export function roomNeedsCloseOut(
+  room: RoomSurveySession,
+  schoolClass?: string | null,
+): boolean {
+  return (
+    effectiveCloseOutPendingQuestionIds(room, schoolClass).length > 0 || !!room.pendingGrade
+  )
 }
 
 /** Drop auto-skipped IDs from the pending list so completed rooms clear out. */
-export function pruneCloseOutRoomPending(room: RoomSurveySession): RoomSurveySession {
-  const pendingQuestionIds = effectiveCloseOutPendingQuestionIds(room)
+export function pruneCloseOutRoomPending(
+  room: RoomSurveySession,
+  schoolClass?: string | null,
+): RoomSurveySession {
+  const pendingQuestionIds = effectiveCloseOutPendingQuestionIds(room, schoolClass)
   const unchanged =
     pendingQuestionIds.length === (room.pendingQuestionIds?.length ?? 0) &&
     pendingQuestionIds.every((id, i) => id === room.pendingQuestionIds![i])
@@ -73,20 +88,23 @@ export function pruneCloseOutRoomPending(room: RoomSurveySession): RoomSurveySes
   }
 }
 
-function roomHasCloseOutWork(room: RoomSurveySession): boolean {
-  return roomNeedsCloseOut(room)
+function roomHasCloseOutWork(
+  room: RoomSurveySession,
+  schoolClass?: string | null,
+): boolean {
+  return roomNeedsCloseOut(room, schoolClass)
 }
 
 export function closeOutSessionHasWork(session: SurveySession | null | undefined): boolean {
   if (!session) return false
-  return Object.values(session.rooms).some(roomHasCloseOutWork)
+  return Object.values(session.rooms).some((room) => roomHasCloseOutWork(room))
 }
 
 export function isCloseOutSurveyComplete(session: SurveySession | null | undefined): boolean {
   if (!session) return false
   const rooms = Object.values(session.rooms)
   if (rooms.length === 0) return true
-  return !rooms.some(roomHasCloseOutWork)
+  return !rooms.some((room) => roomHasCloseOutWork(room))
 }
 
 export function countCloseOutPendingItems(session: SurveySession | null | undefined): {
@@ -225,8 +243,8 @@ export function refreshCloseOutDraftFromSources(params: {
   }
 
   for (const [roomId, room] of Object.entries(closeRooms)) {
-    const pruned = pruneCloseOutRoomPending(room)
-    if (roomHasCloseOutWork(pruned)) {
+    const pruned = pruneCloseOutRoomPending(room, params.schoolClass)
+    if (roomHasCloseOutWork(pruned, params.schoolClass)) {
       closeRooms[roomId] = pruned
     } else {
       delete closeRooms[roomId]
@@ -269,8 +287,8 @@ export function rebuildCloseOutFromSourceSurveys(params: {
   }
 
   for (const [roomId, room] of Object.entries(closeRooms)) {
-    const pruned = pruneCloseOutRoomPending(room)
-    if (roomHasCloseOutWork(pruned)) {
+    const pruned = pruneCloseOutRoomPending(room, params.schoolClass)
+    if (roomHasCloseOutWork(pruned, params.schoolClass)) {
       closeRooms[roomId] = pruned
     } else {
       delete closeRooms[roomId]
@@ -313,29 +331,40 @@ export function withPendingUpdatedForResponse(
   room: RoomSurveySession,
   response: RoomQuestionResponse,
   questions: EsaQuestion[],
+  schoolClass?: string | null,
 ): RoomSurveySession {
   const question = questions.find((q) => q.questionId === response.questionId)
-  if (!question) return pruneCloseOutRoomPending(room)
-  if (!isQuestionFullyAnswered(question, response)) return pruneCloseOutRoomPending(room)
+  if (!question) return pruneCloseOutRoomPending(room, schoolClass)
+  if (!isQuestionFullyAnswered(question, response)) return pruneCloseOutRoomPending(room, schoolClass)
 
   const pendingQuestionIds = (room.pendingQuestionIds ?? []).filter((id) => id !== response.questionId)
   const deferredQuestionIds = (room.deferredQuestionIds ?? []).filter((id) => id !== response.questionId)
-  return pruneCloseOutRoomPending({
-    ...room,
-    pendingQuestionIds,
-    deferredQuestionIds,
-  })
+  return pruneCloseOutRoomPending(
+    {
+      ...room,
+      pendingQuestionIds,
+      deferredQuestionIds,
+    },
+    schoolClass,
+  )
 }
 
-export function withPendingUpdatedForGrade(room: RoomSurveySession, gradeType: string): RoomSurveySession {
+export function withPendingUpdatedForGrade(
+  room: RoomSurveySession,
+  gradeType: string,
+  schoolClass?: string | null,
+): RoomSurveySession {
   if (!gradeType) {
-    return pruneCloseOutRoomPending({ ...room, gradeType: "", pendingGrade: true })
+    return pruneCloseOutRoomPending({ ...room, gradeType: "", pendingGrade: true }, schoolClass)
   }
-  return pruneCloseOutRoomPending({
-    ...room,
-    gradeType: gradeType as RoomSurveySession["gradeType"],
-    pendingGrade: false,
-  })
+  return pruneCloseOutRoomPending(
+    {
+      ...room,
+      gradeType: gradeType as RoomSurveySession["gradeType"],
+      pendingGrade: false,
+    },
+    schoolClass,
+  )
 }
 
 /**

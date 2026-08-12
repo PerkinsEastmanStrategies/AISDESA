@@ -469,9 +469,11 @@ export function getRoomSurveyRubric(
 
   if (effectiveType === "neighborhoods") {
     let base: SurveyRubric | null = null
-    if (roomType === "Neighborhood") base = NEIGHBORHOOD_SPACE_RUBRIC
-    else if (roomType === "Group Room" || roomType === "Large Group Room") base = GROUP_ROOM_RUBRIC
-    else if (roomType === "Open Collaboration Space") base = OPEN_COLLAB_RUBRIC
+    const normalizedRoomType = normalizeNeighborhoodSpaceType(roomType ?? "")
+    if (normalizedRoomType === "Neighborhood") base = NEIGHBORHOOD_SPACE_RUBRIC
+    else if (normalizedRoomType === "Group Room" || normalizedRoomType === "Large Group Room")
+      base = GROUP_ROOM_RUBRIC
+    else if (normalizedRoomType === "Open Collaboration Space") base = OPEN_COLLAB_RUBRIC
     if (!base) return null
     const neighborhoodGrade =
       gradeType ||
@@ -833,8 +835,16 @@ export function outdoorSurveyRoomDisplayName(): string {
 /** Synthetic session keys for Neighborhood space-type scoring (one per identified neighborhood). */
 export const NEIGHBORHOOD_SURVEY_ROOM_PREFIX = "__neighborhood-survey__:" as const
 
-export function neighborhoodSurveyRoomId(neighborhood: string): string {
-  return `${NEIGHBORHOOD_SURVEY_ROOM_PREFIX}${neighborhood.trim()}`
+export function neighborhoodSurveyRoomId(
+  neighborhood: string,
+  spaceType?: string | null,
+): string {
+  const nh = neighborhood.trim()
+  const type = spaceType?.trim()
+  if (type && type !== "Neighborhood") {
+    return `${NEIGHBORHOOD_SURVEY_ROOM_PREFIX}${nh}::${type}`
+  }
+  return `${NEIGHBORHOOD_SURVEY_ROOM_PREFIX}${nh}`
 }
 
 export function isNeighborhoodSurveyRoomId(roomId: string | null | undefined): boolean {
@@ -843,8 +853,20 @@ export function isNeighborhoodSurveyRoomId(roomId: string | null | undefined): b
 
 export function neighborhoodFromSurveyRoomId(roomId: string): string | null {
   if (!isNeighborhoodSurveyRoomId(roomId)) return null
-  const label = roomId.slice(NEIGHBORHOOD_SURVEY_ROOM_PREFIX.length).trim()
+  const rest = roomId.slice(NEIGHBORHOOD_SURVEY_ROOM_PREFIX.length).trim()
+  const sep = rest.indexOf("::")
+  const label = sep >= 0 ? rest.slice(0, sep) : rest
   return label || null
+}
+
+export function spaceTypeFromNeighborhoodSurveyRoomId(
+  roomId: string | null | undefined,
+): string | null {
+  if (!isNeighborhoodSurveyRoomId(roomId)) return null
+  const rest = roomId.slice(NEIGHBORHOOD_SURVEY_ROOM_PREFIX.length).trim()
+  const sep = rest.indexOf("::")
+  if (sep < 0) return "Neighborhood"
+  return rest.slice(sep + 2).trim() || "Neighborhood"
 }
 
 export function neighborhoodSurveyRoomDisplayName(neighborhood: string): string {
@@ -852,12 +874,20 @@ export function neighborhoodSurveyRoomDisplayName(neighborhood: string): string 
   return trimmed ? `Neighborhood ${trimmed}` : "Neighborhood"
 }
 
-/** Neighborhoods module: the Neighborhood space type is scored per neighborhood, not per room. */
+function normalizeNeighborhoodSpaceType(spaceType: string): string {
+  const trimmed = spaceType.trim()
+  if (trimmed === "Open Collaboration") return "Open Collaboration Space"
+  return trimmed
+}
+
+/** Neighborhoods module: scored per neighborhood, not a floor-plan room. */
 export function isNeighborhoodOnlySpaceType(
   surveyType: SurveyType,
   spaceType: string | null | undefined,
 ): boolean {
-  return surveyType === "neighborhoods" && spaceType === "Neighborhood"
+  if (surveyType !== "neighborhoods" || !spaceType?.trim()) return false
+  const normalized = normalizeNeighborhoodSpaceType(spaceType)
+  return normalized === "Neighborhood" || normalized === "Open Collaboration Space"
 }
 
 /** Survey types scored once per campus rather than per room. */
@@ -897,11 +927,13 @@ export function usesPackageArrivalRubric(roomType: string | null | undefined): b
 
 /** Neighborhood space types that use dedicated CSV package rubrics. */
 export function usesPackageNeighborhoodRubric(roomType: string | null | undefined): boolean {
+  if (!roomType?.trim()) return false
+  const normalized = normalizeNeighborhoodSpaceType(roomType)
   return (
-    roomType === "Neighborhood" ||
-    roomType === "Group Room" ||
-    roomType === "Large Group Room" ||
-    roomType === "Open Collaboration Space"
+    normalized === "Neighborhood" ||
+    normalized === "Group Room" ||
+    normalized === "Large Group Room" ||
+    normalized === "Open Collaboration Space"
   )
 }
 

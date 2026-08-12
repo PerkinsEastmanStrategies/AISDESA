@@ -93,7 +93,7 @@ export const SPACE_TYPE_ASSESSMENT_GUIDANCE: SpaceTypeAssessmentGuidanceEntry[] 
   {
     "spaceType": "Open Collaboration",
     "schoolLevel": "ALL",
-    "note": "Open Collaboration Assessment Selection Guidance \n\nFor Open Collaboration assessments, assess 1 representative room within each identified neighborhood. \n\nMore about this space: Open collaboration space must be distinct from circulation spaces – learning must occur without interruption by groups or learners passing through. The design may use physical walls, floor patterns, or flexible furniture to define spaces."
+    "note": "Open Collaboration Assessment Selection Guidance \n\nFor Open Collaboration assessments, complete 1 survey within each identified neighborhood — do not pick a floor-plan room. \n\nMore about this space: Open collaboration space must be distinct from circulation spaces – learning must occur without interruption by groups or learners passing through. The design may use physical walls, floor patterns, or flexible furniture to define spaces."
   },
   {
     "spaceType": "Small Group Room",

@@ -32,7 +32,10 @@ import {
 import { programTypeFillColor, programTypeLegendColors } from "@/lib/program-type-colors"
 import NeighborhoodLegend from "@/components/neighborhood-legend"
 import { cn, scoreFillRgba, scoreStrokeRgba } from "@/lib/utils"
-import type { CloseOutRoomFloorPlanEntry } from "@/lib/closeout-floor-plan"
+import {
+  closeOutEntryForPlanRoom,
+  type CloseOutRoomFloorPlanEntry,
+} from "@/lib/closeout-floor-plan"
 import {
   floorPlanSvgDataUrl,
   floorPlanSvgInlineFragment,
@@ -735,7 +738,12 @@ export default function SurveyFloorPlan({
   const visibleLevelRooms = levelRooms.filter((room) => {
     if (room.points.length < 3) return false
     if (closeOutMode && closeOutProgressByRoomId) {
-      return !!closeOutProgressByRoomId[room.id]
+      return !!closeOutEntryForPlanRoom(
+        closeOutProgressByRoomId,
+        state.session,
+        room.id,
+        state.allRooms,
+      )
     }
     return true
   })
@@ -761,7 +769,14 @@ export default function SurveyFloorPlan({
       neighborhood: resolveRoomNeighborhood(room),
       assessmentScore: resultsScoreMode ? resolveAssessmentScore(room) : undefined,
       colorByAssessmentScore: !!resultsScoreMode,
-      closeOutEntry: closeOutMode ? closeOutProgressByRoomId?.[room.id] : undefined,
+      closeOutEntry: closeOutMode
+        ? closeOutEntryForPlanRoom(
+            closeOutProgressByRoomId,
+            state.session,
+            room.id,
+            state.allRooms,
+          )
+        : undefined,
       progress: getRoomSurveyProgress(state.session?.rooms[room.id], {
         surveyType: state.surveyType,
         schoolClass: state.school?.schoolClass,

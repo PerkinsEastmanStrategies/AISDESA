@@ -1,11 +1,10 @@
 import type { ParsedPlanRoom, RoomSurveySession, SurveySession, SurveyType } from "@aisd/shared"
-import { getRoomSurveyRubric, surveyTypeLabel } from "@aisd/shared"
+import { getRoomSurveyRubric, studioTypeRequiresGrade, surveyTypeLabel } from "@aisd/shared"
 import {
   effectiveCloseOutPendingQuestionIds,
   roomNeedsCloseOut,
 } from "@/lib/closeout"
-import { computeRoomQuestionProgress } from "@/lib/survey-question-progress"
-import { isQuestionFullyAnswered } from "@/lib/survey-validation"
+import { isSkippedDependentQuestion } from "@/lib/question-dependencies"
 
 export interface CloseOutRoomFloorPlanEntry {
   roomId: string
@@ -38,7 +37,11 @@ export function computeCloseOutRoomFloorPlanEntry(
   const sourceSurveyLabel = sourceSurveyType ? surveyTypeLabel(sourceSurveyType) : "Survey"
   const spaceType = room.roomType?.trim() || "Room"
 
-  if (!roomNeedsCloseOut(room)) {
+  const remainingIds = effectiveCloseOutPendingQuestionIds(room, schoolClass)
+  const remaining =
+    remainingIds.length + (room.pendingGrade && !room.gradeType ? 1 : 0)
+
+  if (!roomNeedsCloseOut(room, schoolClass) || remaining === 0) {
     return {
       roomId: room.roomId,
       percent: 100,
@@ -50,39 +53,42 @@ export function computeCloseOutRoomFloorPlanEntry(
     }
   }
 
-  const rubric = sourceSurveyType
-    ? getRoomSurveyRubric(
-        "closeout",
-        room.roomType,
-        room.gradeType,
-        schoolClass,
-        sourceSurveyType,
-      )
-    : null
+  // Pending IDs are already pruned to unanswered items, and Close Out only keeps
+  // responses for deferred questions — so counting "answered among remaining" is
+  // always ~0%. Compare remaining deferred work to the required, applicable rubric
+  // (same basis as source-survey deferral validation).
+  const rubric =
+    (sourceSurveyType
+      ? getRoomSurveyRubric(
+          "closeout",
+          room.roomType,
+          room.gradeType,
+          schoolClass,
+          sourceSurveyType,
+        )
+      : null) ??
+    (sourceSurveyType
+      ? getRoomSurveyRubric(sourceSurveyType, room.roomType, room.gradeType, schoolClass)
+      : null)
 
-  const pendingIds = new Set(room.pendingQuestionIds ?? [])
-  const pendingQuestions =
-    rubric?.questions.filter((q) => pendingIds.has(q.questionId)) ?? []
-  const responseMap = new Map(room.responses.map((r) => [r.questionId, r]))
+  const rubricQuestions = rubric?.questions ?? []
+  const applicableRequired = rubricQuestions.filter(
+    (question) =>
+      question.required &&
+      !isSkippedDependentQuestion(question.questionId, room.responses, rubricQuestions),
+  )
+  const applicableIds = new Set(applicableRequired.map((question) => question.questionId))
+  const remainingInRubric = remainingIds.filter((id) => applicableIds.has(id)).length
+  const gradeRemaining = room.pendingGrade && !room.gradeType ? 1 : 0
+  const remainingWork = remainingInRubric + gradeRemaining
 
-  let answered = pendingQuestions.filter((q) =>
-    isQuestionFullyAnswered(q, responseMap.get(q.questionId)),
-  ).length
-  let total = pendingQuestions.length
-
-  if (room.pendingGrade) {
+  let total = applicableRequired.length
+  if (studioTypeRequiresGrade(room.roomType, schoolClass) || room.pendingGrade) {
     total += 1
-    if (room.gradeType) answered += 1
   }
+  total = Math.max(total, remainingWork)
 
-  // Fallback when rubric questions aren't resolved but pending IDs remain.
-  if (total === 0) {
-    const unresolved = effectiveCloseOutPendingQuestionIds(room, schoolClass).length
-    total = unresolved + (room.pendingGrade ? 1 : 0)
-    answered = Math.max(0, (room.pendingQuestionIds?.length ?? 0) - unresolved)
-    if (room.pendingGrade && room.gradeType) answered += 1
-  }
-
+  const answered = Math.max(0, total - remainingWork)
   const percent = total > 0 ? Math.round((answered / total) * 100) : 0
 
   return {
@@ -136,4 +142,17 @@ export function buildCloseOutFloorPlanEntries(
     if (entry) map[room.roomId] = entry
   }
   return map
+}
+
+/** Look up Close Out overlay progress for a floor-plan room id (including aliases). */
+export function closeOutEntryForPlanRoom(
+  entries: Record<string, CloseOutRoomFloorPlanEntry> | undefined,
+  session: SurveySession | null | undefined,
+  planRoomId: string,
+  allRooms?: ParsedPlanRoom[],
+): CloseOutRoomFloorPlanEntry | undefined {
+  if (!entries) return undefined
+  if (entries[planRoomId]) return entries[planRoomId]
+  const room = resolveCloseOutSessionRoom(session, planRoomId, allRooms)
+  return room ? entries[room.roomId] : undefined
 }

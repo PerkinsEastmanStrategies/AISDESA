@@ -192,7 +192,7 @@ export default function StudioSurvey() {
                         ? "Confirm whether this space type exists in this neighborhood to begin scoring."
                         : "Confirm whether this space type exists in this neighborhood, then select a room to begin scoring."
                   : neighborhoodOnlyMode
-                    ? "Select the Neighborhood space type, then choose a neighborhood to begin scoring."
+                    ? "Select a space type, then choose a neighborhood to begin scoring."
                     : "Select a space type, then choose a room from the dropdown or floor plan to begin scoring."
                 : "Select a studio type, then choose a room from the dropdown or floor plan to begin scoring."}
           </p>
