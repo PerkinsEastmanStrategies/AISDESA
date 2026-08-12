@@ -1441,6 +1441,25 @@ export function usesDedicatedSpaceRubric(roomType: string | null | undefined): b
 }
 
 /**
+ * Any space type the survey UI can bind as pending/selected room type.
+ * Includes Studios specialty labels plus dedicated CSV package modules.
+ */
+export function isKnownSurveySpaceType(value: string | null | undefined): boolean {
+  if (!value?.trim()) return false
+  return (
+    isStudioType(value) ||
+    isAdminSpaceType(value) ||
+    isArrivalSpaceType(value) ||
+    isNeighborhoodSpaceType(value) ||
+    isOutdoorSpaceType(value) ||
+    usesPackageSharedSpacesRubric(value) ||
+    usesPackagePerformingArtsRubric(value) ||
+    usesPackageAthleticsRubric(value) ||
+    usesPackageCteRubric(value)
+  )
+}
+
+/**
  * Per-room grade is no longer collected; package questions filter by school CLASS instead.
  */
 export function studioTypeRequiresGrade(

@@ -82,7 +82,11 @@ export default function StudioSurvey() {
   const needsSpaceType =
     state.surveyType === "administration" ||
     state.surveyType === "arrival" ||
-    state.surveyType === "neighborhoods"
+    state.surveyType === "neighborhoods" ||
+    state.surveyType === "shared_spaces" ||
+    state.surveyType === "performing_arts" ||
+    state.surveyType === "athletics" ||
+    state.surveyType === "cte"
   const selectedSpaceType = effectiveSpaceTypeForSelection({
     surveyType: state.surveyType,
     pendingStudioType: state.pendingStudioType,
@@ -193,7 +197,9 @@ export default function StudioSurvey() {
                         : "Confirm whether this space type exists in this neighborhood, then select a room to begin scoring."
                   : neighborhoodOnlyMode
                     ? "Select a space type, then choose a neighborhood to begin scoring."
-                    : "Select a space type, then choose a room from the dropdown or floor plan to begin scoring."
+                    : !selectedSpaceType
+                      ? "Select a space type, then choose a room from the dropdown or floor plan to begin scoring."
+                      : "Confirm whether this space type exists at this school, then select a room to begin scoring."
                 : "Select a studio type, then choose a room from the dropdown or floor plan to begin scoring."}
           </p>
         </div>

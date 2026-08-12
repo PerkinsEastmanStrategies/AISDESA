@@ -34,11 +34,9 @@ import {
   getRoomSurveyRubric,
   getSurveyRubric,
   hasActiveWeightOverrides,
-  isAdminSpaceType,
-  isArrivalSpaceType,
   isCampusScopedSurveyType,
   isElementaryGrade,
-  isNeighborhoodSpaceType,
+  isKnownSurveySpaceType,
   isOutdoorSpaceType,
   isNeighborhoodSurveyRoomId,
   isOutdoorSurveyRoomId,
@@ -60,7 +58,6 @@ import {
   subcategoryOverrideKey,
   toFloorPlanRoom,
   isClassroomRoom,
-  isStudioType,
   studioTypeRequiresGrade,
   surveyTypeAvailableForSchool,
   usesDedicatedSpaceRubric,
@@ -281,16 +278,9 @@ function lookupNeighborhoodFromPlan(
   return planRoom?.neighborhood?.trim().toUpperCase() ?? ""
 }
 
-/** Space type covers Studios types plus the dedicated Admin/Arrival/Neighborhoods space types. */
+/** Space type covers Studios types plus dedicated module space types (admin, athletics, CTE, …). */
 function isPendingSpaceType(value: string | null | undefined): boolean {
-  return (
-    !!value &&
-    (isStudioType(value) ||
-      isAdminSpaceType(value) ||
-      isArrivalSpaceType(value) ||
-      isNeighborhoodSpaceType(value) ||
-      isOutdoorSpaceType(value))
-  )
+  return isKnownSurveySpaceType(value)
 }
 
 function roomHasSurveyStarted(session: RoomSurveySession): boolean {
