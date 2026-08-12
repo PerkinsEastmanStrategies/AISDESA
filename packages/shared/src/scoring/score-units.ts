@@ -1,5 +1,8 @@
 import type { EsaQuestion, EsaQuestionOption } from "../types/survey"
-import { isNotAbleToAssessOption } from "../data/not-able-to-assess"
+import {
+  isNotAbleToAssessOption,
+  responseRequiresUnableToAssessNote,
+} from "../data/not-able-to-assess"
 
 /** Score IDs ending in "i" are inventory-only and excluded from scoring. */
 export function isInventoryScoreId(scoreId: string): boolean {
@@ -97,6 +100,12 @@ export function scoreForScoreId(
     (o) => (o.scoreGroupId || o.scoreId) === scoreId && !isInventoryOption(o),
   )
   if (!groupOpts.length || !response) return null
+
+  // Question-level Not Able to Assess must omit every score unit — never treat
+  // unchecked checklist items as 0% when the assessor could not assess.
+  if (responseRequiresUnableToAssessNote(response.value)) {
+    return null
+  }
 
   if (isMultiSelectQuestionType(question.questionType)) {
     const selected = Array.isArray(response.value) ? response.value : []
