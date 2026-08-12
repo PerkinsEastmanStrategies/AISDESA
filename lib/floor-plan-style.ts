@@ -8,9 +8,9 @@
  */
 
 /** Screen-pixel stroke weights (via vector-effect: non-scaling-stroke). */
-const PLAN_WALL_STROKE_PX = 0.75
+export const PLAN_WALL_STROKE_PX = 0.75
 const PLAN_DETAIL_STROKE_PX = 0.5
-const PLAN_STROKE_COLOR = "#1e293b"
+export const PLAN_STROKE_COLOR = "#1e293b"
 export function prepareFloorPlanSvgForDisplay(svgText: string): string {
   if (typeof DOMParser === "undefined" || typeof XMLSerializer === "undefined") {
     return svgText

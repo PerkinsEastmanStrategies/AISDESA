@@ -41,6 +41,7 @@ import {
   isInlineFloorPlanSrc,
 } from "@/lib/floor-plan-loader"
 import { preferMobileFloorPlan } from "@/lib/floor-plans"
+import { PLAN_STROKE_COLOR, PLAN_WALL_STROKE_PX } from "@/lib/floor-plan-style"
 import { neighborhoodGroupId, NEIGHBORHOOD_OPTIONS } from "@aisd/shared"
 
 function colorWithAlpha(color: string, alpha: number): string {
@@ -739,6 +740,68 @@ export default function SurveyFloorPlan({
     return true
   })
 
+  const colorOverlaysOn =
+    !photoGalleryMode &&
+    (showNeighborhoods ||
+      showRoomUse ||
+      showSizeDeviation ||
+      closeOutMode ||
+      !!resultsScoreMode ||
+      variant === "prewalk")
+
+  const roomOverlayBind = (room: ParsedPlanRoom) => {
+    const photoSelected = photoRoomSelectionMatches(
+      room,
+      selectedPhotoRoomId,
+      selectedPhotoRoomMatchesPlan,
+    )
+    const hasPhotoMarker = roomHasPhotoMarker(room, photoRoomHasMarker, photoRoomIds)
+    return {
+      room,
+      neighborhood: resolveRoomNeighborhood(room),
+      assessmentScore: resultsScoreMode ? resolveAssessmentScore(room) : undefined,
+      colorByAssessmentScore: !!resultsScoreMode,
+      closeOutEntry: closeOutMode ? closeOutProgressByRoomId?.[room.id] : undefined,
+      progress: getRoomSurveyProgress(state.session?.rooms[room.id], {
+        surveyType: state.surveyType,
+        schoolClass: state.school?.schoolClass,
+        scoreDetail: state.roomScoreDetails[room.id] ?? null,
+      }),
+      selected: photoGalleryMode
+        ? photoSelected
+        : state.selectedRoomId === room.id ||
+          preWalkSelectedRoomId === room.id ||
+          photoSelected,
+      hasPhotoMarker,
+      photoMarkerActive: photoSelected,
+      photoGalleryMode,
+      showInlinePhotoMarker: !photoGalleryMode,
+      showNeighborhood: showNeighborhoods && !photoGalleryMode,
+      showSizeDeviation: showSizeDeviation && !photoGalleryMode,
+      sizeDeviation: sizeDeviationForRoom(sizeDeviationMap, room.id, room.name),
+      showRoomUse: showRoomUse && !photoGalleryMode,
+      showRoomTags: showRoomTags && !photoGalleryMode,
+      roomUse: roomUseForRoom(roomUseMap, room.id, room.name),
+      zoom,
+      meetScale,
+      viewBoxWidth: vb.w,
+      viewBoxArea,
+      preWalkSpaceType: preWalkMappings?.[room.id]?.spaceType,
+      preWalkColor:
+        preWalkMappings?.[room.id]?.spaceType && preWalkSpaceTypeColor
+          ? preWalkSpaceTypeColor(preWalkMappings[room.id].spaceType)
+          : null,
+      preWalkActiveSpaceType,
+      readOnly,
+      interactive: photoGalleryMode
+        ? false
+        : Boolean(onPreWalkRoomTap) ||
+          !readOnly ||
+          Boolean(onPhotoRoomSelect && hasPhotoMarker),
+      onSelect: handleRoomSelect,
+    }
+  }
+
   const isPreWalk = variant === "prewalk"
   const isPicker = variant === "picker"
   const viewportHeightClass =
@@ -1037,66 +1100,36 @@ export default function SurveyFloorPlan({
                 pointerEvents="none"
               />
             )}
-            {visibleLevelRooms.map((room) => {
-              const photoSelected = photoRoomSelectionMatches(
-                room,
-                selectedPhotoRoomId,
-                selectedPhotoRoomMatchesPlan,
-              )
-              const hasPhotoMarker = roomHasPhotoMarker(room, photoRoomHasMarker, photoRoomIds)
-              return (
-                <RoomOverlay
-                  key={room.id}
-                  room={room}
-                  neighborhood={resolveRoomNeighborhood(room)}
-                  assessmentScore={resultsScoreMode ? resolveAssessmentScore(room) : undefined}
-                  colorByAssessmentScore={!!resultsScoreMode}
-                  closeOutEntry={closeOutMode ? closeOutProgressByRoomId?.[room.id] : undefined}
-                  progress={getRoomSurveyProgress(state.session?.rooms[room.id], {
-                    surveyType: state.surveyType,
-                    schoolClass: state.school?.schoolClass,
-                    scoreDetail: state.roomScoreDetails[room.id] ?? null,
-                  })}
-                  selected={
-                    photoGalleryMode
-                      ? photoSelected
-                      : state.selectedRoomId === room.id ||
-                        preWalkSelectedRoomId === room.id ||
-                        photoSelected
-                  }
-                  hasPhotoMarker={hasPhotoMarker}
-                  photoMarkerActive={photoSelected}
-                  photoGalleryMode={photoGalleryMode}
-                  showInlinePhotoMarker={!photoGalleryMode}
-                  showNeighborhood={showNeighborhoods && !photoGalleryMode}
-                  showSizeDeviation={showSizeDeviation && !photoGalleryMode}
-                  sizeDeviation={sizeDeviationForRoom(sizeDeviationMap, room.id, room.name)}
-                  showRoomUse={showRoomUse && !photoGalleryMode}
-                  showRoomTags={showRoomTags && !photoGalleryMode}
-                  roomUse={roomUseForRoom(roomUseMap, room.id, room.name)}
-                  zoom={zoom}
-                  meetScale={meetScale}
-                  viewBoxWidth={vb.w}
-                  viewBoxArea={viewBoxArea}
-                  preWalkSpaceType={preWalkMappings?.[room.id]?.spaceType}
-                  preWalkColor={
-                    preWalkMappings?.[room.id]?.spaceType && preWalkSpaceTypeColor
-                      ? preWalkSpaceTypeColor(preWalkMappings[room.id].spaceType)
-                      : null
-                  }
-                  preWalkActiveSpaceType={preWalkActiveSpaceType}
-                  readOnly={readOnly}
-                  interactive={
-                    photoGalleryMode
-                      ? false
-                      : Boolean(onPreWalkRoomTap) ||
-                        !readOnly ||
-                        Boolean(onPhotoRoomSelect && hasPhotoMarker)
-                  }
-                  onSelect={handleRoomSelect}
-                />
-              )
-            })}
+            {visibleLevelRooms.map((room) => (
+              <RoomOverlay
+                key={`fill-${room.id}`}
+                layer="fill"
+                lineworkOnTop={colorOverlaysOn}
+                {...roomOverlayBind(room)}
+              />
+            ))}
+            {colorOverlaysOn ? (
+              <g aria-hidden pointerEvents="none">
+                {visibleLevelRooms.map((room) => (
+                  <polygon
+                    key={`linework-${room.id}`}
+                    points={overlayPointsForRoom(room).map((p) => `${p.x},${p.y}`).join(" ")}
+                    fill="none"
+                    stroke={PLAN_STROKE_COLOR}
+                    strokeWidth={PLAN_WALL_STROKE_PX}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ))}
+              </g>
+            ) : null}
+            {visibleLevelRooms.map((room) => (
+              <RoomOverlay
+                key={`chrome-${room.id}`}
+                layer="chrome"
+                lineworkOnTop={colorOverlaysOn}
+                {...roomOverlayBind(room)}
+              />
+            ))}
             {photoGalleryMode && (
               <g aria-label="Photo room markers">
                 {visibleLevelRooms.map((room) => {
@@ -1266,6 +1299,8 @@ function RoomOverlay({
   photoMarkerActive = false,
   photoGalleryMode = false,
   showInlinePhotoMarker = true,
+  layer = "fill",
+  lineworkOnTop = false,
   onSelect,
 }: {
   room: ParsedPlanRoom
@@ -1295,6 +1330,9 @@ function RoomOverlay({
   photoGalleryMode?: boolean
   /** When false, marker is rendered in a top SVG layer (photo gallery mode). */
   showInlinePhotoMarker?: boolean
+  layer?: "fill" | "chrome"
+  /** Color fills are painted first; CAD/room lines are drawn in a later SVG layer. */
+  lineworkOnTop?: boolean
   onSelect: (roomId: string) => void
 }) {
   const tapRef = useRef<{ pointerId: number; x: number; y: number } | null>(null)
@@ -1398,7 +1436,7 @@ function RoomOverlay({
               ? "rgba(37, 99, 235, 0.2)"
               : "transparent"
 
-  const strokeWidth = selected
+  let strokeWidth = selected
     ? ROOM_OVERLAY_STROKE_PX.selected
     : colorByAssessmentScore ||
         preWalkColor ||
@@ -1410,6 +1448,11 @@ function RoomOverlay({
       : showRoomHighlight
         ? ROOM_OVERLAY_STROKE_PX.highlighted
         : 0
+
+  if (lineworkOnTop && !photoGalleryMode) {
+    stroke = "transparent"
+    strokeWidth = 0
+  }
 
   const trySelect = (pointerId: number, x: number, y: number) => {
     const start = tapRef.current
@@ -1440,11 +1483,114 @@ function RoomOverlay({
     Math.sqrt(Math.max(room.area, 1) / Math.max(viewBoxArea, 1)) * viewBoxWidth * 0.045,
   )
 
+  const overlayPoints = overlayPointsForRoom(room).map((p) => `${p.x},${p.y}`).join(" ")
+
+  if (layer === "chrome") {
+    return (
+      <g className="pointer-events-none">
+        {lineworkOnTop && selected && (
+          <polygon
+            points={overlayPoints}
+            fill="none"
+            stroke="#2563eb"
+            strokeWidth={ROOM_OVERLAY_STROKE_PX.selected}
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
+        {closeOutEntry && (
+          <g pointerEvents="none">
+            {closeOutEntry.complete ? (
+              <>
+                <circle
+                  cx={room.x}
+                  cy={room.y}
+                  r={labelFontSizeForCloseOut * 0.85}
+                  fill="rgba(255,255,255,0.92)"
+                  stroke="#16a34a"
+                  strokeWidth={Math.max(1, labelFontSizeForCloseOut * 0.08)}
+                  vectorEffect="non-scaling-stroke"
+                />
+                <path
+                  d={`M ${room.x - labelFontSizeForCloseOut * 0.32} ${room.y + labelFontSizeForCloseOut * 0.02} L ${room.x - labelFontSizeForCloseOut * 0.06} ${room.y + labelFontSizeForCloseOut * 0.28} L ${room.x + labelFontSizeForCloseOut * 0.34} ${room.y - labelFontSizeForCloseOut * 0.24}`}
+                  fill="none"
+                  stroke="#16a34a"
+                  strokeWidth={Math.max(1.5, labelFontSizeForCloseOut * 0.1)}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </>
+            ) : (
+              <>
+                <rect
+                  x={room.x - labelFontSizeForCloseOut * 0.75}
+                  y={room.y - labelFontSizeForCloseOut * 0.55}
+                  width={labelFontSizeForCloseOut * 1.5}
+                  height={labelFontSizeForCloseOut * 1.1}
+                  rx={labelFontSizeForCloseOut * 0.15}
+                  fill="rgba(255,255,255,0.92)"
+                  stroke="rgba(180, 83, 9, 0.55)"
+                  strokeWidth={Math.max(1, labelFontSizeForCloseOut * 0.06)}
+                  vectorEffect="non-scaling-stroke"
+                />
+                <text
+                  x={room.x}
+                  y={room.y + labelFontSizeForCloseOut * 0.08}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill="#92400e"
+                  fontSize={labelFontSizeForCloseOut * 0.72}
+                  fontWeight={700}
+                >
+                  {closeOutEntry.percent}%
+                </text>
+              </>
+            )}
+          </g>
+        )}
+        {labelLines.length > 0 && (
+          <text
+            x={room.x}
+            y={room.y - ((labelLines.length - 1) * lineHeight) / 2}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill={ROOM_LABEL_FILL}
+            fontSize={labelFontSize}
+            fontWeight={500}
+            pointerEvents="none"
+          >
+            {labelLines.map((line, index) => (
+              <tspan
+                key={`${room.id}-${index}`}
+                x={room.x}
+                dy={index === 0 ? 0 : lineHeight}
+                fontSize={index === 0 ? labelFontSize : labelFontSize * 0.82}
+                fontWeight={500}
+              >
+                {line}
+              </tspan>
+            ))}
+          </text>
+        )}
+        {showInlinePhotoMarker && hasPhotoMarker && (
+          <PhotoRoomMarker
+            room={room}
+            viewBoxArea={viewBoxArea}
+            viewBoxWidth={viewBoxWidth}
+            active={photoMarkerActive}
+            photoGalleryMode={photoGalleryMode}
+            onSelect={onSelect}
+          />
+        )}
+      </g>
+    )
+  }
+
   return (
     <g className={photoGalleryMode && !hasPhotoMarker ? "pointer-events-none" : "pointer-events-auto"}>
       <polygon
         data-floor-plan-room={room.id}
-        points={overlayPointsForRoom(room).map((p) => `${p.x},${p.y}`).join(" ")}
+        points={overlayPoints}
         fill={fill}
         fillRule="evenodd"
         fillOpacity={fillOpacity}
@@ -1484,91 +1630,6 @@ function RoomOverlay({
           if (tapRef.current?.pointerId === e.pointerId) tapRef.current = null
         }}
       />
-      {closeOutEntry && (
-        <g pointerEvents="none">
-          {closeOutEntry.complete ? (
-            <>
-              <circle
-                cx={room.x}
-                cy={room.y}
-                r={labelFontSizeForCloseOut * 0.85}
-                fill="rgba(255,255,255,0.92)"
-                stroke="#16a34a"
-                strokeWidth={Math.max(1, labelFontSizeForCloseOut * 0.08)}
-                vectorEffect="non-scaling-stroke"
-              />
-              <path
-                d={`M ${room.x - labelFontSizeForCloseOut * 0.32} ${room.y + labelFontSizeForCloseOut * 0.02} L ${room.x - labelFontSizeForCloseOut * 0.06} ${room.y + labelFontSizeForCloseOut * 0.28} L ${room.x + labelFontSizeForCloseOut * 0.34} ${room.y - labelFontSizeForCloseOut * 0.24}`}
-                fill="none"
-                stroke="#16a34a"
-                strokeWidth={Math.max(1.5, labelFontSizeForCloseOut * 0.1)}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                vectorEffect="non-scaling-stroke"
-              />
-            </>
-          ) : (
-            <>
-              <rect
-                x={room.x - labelFontSizeForCloseOut * 0.75}
-                y={room.y - labelFontSizeForCloseOut * 0.55}
-                width={labelFontSizeForCloseOut * 1.5}
-                height={labelFontSizeForCloseOut * 1.1}
-                rx={labelFontSizeForCloseOut * 0.15}
-                fill="rgba(255,255,255,0.92)"
-                stroke="rgba(180, 83, 9, 0.55)"
-                strokeWidth={Math.max(1, labelFontSizeForCloseOut * 0.06)}
-                vectorEffect="non-scaling-stroke"
-              />
-              <text
-                x={room.x}
-                y={room.y + labelFontSizeForCloseOut * 0.08}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fill="#92400e"
-                fontSize={labelFontSizeForCloseOut * 0.72}
-                fontWeight={700}
-              >
-                {closeOutEntry.percent}%
-              </text>
-            </>
-          )}
-        </g>
-      )}
-      {labelLines.length > 0 && (
-        <text
-          x={room.x}
-          y={room.y - ((labelLines.length - 1) * lineHeight) / 2}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fill={ROOM_LABEL_FILL}
-          fontSize={labelFontSize}
-          fontWeight={500}
-          pointerEvents="none"
-        >
-          {labelLines.map((line, index) => (
-            <tspan
-              key={`${room.id}-${index}`}
-              x={room.x}
-              dy={index === 0 ? 0 : lineHeight}
-              fontSize={index === 0 ? labelFontSize : labelFontSize * 0.82}
-              fontWeight={500}
-            >
-              {line}
-            </tspan>
-          ))}
-        </text>
-      )}
-      {showInlinePhotoMarker && hasPhotoMarker && (
-        <PhotoRoomMarker
-          room={room}
-          viewBoxArea={viewBoxArea}
-          viewBoxWidth={viewBoxWidth}
-          active={photoMarkerActive}
-          photoGalleryMode={photoGalleryMode}
-          onSelect={onSelect}
-        />
-      )}
     </g>
   )
 }

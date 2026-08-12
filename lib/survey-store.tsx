@@ -2159,6 +2159,7 @@ function roomSurveyComplete(
   if (!rubric) return false
   const validation = validateRoomSession(roomId, roomId, roomSession, rubric.questions, {
     schoolClass: state.school?.schoolClass,
+    forSubmit: true,
   })
   return validation.complete && (state.surveyType !== "closeout" || pendingDone)
 }
@@ -2888,21 +2889,21 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     [surveyedRooms],
   )
 
-  const canSubmit = completeSurveyedRooms.length > 0
+  const canSubmit = surveyedRooms.length > 0
   const canDiscard = hasCurrentAssessmentToDiscard(state)
   const completeCount = completeSurveyedRooms.length
   const inProgressCount = surveyedRooms.length - completeCount
   const submitHint = canSubmit
     ? state.surveyType === "outdoor"
       ? "Outdoor survey ready to save"
-      : `${completeCount} complete room${completeCount === 1 ? "" : "s"} ready to save`
+      : completeCount > 0
+        ? `${completeCount} complete room${completeCount === 1 ? "" : "s"} ready to save`
+        : `${inProgressCount} room${inProgressCount === 1 ? "" : "s"} in progress — unanswered items can go to Close Out`
     : state.surveyType === "outdoor"
       ? "Answer outdoor questions to begin scoring"
       : state.surveyType === "closeout"
         ? "Finish deferred questions below, then submit the campus assessment"
-        : inProgressCount > 0
-          ? `${inProgressCount} room${inProgressCount === 1 ? "" : "s"} in progress — finish at least one to save`
-          : "Score at least one room to save"
+        : "Score at least one room to save"
 
   const closeOutPending = useMemo(() => {
     if (state.surveyType !== "closeout" || !state.session) {

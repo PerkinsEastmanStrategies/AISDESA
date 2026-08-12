@@ -12,7 +12,16 @@ import AdminDashboard from "@/components/admin-dashboard"
 import EsaLanding from "@/components/esa-landing"
 import PreWalkPromptModal from "@/components/pre-walk-prompt-modal"
 import SurveyRemoteConflictModal from "@/components/survey-remote-conflict-modal"
+import SurveyActionBar from "@/components/survey-action-bar"
 import { getSurveyRubric, surveyTypeLabel } from "@aisd/shared"
+
+function SurveyActionBarHost() {
+  const { state, hasAssessorRegistered } = useSurvey()
+  if (!hasAssessorRegistered || !state.school) return null
+  if (state.view !== "survey") return null
+  if (state.surveyType === "closeout") return null
+  return <SurveyActionBar />
+}
 
 function SurveyBody() {
   const { state, hasAssessorRegistered } = useSurvey()
@@ -116,6 +125,7 @@ function SurveyAppContent() {
             <SurveyBody />
           </main>
         </div>
+        <SurveyActionBarHost />
       </div>
       </div>
       {preWalkPrompt}

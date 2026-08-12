@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSurvey } from "@/lib/survey-store"
 import RoomSelector from "@/components/room-selector"
 import QuestionForm from "@/components/question-form"
-import SurveyActionBar from "@/components/survey-action-bar"
 import CloseOutPanel from "@/components/close-out-panel"
 import CloseOutFloorPlan from "@/components/close-out-floor-plan"
 import { PreWalkBanner } from "@/components/pre-walk-launcher"
@@ -137,7 +136,13 @@ export default function StudioSurvey() {
         />
       )}
 
-      {isCloseOut && <CloseOutFloorPlan />}
+      {isCloseOut && (
+        <CloseOutFloorPlan
+          open={showFloorPlan}
+          onOpen={onOpenFloorPlan}
+          onClose={onCloseFloorPlan}
+        />
+      )}
 
       {isOutdoor && state.school && (
         <>
@@ -195,7 +200,6 @@ export default function StudioSurvey() {
       )}
 
       {isCloseOut && <CloseOutPanel />}
-      {!isCloseOut && <SurveyActionBar />}
     </>
   )
 }

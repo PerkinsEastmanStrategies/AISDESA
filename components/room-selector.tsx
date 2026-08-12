@@ -793,17 +793,21 @@ export default function RoomSelector({
 
         {(state.school?.hasFloorPlan || plan) &&
           !floorPlanOpen &&
-          roomSelectionReady &&
-          !neighborhoodOnlyMode &&
-          state.surveyType !== "closeout" && (
+          (state.surveyType === "closeout" || (roomSelectionReady && !neighborhoodOnlyMode)) && (
           <div className="col-span-2">
             <button
               type="button"
               onClick={onOpenFloorPlan}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200/90 bg-white px-3 py-2.5 text-sm font-medium text-slate-600 shadow-[0_1px_0_rgba(15,23,42,0.03)] transition-colors active:bg-slate-50"
+              className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-800 shadow-[0_1px_0_rgba(15,23,42,0.03)] transition-colors active:bg-slate-100"
             >
-              <MapIcon className="h-4 w-4 text-slate-400" />
-              {selectedId ? "Change room on floor plan" : "Select room on floor plan"}
+              <MapIcon className="h-4 w-4 text-slate-500" />
+              {state.surveyType === "closeout"
+                ? selectedId
+                  ? "Change room on floor plan"
+                  : "View floor plan"
+                : selectedId
+                  ? "Change room on floor plan"
+                  : "Select room on floor plan"}
             </button>
           </div>
         )}

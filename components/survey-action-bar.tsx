@@ -237,11 +237,11 @@ export default function SurveyActionBar() {
 
   return (
     <>
-      <div className="sticky bottom-0 z-40 border-t border-[var(--color-border)] bg-white/95 px-3 pt-3 backdrop-blur safe-bottom sm:pt-3">
+      <div className="shrink-0 border-t border-[var(--color-border)] bg-white px-3 pt-3 pb-3 safe-bottom">
         <p className="mb-2 text-center text-xs leading-snug text-[var(--color-muted-foreground)]">
           {submitHint}
         </p>
-        <div className="mb-5 flex flex-row gap-2">
+        <div className="flex flex-row gap-2">
           <button
             type="button"
             disabled={!canDiscard}
