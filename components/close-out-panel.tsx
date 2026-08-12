@@ -1,9 +1,10 @@
 "use client"
 
-import { useMemo } from "react"
-import { CheckCircle2, ClipboardCheck, Send } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { createPortal } from "react-dom"
+import { AlertTriangle, CheckCircle2, ClipboardCheck, Send, X } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
-import { countCloseOutPendingItems } from "@/lib/closeout"
+import { countCloseOutPendingItems, isCloseOutSurveyComplete } from "@/lib/closeout"
 import { cn } from "@/lib/utils"
 
 export default function CloseOutPanel() {
@@ -16,11 +17,33 @@ export default function CloseOutPanel() {
     submitCampusAssessment,
   } = useSurvey()
 
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!confirmOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setConfirmOpen(false)
+    }
+    document.addEventListener("keydown", onKey)
+    return () => {
+      document.body.style.overflow = prev
+      document.removeEventListener("keydown", onKey)
+    }
+  }, [confirmOpen])
+
   const finalComment = state.session?.finalComment ?? ""
   const campusSubmittedAt = state.session?.campusSubmittedAt ?? state.submission?.session.campusSubmittedAt
+  const pending = useMemo(() => countCloseOutPendingItems(state.session), [state.session])
+  const closeOutComplete = isCloseOutSurveyComplete(state.session)
 
   const pendingSummary = useMemo(() => {
-    const pending = countCloseOutPendingItems(state.session)
     if (pending.rooms === 0) {
       return "No unanswered questions from other surveys."
     }
@@ -32,9 +55,87 @@ export default function CloseOutPanel() {
       pending.grades ? "grade not selected" : null,
     ].filter(Boolean)
     return parts.join(" · ")
-  }, [state.session])
+  }, [pending])
+
+  const handleSubmitClick = () => {
+    if (!canSubmitCampus) return
+    if (!closeOutComplete) {
+      setConfirmOpen(true)
+      return
+    }
+    submitCampusAssessment()
+  }
+
+  const handleConfirmSubmit = () => {
+    setConfirmOpen(false)
+    submitCampusAssessment({ allowIncomplete: true })
+  }
 
   if (!state.school || state.surveyType !== "closeout") return null
+
+  const confirmDialog =
+    mounted &&
+    confirmOpen &&
+    createPortal(
+      <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+        <button
+          type="button"
+          aria-label="Dismiss"
+          className="absolute inset-0 bg-slate-900/45"
+          onClick={() => setConfirmOpen(false)}
+        />
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="closeout-submit-title"
+          className="relative z-10 w-full max-w-md rounded-2xl border border-amber-200 bg-white p-5 shadow-2xl"
+        >
+          <div className="mb-3 flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
+              <AlertTriangle className="h-5 w-5 text-amber-700" aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 id="closeout-submit-title" className="text-base font-semibold text-slate-900">
+                Submit before Close Out is finished?
+              </h2>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+                {pending.rooms} room{pending.rooms === 1 ? "" : "s"} still{" "}
+                {pending.rooms === 1 ? "has" : "have"} unfinished Close Out items
+                {pending.questions
+                  ? ` (${pending.questions} unanswered question${pending.questions === 1 ? "" : "s"})`
+                  : ""}
+                . You can submit now; remaining items stay unfinished.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setConfirmOpen(false)}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 active:bg-slate-100"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row-reverse">
+            <button
+              type="button"
+              onClick={handleConfirmSubmit}
+              className="flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 text-sm font-semibold text-white active:opacity-90"
+            >
+              Submit anyway
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmOpen(false)}
+              className="flex min-h-[48px] flex-1 items-center justify-center rounded-xl border border-[var(--color-border)] px-4 text-sm font-medium active:bg-slate-50"
+            >
+              Keep working
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body,
+    )
 
   return (
     <div className="border-t border-[var(--color-border)] bg-white/95 px-3 pt-4 backdrop-blur safe-bottom">
@@ -87,7 +188,7 @@ export default function CloseOutPanel() {
           <button
             type="button"
             disabled={!canSubmitCampus}
-            onClick={() => submitCampusAssessment()}
+            onClick={handleSubmitClick}
             className={cn(
               "mb-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-white transition-opacity sm:min-h-[48px]",
               canSubmitCampus
@@ -100,6 +201,7 @@ export default function CloseOutPanel() {
           </button>
         </>
       )}
+      {confirmDialog}
     </div>
   )
 }

@@ -393,6 +393,14 @@ export function shouldOfferPreWalk(
   return true
 }
 
+export function preWalkHasAssignments(preWalk?: PreWalkState | null): boolean {
+  return preWalkMappingList(preWalk?.mappings ?? {}).length > 0
+}
+
+export function preWalkHasCloudState(preWalk?: PreWalkState | null): boolean {
+  return preWalkHasAssignments(preWalk) || !!preWalk?.completedAt || !!preWalk?.skippedAt
+}
+
 /** Show the yes/no pre-walk prompt after the user picks a school. */
 export function shouldPromptPreWalkOnSchoolSelect(
   preWalk?: PreWalkState | null,
@@ -400,6 +408,7 @@ export function shouldPromptPreWalkOnSchoolSelect(
 ): boolean {
   if (!schoolSupportsPreWalk(schoolClass)) return false
   if (preWalk?.completedAt || preWalk?.skippedAt) return false
+  if (preWalkHasAssignments(preWalk)) return false
   return true
 }
 

@@ -197,7 +197,21 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
     void (async () => {
       setSaving(true)
       try {
-        if (initialFlow || totalMappedCount > 0) completePreWalk()
+        const completedAt =
+          initialFlow || totalMappedCount > 0 ? new Date().toISOString() : undefined
+        if (completedAt) completePreWalk()
+        await savePreWalkToCloud(completedAt ? { completedAt } : undefined)
+      } finally {
+        setSaving(false)
+        onClose()
+      }
+    })()
+  }
+
+  const handleClose = () => {
+    void (async () => {
+      setSaving(true)
+      try {
         await savePreWalkToCloud()
       } finally {
         setSaving(false)
@@ -246,8 +260,9 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
           {!initialFlow && (
             <button
               type="button"
-              onClick={onClose}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 active:bg-slate-800"
+              onClick={handleClose}
+              disabled={saving}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 active:bg-slate-800 disabled:opacity-50"
               aria-label="Close pre-walk"
             >
               <X className="h-5 w-5" />

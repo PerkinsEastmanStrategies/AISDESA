@@ -122,7 +122,7 @@ import {
   withPendingUpdatedForResponse,
 } from "@/lib/closeout"
 import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
-import { EMPTY_PREWALK, getPreWalkMappingForSurveyModule, migratePreWalkState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypeForRoom, preWalkSpaceTypePhotoKey, shouldPromptPreWalkOnSchoolSelect } from "@/lib/prewalk"
+import { EMPTY_PREWALK, getPreWalkMappingForSurveyModule, migratePreWalkState, preWalkHasAssignments, preWalkHasCloudState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypeForRoom, preWalkSpaceTypePhotoKey, shouldPromptPreWalkOnSchoolSelect } from "@/lib/prewalk"
 import { applyTraditionalStudioCopyToRoom, getTraditionalStudioCopyOffer } from "@/lib/traditional-studio-copy"
 import { scoreRoomSessionWithMetadata, scoreAbsentSpaceTypeRoom } from "@/lib/traditional-studio-room-score"
 import {
@@ -209,6 +209,7 @@ type Action =
   | { type: "SKIP_PREWALK" }
   | { type: "ANSWER_PREWALK_PROMPT"; choice: "map" | "skip" }
   | { type: "MERGE_PREWALK"; preWalk: PreWalkState }
+  | { type: "PREWALK_PULL_DONE" }
   | { type: "SET_ROOM_TYPE"; roomId: string; roomType: string }
   | { type: "SET_PENDING_STUDIO_TYPE"; roomType: string | null }
   | { type: "SET_PENDING_NEIGHBORHOOD"; neighborhood: string | null }
@@ -241,7 +242,7 @@ type Action =
       assessor?: AssessorInfo | null
     }
   | { type: "SET_FINAL_COMMENT"; comment: string }
-  | { type: "SUBMIT_CAMPUS" }
+  | { type: "SUBMIT_CAMPUS"; allowIncomplete?: boolean }
 
 function newSession(
   school: AisdSchoolOption,
@@ -1061,10 +1062,6 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       const assessor = resolveCampusAssessor(state.assessorByType, state.surveyType)
       const session = newSession(action.school, state.surveyType, assessor)
       const stamped = withCampusAssessorOnSession(session, state.assessorByType, state.surveyType)
-      const preWalkPromptPending = shouldPromptPreWalkOnSchoolSelect(
-        EMPTY_PREWALK,
-        action.school.schoolClass,
-      )
       return bootstrapCampusScopedSurvey({
         ...state,
         school: action.school,
@@ -1073,7 +1070,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         selectedRoomId: null,
         selectedLevelId: null,
         floorPlan: null,
-        floorPlanLoading: action.school.hasFloorPlan && !preWalkPromptPending,
+        floorPlanLoading: action.school.hasFloorPlan,
         allRooms: [],
         manualRooms: [],
         view: "survey",
@@ -1083,7 +1080,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         pendingStudioType: null,
         pendingNeighborhood: null,
         preWalk: EMPTY_PREWALK,
-        preWalkPromptPending,
+        preWalkPromptPending: false,
         preWalkRequested: false,
         ...emptyScoreState(),
       })
@@ -1500,7 +1497,6 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       }
     }
     case "SET_PREWALK_MAPPING": {
-      if (!state.session) return state
       const mappingKey = preWalkMappingKey(action.surveyType, action.roomId)
       const prev = state.preWalk.mappings[mappingKey]
       const mapping = {
@@ -1516,7 +1512,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         mappings: { ...state.preWalk.mappings, [mappingKey]: mapping },
       }
       const nextState = { ...state, preWalk }
-      if (action.surveyType !== state.surveyType) {
+      if (!state.session || action.surveyType !== state.surveyType) {
         return { ...nextState, submitValidation: null }
       }
       const existing = state.session.rooms[action.roomId]
@@ -1679,19 +1675,37 @@ function reducer(state: SurveyState, action: Action): SurveyState {
     }
     case "MERGE_PREWALK": {
       const incoming = migratePreWalkState(action.preWalk, state.school?.schoolClass)
-      const mappings = { ...state.preWalk.mappings, ...incoming.mappings }
+      const mappings = { ...incoming.mappings, ...state.preWalk.mappings }
       const spaceTypePhotos = {
-        ...(state.preWalk.spaceTypePhotos ?? {}),
         ...(incoming.spaceTypePhotos ?? {}),
+        ...(state.preWalk.spaceTypePhotos ?? {}),
       }
+      const preWalk = {
+        mappings,
+        spaceTypePhotos,
+        completedAt: state.preWalk.completedAt ?? incoming.completedAt,
+        skippedAt: state.preWalk.skippedAt ?? incoming.skippedAt,
+      }
+      const shouldPrompt =
+        !state.preWalkRequested &&
+        shouldPromptPreWalkOnSchoolSelect(preWalk, state.school?.schoolClass)
       return {
         ...state,
-        preWalk: {
-          mappings,
-          spaceTypePhotos,
-          completedAt: incoming.completedAt ?? state.preWalk.completedAt,
-          skippedAt: incoming.skippedAt ?? state.preWalk.skippedAt,
-        },
+        preWalk,
+        preWalkPromptPending: shouldPrompt,
+        floorPlanLoading:
+          shouldPrompt && state.school?.hasFloorPlan ? false : state.floorPlanLoading,
+      }
+    }
+    case "PREWALK_PULL_DONE": {
+      const shouldPrompt =
+        !state.preWalkRequested &&
+        shouldPromptPreWalkOnSchoolSelect(state.preWalk, state.school?.schoolClass)
+      return {
+        ...state,
+        preWalkPromptPending: shouldPrompt,
+        floorPlanLoading:
+          shouldPrompt && state.school?.hasFloorPlan ? false : state.floorPlanLoading,
       }
     }
     case "APPLY_TRADITIONAL_STUDIO_COPY": {
@@ -1946,11 +1960,8 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         pendingStudioType: null,
         pendingNeighborhood: null,
         manualRooms: [],
-        preWalk: EMPTY_PREWALK,
-        preWalkPromptPending: shouldPromptPreWalkOnSchoolSelect(
-          EMPTY_PREWALK,
-          state.school.schoolClass,
-        ),
+        preWalk: state.preWalk,
+        preWalkPromptPending: false,
         preWalkRequested: false,
         allRooms: state.allRooms.filter(
           (r) => !(state.manualRooms ?? []).some((m) => m.id === r.id),
@@ -2021,7 +2032,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
     }
     case "SUBMIT_CAMPUS": {
       if (state.surveyType !== "closeout" || !state.session || !state.school) return state
-      if (!isCloseOutSurveyComplete(state.session)) return state
+      if (!action.allowIncomplete && !isCloseOutSurveyComplete(state.session)) return state
       const submission = buildCampusSubmission(state)
       if (!submission) return state
 
@@ -2068,7 +2079,7 @@ interface SurveyContextValue {
   removePreWalkMapping: (surveyType: SurveyType, roomId: string) => void
   clearPreWalkMappingsForSurvey: (surveyType: SurveyType) => void
   completePreWalk: () => void
-  savePreWalkToCloud: () => Promise<"pushed" | "offline" | "error">
+  savePreWalkToCloud: (patch?: Partial<PreWalkState>) => Promise<"pushed" | "offline" | "error">
   skipPreWalk: () => void
   answerPreWalkPrompt: (choice: "map" | "skip") => void
   setRoomType: (roomId: string, roomType: string) => void
@@ -2084,7 +2095,7 @@ interface SurveyContextValue {
   discardCurrentAssessment: () => void
   /** @deprecated Use saveAndCompleteAnotherSurvey */
   saveAndContinueToNextRoom: (options?: { deferIncomplete?: boolean }) => boolean
-  submitCampusAssessment: () => boolean
+  submitCampusAssessment: (options?: { allowIncomplete?: boolean }) => boolean
   setFinalComment: (comment: string) => void
   peekSubmitValidation: () => SubmitValidationResult | null
   setView: (view: SurveyView) => void
@@ -2252,6 +2263,9 @@ function persistDraftFromState(state: SurveyState): string | null {
     lastSubmission: state.submission,
     savedAt,
   })
+  if (preWalkHasCloudState(state.preWalk)) {
+    propagatePreWalkToSchoolDrafts(state.school.id, state.preWalk)
+  }
 
   if (state.surveyType === "closeout") {
     const sourceTypes = new Set(
@@ -2313,6 +2327,8 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const lastSyncedSubmissionRef = useRef<string | null>(null)
   const floorPlanLevelInflightRef = useRef(new Map<string, Promise<void>>())
   const roomsLoadAttemptedKeyRef = useRef<string | null>(null)
+  const preWalkRef = useRef(EMPTY_PREWALK)
+  const preWalkCloudReadySchoolIdRef = useRef<string | null>(null)
   const surveyTypeBeforeConflictRef = useRef<SurveyType>("studios")
   const [state, dispatch] = useReducer(reducer, {
     surveyType: "studios",
@@ -2341,6 +2357,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     preWalkPromptPending: false,
     preWalkRequested: false,
   })
+  preWalkRef.current = state.preWalk
 
   useEffect(() => {
     let cancelled = false
@@ -2492,12 +2509,41 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
   // Load school pre-walk assignments from Supabase (shared across devices/modules).
   useEffect(() => {
-    if (!state.hydrated || !state.school) return
-    void pullPrewalkClient(state.school.id).then((remote) => {
-      if (!remote || Object.keys(remote.mappings ?? {}).length === 0) return
-      dispatch({ type: "MERGE_PREWALK", preWalk: remote })
+    if (!state.hydrated || !state.school) {
+      preWalkCloudReadySchoolIdRef.current = null
+      return
+    }
+    const schoolId = state.school.id
+    preWalkCloudReadySchoolIdRef.current = null
+    let cancelled = false
+    void pullPrewalkClient(schoolId).then((remote) => {
+      if (cancelled) return
+      preWalkCloudReadySchoolIdRef.current = schoolId
+      if (remote && preWalkHasCloudState(remote)) {
+        dispatch({ type: "MERGE_PREWALK", preWalk: remote })
+      } else {
+        dispatch({ type: "PREWALK_PULL_DONE" })
+      }
     })
+    return () => {
+      cancelled = true
+    }
   }, [state.school?.id, state.hydrated])
+
+  // Push school-level pre-walk independently of survey drafts so other users see it.
+  useEffect(() => {
+    if (!state.hydrated || !state.school) return
+    if (preWalkCloudReadySchoolIdRef.current !== state.school.id) return
+    if (!preWalkHasAssignments(state.preWalk) && !state.preWalk.completedAt) return
+
+    const school = state.school
+    const preWalk = state.preWalk
+    const timer = window.setTimeout(() => {
+      propagatePreWalkToSchoolDrafts(school.id, preWalk)
+      void pushPrewalkClient({ school, preWalk })
+    }, 800)
+    return () => window.clearTimeout(timer)
+  }, [state.hydrated, state.school, state.preWalk])
 
   useEffect(() => {
     if (state.view !== "results" || !state.school) return
@@ -2922,8 +2968,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const canSubmitCampus = useMemo(() => {
     if (state.surveyType !== "closeout" || !state.session || !state.school) return false
     if (state.session.campusSubmittedAt) return false
-    if (!isCloseOutSurveyComplete(state.session)) return false
-    const hasSourceProgress = loadDraftsForSchool(state.school.id).some(
+    return loadDraftsForSchool(state.school.id).some(
       (draft) =>
         draft.surveyType !== "closeout" &&
         (Object.values(draft.session.rooms).some(
@@ -2931,15 +2976,10 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         ) ||
           !!draft.lastSubmission),
     )
-    return hasSourceProgress
   }, [state.surveyType, state.session, state.school])
 
   const submitCampusHint = useMemo(() => {
     if (state.session?.campusSubmittedAt) return "Campus assessment submitted"
-    const pending = countCloseOutPendingItems(state.session)
-    if (pending.rooms > 0) {
-      return `Answer remaining Close Out items before submitting (${pending.questions} unanswered question${pending.questions === 1 ? "" : "s"})`
-    }
     if (state.school) {
       const hasSourceProgress = loadDraftsForSchool(state.school.id).some(
         (draft) =>
@@ -2951,6 +2991,10 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       if (!hasSourceProgress) {
         return "Complete at least one survey section before submitting the campus assessment"
       }
+    }
+    const pending = countCloseOutPendingItems(state.session)
+    if (pending.rooms > 0) {
+      return `You can submit now · ${pending.questions} Close Out item${pending.questions === 1 ? "" : "s"} still open`
     }
     return "Ready to submit the full campus assessment · auto-saved"
   }, [state.session, state.school])
@@ -3105,11 +3149,14 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     ],
   )
 
-  const submitCampusAssessment = useCallback(() => {
-    if (!canSubmitCampus || !state.session || !state.school) return false
-    dispatch({ type: "SUBMIT_CAMPUS" })
-    return true
-  }, [canSubmitCampus, state.session, state.school])
+  const submitCampusAssessment = useCallback(
+    (options?: { allowIncomplete?: boolean }) => {
+      if (!canSubmitCampus || !state.session || !state.school) return false
+      dispatch({ type: "SUBMIT_CAMPUS", allowIncomplete: options?.allowIncomplete })
+      return true
+    },
+    [canSubmitCampus, state.session, state.school],
+  )
 
   const setFinalComment = useCallback((comment: string) => {
     dispatch({ type: "SET_FINAL_COMMENT", comment })
@@ -3225,12 +3272,17 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     [],
   )
   const completePreWalk = useCallback(() => dispatch({ type: "COMPLETE_PREWALK" }), [])
-  const savePreWalkToCloud = useCallback(async (): Promise<"pushed" | "offline" | "error"> => {
-    if (!state.school) return "error"
-    const preWalk = state.preWalk
-    propagatePreWalkToSchoolDrafts(state.school.id, preWalk)
-    return pushPrewalkClient({ school: state.school, preWalk })
-  }, [state.school, state.preWalk])
+  const savePreWalkToCloud = useCallback(
+    async (patch?: Partial<PreWalkState>): Promise<"pushed" | "offline" | "error"> => {
+      if (!state.school) return "error"
+      const preWalk = { ...preWalkRef.current, ...patch }
+      preWalkRef.current = preWalk
+      preWalkCloudReadySchoolIdRef.current = state.school.id
+      propagatePreWalkToSchoolDrafts(state.school.id, preWalk)
+      return pushPrewalkClient({ school: state.school, preWalk })
+    },
+    [state.school],
+  )
   const skipPreWalk = useCallback(() => dispatch({ type: "SKIP_PREWALK" }), [])
   const answerPreWalkPrompt = useCallback(
     (choice: "map" | "skip") => dispatch({ type: "ANSWER_PREWALK_PROMPT", choice }),

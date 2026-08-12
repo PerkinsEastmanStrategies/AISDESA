@@ -61,16 +61,14 @@ export default function CloseOutFloorPlan({
                 ? "All deferred rooms are complete · tap a room to review"
                 : "Open the floor plan to find rooms. Highlighted rooms have deferred questions."}
           </p>
-          {!floorPlanOpen && (
-            <button
-              type="button"
-              onClick={onOpen}
-              className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-800 shadow-[0_1px_0_rgba(15,23,42,0.03)] transition-colors active:bg-slate-100"
-            >
-              <MapIcon className="h-4 w-4 text-slate-500" />
-              {state.selectedRoomId ? "Change room on floor plan" : "View floor plan"}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={floorPlanOpen ? onClose : onOpen}
+            className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-800 shadow-[0_1px_0_rgba(15,23,42,0.03)] transition-colors active:bg-slate-100"
+          >
+            <MapIcon className="h-4 w-4 text-slate-500" />
+            {floorPlanOpen ? "Close floor plan" : "View floor plan"}
+          </button>
         </div>
         {floorPlanOpen && (
           <SurveyFloorPlan

@@ -229,19 +229,47 @@ export default function RoomSelector({
     const mappedTypeForRoom = (roomId: string) =>
       preWalkSpaceTypeForRoom(state.preWalk.mappings, roomId, state.surveyType, schoolClass)
 
+    if (state.surveyType === "closeout" && state.session) {
+      const seen = new Set<string>()
+      const pending: typeof state.allRooms = []
+      for (const roomSession of Object.values(state.session.rooms)) {
+        if (!roomNeedsCloseOut(roomSession) || seen.has(roomSession.roomId)) continue
+        seen.add(roomSession.roomId)
+        const matched =
+          state.allRooms.find((room) => room.id === roomSession.roomId) ??
+          state.allRooms.find(
+            (room) => room.id.toUpperCase() === roomSession.roomId.toUpperCase(),
+          )
+        if (matched) {
+          pending.push(matched)
+          continue
+        }
+        const neighborhoodLabel = neighborhoodFromSurveyRoomId(roomSession.roomId)
+        pending.push({
+          id: roomSession.roomId,
+          name: isOutdoorSurveyRoomId(roomSession.roomId)
+            ? outdoorSurveyRoomDisplayName()
+            : neighborhoodLabel
+              ? neighborhoodSurveyRoomDisplayName(neighborhoodLabel)
+              : roomSession.schoolRoomNumber?.trim() ||
+                roomSession.roomNumber?.trim() ||
+                roomSession.roomId,
+          x: 0,
+          y: 0,
+          area: 0,
+          levelId: roomSession.levelId ?? effectiveLevelId ?? "",
+          points: [],
+        })
+      }
+      return { pinnedRoomOptions: [], otherRoomOptions: sortRoomsByName(pending) }
+    }
+
     let onFloor = state.allRooms.filter((r) => {
       if (effectiveLevelId && r.levelId !== effectiveLevelId) return false
       return isClassroomRoom(r) || !!mappedTypeForRoom(r.id)
     })
     const eligibleForPreWalk = (r: (typeof state.allRooms)[number]) =>
       isClassroomRoom(r) || !!mappedTypeForRoom(r.id)
-    if (state.surveyType === "closeout" && state.session) {
-      onFloor = onFloor.filter((r) => {
-        const rs = state.session!.rooms[r.id]
-        return !!rs && roomNeedsCloseOut(rs)
-      })
-    }
-
     const pinnedIds = new Set<string>()
     let pinned: typeof onFloor = []
 
@@ -268,39 +296,6 @@ export default function RoomSelector({
       const selected = state.allRooms.find((r) => r.id === selectedId)
       if (selected && !pinnedIds.has(selectedId) && !other.some((r) => r.id === selectedId)) {
         other = sortRoomsByName([selected, ...other])
-      }
-    }
-
-    if (state.surveyType === "closeout" && state.session) {
-      const floorPlanIds = new Set(state.allRooms.map((room) => room.id))
-      const syntheticCloseOutRooms = Object.values(state.session.rooms)
-        .filter(
-          (room) =>
-            roomNeedsCloseOut(room) &&
-            !floorPlanIds.has(room.roomId) &&
-            (isOutdoorSurveyRoomId(room.roomId) || isNeighborhoodSurveyRoomId(room.roomId)),
-        )
-        .map((room) => {
-          const neighborhoodLabel = neighborhoodFromSurveyRoomId(room.roomId)
-          return {
-            id: room.roomId,
-            name: isOutdoorSurveyRoomId(room.roomId)
-              ? outdoorSurveyRoomDisplayName()
-              : neighborhoodLabel
-                ? neighborhoodSurveyRoomDisplayName(neighborhoodLabel)
-                : room.roomNumber || room.roomId,
-            x: 0,
-            y: 0,
-            area: 0,
-            levelId: effectiveLevelId ?? "",
-            points: [] as { x: number; y: number }[],
-          }
-        })
-      if (syntheticCloseOutRooms.length > 0) {
-        other = sortRoomsByName([
-          ...syntheticCloseOutRooms.filter((room) => !other.some((entry) => entry.id === room.id)),
-          ...other,
-        ])
       }
     }
 
@@ -760,7 +755,9 @@ export default function RoomSelector({
                     ? formatRoomPickerLabel(selectedRoom)
                     : roomOptions.length
                       ? "Select a room"
-                      : "No rooms on this floor"}
+                      : state.surveyType === "closeout"
+                        ? "No unfinished Close Out rooms"
+                        : "No rooms on this floor"}
                 </span>
                 <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
               </button>
@@ -793,7 +790,9 @@ export default function RoomSelector({
 
         {(state.school?.hasFloorPlan || plan) &&
           !floorPlanOpen &&
-          (state.surveyType === "closeout" || (roomSelectionReady && !neighborhoodOnlyMode)) && (
+          roomSelectionReady &&
+          !neighborhoodOnlyMode &&
+          state.surveyType !== "closeout" && (
           <div className="col-span-2">
             <button
               type="button"
@@ -801,13 +800,7 @@ export default function RoomSelector({
               className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-800 shadow-[0_1px_0_rgba(15,23,42,0.03)] transition-colors active:bg-slate-100"
             >
               <MapIcon className="h-4 w-4 text-slate-500" />
-              {state.surveyType === "closeout"
-                ? selectedId
-                  ? "Change room on floor plan"
-                  : "View floor plan"
-                : selectedId
-                  ? "Change room on floor plan"
-                  : "Select room on floor plan"}
+              {selectedId ? "Change room on floor plan" : "Select room on floor plan"}
             </button>
           </div>
         )}
@@ -904,7 +897,9 @@ export default function RoomSelector({
           </div>
         )}
 
-      {(state.school?.hasFloorPlan || plan) && floorPlanOpen && (
+      {(state.school?.hasFloorPlan || plan) &&
+        floorPlanOpen &&
+        state.surveyType !== "closeout" && (
         <SurveyFloorPlan
           variant="picker"
           panelVisible={floorPlanOpen}
@@ -1068,9 +1063,11 @@ export default function RoomSelector({
                   Select a room
                 </h2>
                 <p className="truncate text-xs text-[var(--color-muted-foreground)]">
-                  {filteredPinnedRooms.length > 0
-                    ? `${filteredPinnedRooms.length} pre-walk · ${filteredOtherRooms.length} other on this floor`
-                    : `${roomOptions.length} on this floor`}
+                  {state.surveyType === "closeout"
+                    ? `${roomOptions.length} with unfinished Close Out items`
+                    : filteredPinnedRooms.length > 0
+                      ? `${filteredPinnedRooms.length} pre-walk · ${filteredOtherRooms.length} other on this floor`
+                      : `${roomOptions.length} on this floor`}
                   {roomQuery.trim() ? ` · ${filteredRooms.length} match` : ""}
                 </p>
               </div>
@@ -1133,7 +1130,9 @@ export default function RoomSelector({
                 <li className="px-3 py-8 text-center text-sm text-[var(--color-muted-foreground)]">
                   {roomQuery.trim()
                     ? `No rooms match “${roomQuery.trim()}”`
-                    : "No rooms on this floor"}
+                    : state.surveyType === "closeout"
+                      ? "No unfinished Close Out rooms"
+                      : "No rooms on this floor"}
                 </li>
               ) : (
                 <>
@@ -1192,6 +1191,10 @@ export default function RoomSelector({
                       )}
                       {filteredOtherRooms.map((r) => {
                         const active = selectedId === r.id
+                        const closeOutRoom =
+                          state.surveyType === "closeout"
+                            ? state.session?.rooms[r.id]
+                            : undefined
                         return (
                           <li key={r.id}>
                             <button
@@ -1202,7 +1205,19 @@ export default function RoomSelector({
                                 active && "bg-blue-50 text-[var(--color-primary)]",
                               )}
                             >
-                              <span className="min-w-0 flex-1 break-words leading-snug">{r.name}</span>
+                              <span className="min-w-0 flex-1 break-words leading-snug">
+                                {formatRoomPickerLabel(r)}
+                                {closeOutRoom?.roomType ? (
+                                  <span
+                                    className={cn(
+                                      "mt-0.5 block text-[11px] font-normal",
+                                      active ? "text-[var(--color-primary)]/80" : "text-slate-500",
+                                    )}
+                                  >
+                                    {closeOutRoom.roomType}
+                                  </span>
+                                ) : null}
+                              </span>
                               {active && <Check className="h-4 w-4 shrink-0" aria-hidden />}
                             </button>
                           </li>

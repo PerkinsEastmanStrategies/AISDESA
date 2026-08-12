@@ -472,7 +472,9 @@ export async function pushSurveyDraft(input: {
     )
   }
 
-  await syncPrewalk(school, draft.preWalk)
+  // Pre-walk is school-scoped and has its own endpoint. Draft sync must not
+  // replace esa_prewalk_mappings — a module draft with empty preWalk would wipe
+  // assignments for every other user.
   await syncManualRooms(school.id, draft.manualRooms)
 
   if (writeSnapshot && draft.lastSubmission) {

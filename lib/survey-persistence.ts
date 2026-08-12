@@ -388,7 +388,6 @@ export function propagatePreWalkToSchoolDrafts(
       {
         ...draft,
         preWalk,
-        savedAt: new Date().toISOString(),
       },
       { setActive: false },
     )

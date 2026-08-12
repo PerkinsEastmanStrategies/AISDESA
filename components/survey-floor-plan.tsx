@@ -857,7 +857,7 @@ export default function SurveyFloorPlan({
             ))}
           </div>
         )}
-        {!photoGalleryMode && !closeOutMode && (
+        {!photoGalleryMode && (
         <div
           className={cn(
             "flex items-center gap-0.5",
@@ -866,6 +866,7 @@ export default function SurveyFloorPlan({
               : "shrink-0 flex-wrap",
           )}
         >
+          {!closeOutMode && (
           <div
             className={cn(
               "flex items-center gap-0.5",
@@ -961,10 +962,12 @@ export default function SurveyFloorPlan({
             </button>
           )}
           </div>
+          )}
           <div
             className={cn(
               "flex shrink-0 items-center justify-end gap-0.5",
               isPreWalk && "w-full 2xl:w-auto",
+              closeOutMode && "ml-auto",
             )}
           >
           <button
@@ -1000,7 +1003,7 @@ export default function SurveyFloorPlan({
           >
             <RotateCcw className="h-4 w-4" />
           </button>
-          {canExpand && (
+          {canExpand && !closeOutMode && (
             <button
               type="button"
               onClick={() => setExpanded(!expanded)}
@@ -1019,10 +1022,14 @@ export default function SurveyFloorPlan({
                 e.stopPropagation()
                 onClose()
               }}
-              className="relative z-10 flex h-9 w-8 items-center justify-center rounded-lg active:bg-slate-100"
+              className={cn(
+                "relative z-10 flex h-9 items-center justify-center rounded-lg active:bg-slate-100",
+                closeOutMode ? "gap-1 px-2.5 text-sm font-semibold text-slate-800" : "w-8",
+              )}
               aria-label="Close floor plan"
             >
               <X className="h-4 w-4" />
+              {closeOutMode ? <span>Close</span> : null}
             </button>
           )}
           </div>
@@ -1192,24 +1199,40 @@ export default function SurveyFloorPlan({
       )}
 
       {!photoGalleryMode && closeOutMode && (
-        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-[var(--color-border)] bg-white px-3 py-1.5">
-          <span className="inline-flex items-center gap-1 text-[10px] text-slate-700">
-            <span
-              className="inline-block h-2.5 w-2.5 rounded-sm border border-emerald-300 bg-emerald-500/50"
-              aria-hidden
-            />
-            Complete
-          </span>
-          <span className="inline-flex items-center gap-1 text-[10px] text-slate-700">
-            <span
-              className="inline-block h-2.5 w-2.5 rounded-sm border border-amber-300 bg-amber-400/45"
-              aria-hidden
-            />
-            In progress
-          </span>
-          <span className="text-[10px] text-[var(--color-muted-foreground)]">
-            Tap a highlighted room to finish deferred questions
-          </span>
+        <div className="border-t border-[var(--color-border)] bg-white px-3 py-2">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+            <span className="inline-flex items-center gap-1 text-[10px] text-slate-700">
+              <span
+                className="inline-block h-2.5 w-2.5 rounded-sm border border-emerald-300 bg-emerald-500/50"
+                aria-hidden
+              />
+              Complete
+            </span>
+            <span className="inline-flex items-center gap-1 text-[10px] text-slate-700">
+              <span
+                className="inline-block h-2.5 w-2.5 rounded-sm border border-amber-300 bg-amber-400/45"
+                aria-hidden
+              />
+              In progress
+            </span>
+            <span className="text-[10px] text-[var(--color-muted-foreground)]">
+              Tap a highlighted room to finish deferred questions
+            </span>
+          </div>
+          {onClose ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onClose()
+              }}
+              className="mt-2 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-800 active:bg-slate-100"
+            >
+              <X className="h-4 w-4" />
+              Close floor plan
+            </button>
+          ) : null}
         </div>
       )}
 
@@ -1250,7 +1273,10 @@ export default function SurveyFloorPlan({
         role="dialog"
         aria-modal="true"
         aria-label="Expanded floor plan"
-        onClick={() => setExpanded(false)}
+        onClick={() => {
+          if (closeOutMode && onClose) onClose()
+          else setExpanded(false)
+        }}
       >
         <div
           className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white sm:mx-auto sm:my-auto sm:max-h-[min(920px,calc(100dvh-1.5rem))] sm:w-full sm:max-w-6xl sm:rounded-2xl sm:border sm:border-slate-200 sm:shadow-2xl"
