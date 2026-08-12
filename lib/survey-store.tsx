@@ -1358,14 +1358,6 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       }
 
       if (!action.exists) {
-        const clearSelection =
-          !!selectedRoomId &&
-          (state.pendingStudioType === action.spaceType ||
-            state.session.rooms[selectedRoomId]?.roomType === action.spaceType ||
-            (isNeighborhoodSurveyRoomId(selectedRoomId) &&
-              isNeighborhoodOnlySpaceType(state.surveyType, action.spaceType)))
-        if (clearSelection) selectedRoomId = null
-
         const ensured = ensureRoomSession({ ...state, session }, absentRoomId)
         session = {
           ...session,
@@ -1380,6 +1372,9 @@ function reducer(state: SurveyState, action: Action): SurveyState {
             },
           },
         }
+        // Keep the absent synthetic room selected so Save scopes to it (complete / score 0)
+        // instead of clearing selection and failing validation against other unfinished rooms.
+        selectedRoomId = absentRoomId
       } else {
         if (session.rooms[absentRoomId]?.spaceTypeMarkedAbsent) {
           const { [absentRoomId]: _removed, ...restRooms } = session.rooms
@@ -3129,6 +3124,15 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
           return true
         }
         if (!applyCurrentRoomDeferral()) return false
+        dispatch({ type: submitAction })
+        return true
+      }
+
+      // No selected room (or absent-only save): persist complete rooms and continue.
+      // Do not validate every unfinished room in the draft — that caused Save to no-op
+      // after marking a space type absent (selection was cleared, peek said valid, submit failed).
+      if (!state.selectedRoomId) {
+        dispatch({ type: "CLEAR_SUBMIT_VALIDATION" })
         dispatch({ type: submitAction })
         return true
       }

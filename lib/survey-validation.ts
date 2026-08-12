@@ -210,6 +210,7 @@ export function validateSurveyBeforeDeferral(
   for (const roomId of roomIds) {
     const roomSession = session.rooms[roomId]
     if (!roomSession) continue
+    if (roomSession.spaceTypeMarkedAbsent) continue
 
     const rubric = getRoomSurveyRubric(
       surveyType,
