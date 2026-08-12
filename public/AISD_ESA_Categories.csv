@@ -19,8 +19,9 @@ Neighborhoods,Open Collaboration,ES,Y,Neighborhoods,12,9,OC
 Neighborhoods,Small Group Room,ES,Y,Neighborhoods,9,9,SG
 Neighborhoods,Neighborhood,ES,Y,Neighborhoods,12,9,NE
 Shared Spaces,Gym,ES,Y,Shared Spaces,12,9,GY
-Shared Spaces,Media Center,ES,Y,Shared Spaces,12,9,MC
-Shared Spaces,Food Service,ES,Y,Shared Spaces,12,9,FS
+Shared Spaces,Library Media Center,ES,Y,Shared Spaces,12,9,MC
+Shared Spaces,Dining Commons,ES,Y,Shared Spaces,12,9,FS
+Shared Spaces,Kitchen,ES,Y,Shared Spaces,6,9,KI
 Shared Spaces,Empower Center,ES,N,Shared Spaces,3,9,EC
 Outdoor Elements,Outdoor Spaces,ES,Y,Outdoor Elements,12,9,OS
 Arrival/Administration,Main Admin Suite,MS,Y,Arrival/Administration,12,6,MA
@@ -37,12 +38,17 @@ Studios,Science,MS,Y,Studios,12,12,SC
 Studios,Art,MS,Y,Studios,12,12,AR
 Studios,Music,MS,N,Studios,6,12,MU
 Studios,Maker Space,MS,Y,Studios,12,12,MS
-CTE,CTE,MS,Y,CTE,12,9,CT
-Performing Arts,Theater Arts,MS,Y,Performing Arts,12,9,TA
+CTE,CTE Studio,MS,Y,CTE,12,9,CT
+CTE,Low Intensity Lab,MS,Y,CTE,9,9,CL
+CTE,Medium Intensity Lab,MS,Y,CTE,9,9,CM
+CTE,High Intensity Lab,MS,Y,CTE,9,9,CH
+Performing Arts,Theater Arts Studio,MS,Y,Performing Arts,12,9,TA
+Performing Arts,Theater Arts Suite,MS,N,Performing Arts,3,9,TS
 Performing Arts,Rehersal Hall,MS,Y,Performing Arts,12,9,RH
 Performing Arts,Black Box,MS,N,Performing Arts,3,9,BB
 Performing Arts,Auditorium,MS,N,Performing Arts,3,9,AU
 Performing Arts,Dance,MS,N,Performing Arts,3,9,DA
+Performing Arts,Music Suite,MS,N,Performing Arts,3,9,MU
 Neighborhoods,Open Collaboration,MS,Y,Neighborhoods,12,9,OC
 Neighborhoods,Small Group Room,MS,Y,Neighborhoods,9,9,SG
 Neighborhoods,Large Group Room,MS,N,Neighborhoods,3,9,LG
@@ -54,8 +60,9 @@ Athletics and Wellness,Weight Room,MS,Y,Athletics and Wellness,9,9,WE
 Athletics and Wellness,Wrestling,MS,N,Athletics and Wellness,3,9,WR
 Athletics and Wellness,PE Fitness Room,MS,N,Athletics and Wellness,4,9,PF
 Athletics and Wellness,Athletics Wing,MS,N,Athletics and Wellness,6,9,AT
-Shared Spaces,Media Center,MS,Y,Shared Spaces,12,9,MC
-Shared Spaces,Food Service,MS,Y,Shared Spaces,12,9,FS
+Shared Spaces,Library Media Center,MS,Y,Shared Spaces,12,9,MC
+Shared Spaces,Dining Commons,MS,Y,Shared Spaces,12,9,FS
+Shared Spaces,Kitchen,MS,Y,Shared Spaces,6,9,KI
 Shared Spaces,Empower Center,MS,Y,Shared Spaces,9,9,EC
 Outdoor Elements,Outdoor Spaces,MS,Y,Outdoor Elements,12,9,OS
 Outdoor Elements,Outdoor Athletics,MS,Y,Athletics and Wellness,12,9,OA
@@ -72,12 +79,17 @@ Studios,Life Skills Room,HS,Y,Special education,12,12,LS
 Studios,Science,HS,Y,Studios,12,12,SC
 Studios,Maker Space,HS,Y,Studios,12,12,MS
 Studios,Art,HS,Y,Studios,12,12,AR
-CTE,CTE,HS,Y,CTE,12,9,CT
+CTE,CTE Studio,HS,Y,CTE,12,9,CT
+CTE,Low Intensity Lab,HS,Y,CTE,9,9,CL
+CTE,Medium Intensity Lab,HS,Y,CTE,9,9,CM
+CTE,High Intensity Lab,HS,Y,CTE,9,9,CH
 Performing Arts,Rehersal Hall,HS,Y,Performing Arts,12,9,RH
-Performing Arts,Theater Arts,HS,Y,Performing Arts,12,9,TA
+Performing Arts,Theater Arts Studio,HS,Y,Performing Arts,12,9,TA
+Performing Arts,Theater Arts Suite,HS,Y,Performing Arts,3,9,TS
 Performing Arts,Black Box,HS,Y,Performing Arts,3,9,BB
 Performing Arts,Auditorium,HS,Y,Performing Arts,3,9,AU
 Performing Arts,Dance,HS,Y,Performing Arts,3,9,DA
+Performing Arts,Music Suite,HS,Y,Performing Arts,3,9,MU
 Neighborhoods,Open Collaboration,HS,Y,Neighborhoods,12,9,OC
 Neighborhoods,Small Group Room,HS,Y,Neighborhoods,9,9,SG
 Neighborhoods,Large Group Room,HS,Y,Neighborhoods,9,9,LG
@@ -89,8 +101,9 @@ Athletics and Wellness,Weight Room,HS,Y,Athletics and Wellness,9,9,WE
 Athletics and Wellness,Wrestling,HS,Y,Athletics and Wellness,6,9,WR
 Athletics and Wellness,PE Fitness Room,HS,Y,Athletics and Wellness,7,9,PF
 Athletics and Wellness,Athletics Wing,HS,Y,Athletics and Wellness,6,9,AT
-Shared Spaces,Media Center,HS,Y,Shared Spaces,12,9,MC
-Shared Spaces,Food Service,HS,Y,Shared Spaces,12,9,FS
+Shared Spaces,Library Media Center,HS,Y,Shared Spaces,12,9,MC
+Shared Spaces,Dining Commons,HS,Y,Shared Spaces,12,9,FS
+Shared Spaces,Kitchen,HS,Y,Shared Spaces,6,9,KI
 Shared Spaces,Empower Center,HS,Y,Shared Spaces,9,9,EC
 Outdoor,Outdoor Spaces,HS,Y,Outdoor Elements,12,9,OS
 Outdoor,Outdoor Athletics,HS,Y,Athletics and Wellness,12,9,OA

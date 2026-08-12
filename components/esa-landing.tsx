@@ -51,7 +51,7 @@ export default function EsaLanding() {
     if (!pendingSchool) return
     setSchool(pendingSchool)
     markActiveVisit()
-    setView("survey")
+    setView("home")
     setStep("home")
     setPendingSchool(null)
   }

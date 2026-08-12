@@ -55,11 +55,10 @@ interface SurveyTypeNavProps {
 }
 
 export default function SurveyTypeNav({ variant }: SurveyTypeNavProps) {
-  const { state, setSurveyType, surveyTypeInfos, setView } = useSurvey()
+  const { state, enterSurveyModule, surveyTypeInfos } = useSurvey()
 
   const handleSelect = (type: SurveyType) => {
-    if (state.view === "results") setView("survey")
-    setSurveyType(type)
+    enterSurveyModule(type)
   }
 
   const schoolClass = state.school?.schoolClass

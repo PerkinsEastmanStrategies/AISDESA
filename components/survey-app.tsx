@@ -5,6 +5,7 @@ import SurveyHeader, { SurveyHeaderControls } from "@/components/survey-header"
 import SurveyTypeNav from "@/components/survey-type-nav"
 import ResumeBanner from "@/components/resume-banner"
 import SurveyAssessorLanding from "@/components/survey-assessor-landing"
+import SurveyCampusHome from "@/components/survey-campus-home"
 import StudioSurvey from "@/components/studio-survey"
 import PlaceholderSurvey from "@/components/placeholder-survey"
 import SurveyResults from "@/components/survey-results"
@@ -34,6 +35,10 @@ function SurveyBody() {
     return <SurveyAssessorLanding />
   }
 
+  if (state.view === "home") {
+    return <SurveyCampusHome />
+  }
+
   const rubric = getSurveyRubric(state.surveyType)
 
   if (
@@ -42,7 +47,11 @@ function SurveyBody() {
     state.surveyType === "outdoor" ||
     state.surveyType === "administration" ||
     state.surveyType === "arrival" ||
-    state.surveyType === "neighborhoods"
+    state.surveyType === "neighborhoods" ||
+    state.surveyType === "shared_spaces" ||
+    state.surveyType === "performing_arts" ||
+    state.surveyType === "athletics" ||
+    state.surveyType === "cte"
   ) {
     return <StudioSurvey />
   }
@@ -53,7 +62,7 @@ function SurveyBody() {
       description={
         rubric
           ? "Questions coming soon."
-          : "This survey module is not yet configured. Select Studios, Neighborhoods, Arrival/Main Office, or Administration to begin ESA scoring."
+          : "This survey module is not yet configured. Select a live module from the campus hub to begin ESA scoring."
       }
     />
   )
@@ -104,13 +113,16 @@ function SurveyAppContent() {
     )
   }
 
+  const showModuleChrome = state.view === "survey" || state.view === "results"
+  const showModuleTabs = state.view === "survey"
+
   return (
     <>
       <div className="flex h-dvh flex-col overflow-hidden md:flex-row">
-      <SurveyTypeNav variant="sidebar" />
+      {showModuleChrome && <SurveyTypeNav variant="sidebar" />}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <SurveyHeader />
-        {state.view === "survey" && (
+        {showModuleTabs && (
           <div className="z-40 shrink-0 border-b border-[var(--color-border)] bg-[var(--color-card)] md:hidden">
             <SurveyTypeNav variant="tabs" />
           </div>

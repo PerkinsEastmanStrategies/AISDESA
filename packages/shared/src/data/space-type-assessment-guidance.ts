@@ -86,7 +86,22 @@ export const SPACE_TYPE_ASSESSMENT_GUIDANCE: SpaceTypeAssessmentGuidanceEntry[] 
     "note": "Science Room Assessment Selection Guidance \n\nFor Science room assessments, assess the rooms that were designed to be science rooms. There should be a minimum of 2 rooms assessed. If classrooms have noticeably different conditions, assess a 3rd room. "
   },
   {
-    "spaceType": "CTE",
+    "spaceType": "CTE Studio",
+    "schoolLevel": "MS, HS",
+    "note": "CTE Assessment Selection Guidance \n\nFor CTE room assessments, assess a minimum of 2 representative rooms. If classrooms have noticeably different conditions, assess a 3rd room. "
+  },
+  {
+    "spaceType": "Low Intensity Lab",
+    "schoolLevel": "MS, HS",
+    "note": "CTE Assessment Selection Guidance \n\nFor CTE room assessments, assess a minimum of 2 representative rooms. If classrooms have noticeably different conditions, assess a 3rd room. "
+  },
+  {
+    "spaceType": "Medium Intensity Lab",
+    "schoolLevel": "MS, HS",
+    "note": "CTE Assessment Selection Guidance \n\nFor CTE room assessments, assess a minimum of 2 representative rooms. If classrooms have noticeably different conditions, assess a 3rd room. "
+  },
+  {
+    "spaceType": "High Intensity Lab",
     "schoolLevel": "MS, HS",
     "note": "CTE Assessment Selection Guidance \n\nFor CTE room assessments, assess a minimum of 2 representative rooms. If classrooms have noticeably different conditions, assess a 3rd room. "
   },
@@ -106,17 +121,17 @@ export const SPACE_TYPE_ASSESSMENT_GUIDANCE: SpaceTypeAssessmentGuidanceEntry[] 
     "note": "Neighborhoods Assessment Selection Guidance \n\nFor Neighborhoods assessments, complete 1 neighborhood survey within each identified neighborhood. "
   },
   {
-    "spaceType": "Theater Arts",
+    "spaceType": "Theater Arts Studio",
     "schoolLevel": "MS",
     "note": "Theater Arts Assessment Selection Guidance \n\nFor Theater Arts assessments, assess 1 representative room.  "
   },
   {
-    "spaceType": "Theater Arts",
+    "spaceType": "Theater Arts Studio",
     "schoolLevel": "HS",
     "note": "Theater Arts Assessment Selection Guidance \n\nFor Theater Arts assessments, assess at least 1 representative room. If rooms have noticeably different conditions, assess multiple rooms. "
   },
   {
-    "spaceType": "Rehersal Hall",
+    "spaceType": "Rehearsal Hall",
     "schoolLevel": "MS, HS",
     "note": "Rehearsal Hall Assessment Selection Guidance \n\nFor Rehearsal Hall room assessments, assess a minimum of 2 representative rooms. If classrooms have noticeably different conditions, assess a 3rd room. "
   },

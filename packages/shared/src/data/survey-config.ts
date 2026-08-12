@@ -114,6 +114,139 @@ import {
   OUTDOOR_SPACES_RUBRIC_VERSION,
   OUTDOOR_SPACES_SUBCATEGORIES,
 } from "../data/outdoor-rubric"
+import {
+  LIBRARY_MEDIA_CENTER_CATEGORIES,
+  LIBRARY_MEDIA_CENTER_QUESTION_OPTIONS,
+  LIBRARY_MEDIA_CENTER_QUESTIONS,
+  LIBRARY_MEDIA_CENTER_RUBRIC_VERSION,
+  LIBRARY_MEDIA_CENTER_SUBCATEGORIES,
+  DINING_COMMONS_CATEGORIES,
+  DINING_COMMONS_QUESTION_OPTIONS,
+  DINING_COMMONS_QUESTIONS,
+  DINING_COMMONS_RUBRIC_VERSION,
+  DINING_COMMONS_SUBCATEGORIES,
+  KITCHEN_CATEGORIES,
+  KITCHEN_QUESTION_OPTIONS,
+  KITCHEN_QUESTIONS,
+  KITCHEN_RUBRIC_VERSION,
+  KITCHEN_SUBCATEGORIES,
+  EMPOWER_CENTER_CATEGORIES,
+  EMPOWER_CENTER_QUESTION_OPTIONS,
+  EMPOWER_CENTER_QUESTIONS,
+  EMPOWER_CENTER_RUBRIC_VERSION,
+  EMPOWER_CENTER_SUBCATEGORIES,
+} from "../data/shared-spaces-rubric"
+import {
+  THEATER_ARTS_STUDIO_CATEGORIES,
+  THEATER_ARTS_STUDIO_QUESTION_OPTIONS,
+  THEATER_ARTS_STUDIO_QUESTIONS,
+  THEATER_ARTS_STUDIO_RUBRIC_VERSION,
+  THEATER_ARTS_STUDIO_SUBCATEGORIES,
+  THEATER_ARTS_SUITE_CATEGORIES,
+  THEATER_ARTS_SUITE_QUESTION_OPTIONS,
+  THEATER_ARTS_SUITE_QUESTIONS,
+  THEATER_ARTS_SUITE_RUBRIC_VERSION,
+  THEATER_ARTS_SUITE_SUBCATEGORIES,
+  REHEARSAL_HALL_CATEGORIES,
+  REHEARSAL_HALL_QUESTION_OPTIONS,
+  REHEARSAL_HALL_QUESTIONS,
+  REHEARSAL_HALL_RUBRIC_VERSION,
+  REHEARSAL_HALL_SUBCATEGORIES,
+  BLACK_BOX_CATEGORIES,
+  BLACK_BOX_QUESTION_OPTIONS,
+  BLACK_BOX_QUESTIONS,
+  BLACK_BOX_RUBRIC_VERSION,
+  BLACK_BOX_SUBCATEGORIES,
+  AUDITORIUM_CATEGORIES,
+  AUDITORIUM_QUESTION_OPTIONS,
+  AUDITORIUM_QUESTIONS,
+  AUDITORIUM_RUBRIC_VERSION,
+  AUDITORIUM_SUBCATEGORIES,
+  DANCE_CATEGORIES,
+  DANCE_QUESTION_OPTIONS,
+  DANCE_QUESTIONS,
+  DANCE_RUBRIC_VERSION,
+  DANCE_SUBCATEGORIES,
+  MUSIC_SUITE_CATEGORIES,
+  MUSIC_SUITE_QUESTION_OPTIONS,
+  MUSIC_SUITE_QUESTIONS,
+  MUSIC_SUITE_RUBRIC_VERSION,
+  MUSIC_SUITE_SUBCATEGORIES,
+} from "../data/performing-arts-rubric"
+import {
+  MULTIPURPOSE_GYM_CATEGORIES,
+  MULTIPURPOSE_GYM_QUESTION_OPTIONS,
+  MULTIPURPOSE_GYM_QUESTIONS,
+  MULTIPURPOSE_GYM_RUBRIC_VERSION,
+  MULTIPURPOSE_GYM_SUBCATEGORIES,
+  COMPETITION_GYM_CATEGORIES,
+  COMPETITION_GYM_QUESTION_OPTIONS,
+  COMPETITION_GYM_QUESTIONS,
+  COMPETITION_GYM_RUBRIC_VERSION,
+  COMPETITION_GYM_SUBCATEGORIES,
+  PRACTICE_GYM_CATEGORIES,
+  PRACTICE_GYM_QUESTION_OPTIONS,
+  PRACTICE_GYM_QUESTIONS,
+  PRACTICE_GYM_RUBRIC_VERSION,
+  PRACTICE_GYM_SUBCATEGORIES,
+  ES_GYMNASIUM_CATEGORIES,
+  ES_GYMNASIUM_QUESTION_OPTIONS,
+  ES_GYMNASIUM_QUESTIONS,
+  ES_GYMNASIUM_RUBRIC_VERSION,
+  ES_GYMNASIUM_SUBCATEGORIES,
+  WEIGHT_ROOM_CATEGORIES,
+  WEIGHT_ROOM_QUESTION_OPTIONS,
+  WEIGHT_ROOM_QUESTIONS,
+  WEIGHT_ROOM_RUBRIC_VERSION,
+  WEIGHT_ROOM_SUBCATEGORIES,
+  WRESTLING_CATEGORIES,
+  WRESTLING_QUESTION_OPTIONS,
+  WRESTLING_QUESTIONS,
+  WRESTLING_RUBRIC_VERSION,
+  WRESTLING_SUBCATEGORIES,
+  LOCKER_ROOM_CATEGORIES,
+  LOCKER_ROOM_QUESTION_OPTIONS,
+  LOCKER_ROOM_QUESTIONS,
+  LOCKER_ROOM_RUBRIC_VERSION,
+  LOCKER_ROOM_SUBCATEGORIES,
+  PE_FITNESS_ROOM_CATEGORIES,
+  PE_FITNESS_ROOM_QUESTION_OPTIONS,
+  PE_FITNESS_ROOM_QUESTIONS,
+  PE_FITNESS_ROOM_RUBRIC_VERSION,
+  PE_FITNESS_ROOM_SUBCATEGORIES,
+  ATHLETICS_WING_CATEGORIES,
+  ATHLETICS_WING_QUESTION_OPTIONS,
+  ATHLETICS_WING_QUESTIONS,
+  ATHLETICS_WING_RUBRIC_VERSION,
+  ATHLETICS_WING_SUBCATEGORIES,
+  OUTDOOR_ATHLETICS_CATEGORIES,
+  OUTDOOR_ATHLETICS_QUESTION_OPTIONS,
+  OUTDOOR_ATHLETICS_QUESTIONS,
+  OUTDOOR_ATHLETICS_RUBRIC_VERSION,
+  OUTDOOR_ATHLETICS_SUBCATEGORIES,
+} from "../data/athletics-rubric"
+import {
+  CTE_STUDIO_CATEGORIES,
+  CTE_STUDIO_QUESTION_OPTIONS,
+  CTE_STUDIO_QUESTIONS,
+  CTE_STUDIO_RUBRIC_VERSION,
+  CTE_STUDIO_SUBCATEGORIES,
+  CTE_LOW_INTENSITY_LAB_CATEGORIES,
+  CTE_LOW_INTENSITY_LAB_QUESTION_OPTIONS,
+  CTE_LOW_INTENSITY_LAB_QUESTIONS,
+  CTE_LOW_INTENSITY_LAB_RUBRIC_VERSION,
+  CTE_LOW_INTENSITY_LAB_SUBCATEGORIES,
+  CTE_MEDIUM_INTENSITY_LAB_CATEGORIES,
+  CTE_MEDIUM_INTENSITY_LAB_QUESTION_OPTIONS,
+  CTE_MEDIUM_INTENSITY_LAB_QUESTIONS,
+  CTE_MEDIUM_INTENSITY_LAB_RUBRIC_VERSION,
+  CTE_MEDIUM_INTENSITY_LAB_SUBCATEGORIES,
+  CTE_HIGH_INTENSITY_LAB_CATEGORIES,
+  CTE_HIGH_INTENSITY_LAB_QUESTION_OPTIONS,
+  CTE_HIGH_INTENSITY_LAB_QUESTIONS,
+  CTE_HIGH_INTENSITY_LAB_RUBRIC_VERSION,
+  CTE_HIGH_INTENSITY_LAB_SUBCATEGORIES,
+} from "../data/cte-rubric"
 import { ensureNotAbleToAssessOptions } from "../data/not-able-to-assess"
 
 export {
@@ -133,6 +266,31 @@ export {
   NEIGHBORHOOD_SPACE_RUBRIC_VERSION,
   GROUP_ROOM_RUBRIC_VERSION,
   OPEN_COLLAB_RUBRIC_VERSION,
+  LIBRARY_MEDIA_CENTER_RUBRIC_VERSION,
+  DINING_COMMONS_RUBRIC_VERSION,
+  KITCHEN_RUBRIC_VERSION,
+  EMPOWER_CENTER_RUBRIC_VERSION,
+  THEATER_ARTS_STUDIO_RUBRIC_VERSION,
+  THEATER_ARTS_SUITE_RUBRIC_VERSION,
+  REHEARSAL_HALL_RUBRIC_VERSION,
+  BLACK_BOX_RUBRIC_VERSION,
+  AUDITORIUM_RUBRIC_VERSION,
+  DANCE_RUBRIC_VERSION,
+  MUSIC_SUITE_RUBRIC_VERSION,
+  MULTIPURPOSE_GYM_RUBRIC_VERSION,
+  COMPETITION_GYM_RUBRIC_VERSION,
+  PRACTICE_GYM_RUBRIC_VERSION,
+  ES_GYMNASIUM_RUBRIC_VERSION,
+  WEIGHT_ROOM_RUBRIC_VERSION,
+  WRESTLING_RUBRIC_VERSION,
+  LOCKER_ROOM_RUBRIC_VERSION,
+  PE_FITNESS_ROOM_RUBRIC_VERSION,
+  ATHLETICS_WING_RUBRIC_VERSION,
+  OUTDOOR_ATHLETICS_RUBRIC_VERSION,
+  CTE_STUDIO_RUBRIC_VERSION,
+  CTE_LOW_INTENSITY_LAB_RUBRIC_VERSION,
+  CTE_MEDIUM_INTENSITY_LAB_RUBRIC_VERSION,
+  CTE_HIGH_INTENSITY_LAB_RUBRIC_VERSION,
 }
 
 export interface SurveyRubric {
@@ -279,6 +437,206 @@ const OPEN_COLLAB_RUBRIC: SurveyRubric = {
   options: OPEN_COLLAB_QUESTION_OPTIONS as SurveyRubric["options"],
 }
 
+const LIBRARY_MEDIA_CENTER_RUBRIC: SurveyRubric = {
+  assessmentArea: "Shared Spaces",
+  categories: LIBRARY_MEDIA_CENTER_CATEGORIES,
+  subcategories: LIBRARY_MEDIA_CENTER_SUBCATEGORIES,
+  questions: LIBRARY_MEDIA_CENTER_QUESTIONS as SurveyRubric["questions"],
+  options: LIBRARY_MEDIA_CENTER_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const DINING_COMMONS_RUBRIC: SurveyRubric = {
+  assessmentArea: "Shared Spaces",
+  categories: DINING_COMMONS_CATEGORIES,
+  subcategories: DINING_COMMONS_SUBCATEGORIES,
+  questions: DINING_COMMONS_QUESTIONS as SurveyRubric["questions"],
+  options: DINING_COMMONS_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const KITCHEN_RUBRIC: SurveyRubric = {
+  assessmentArea: "Shared Spaces",
+  categories: KITCHEN_CATEGORIES,
+  subcategories: KITCHEN_SUBCATEGORIES,
+  questions: KITCHEN_QUESTIONS as SurveyRubric["questions"],
+  options: KITCHEN_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const EMPOWER_CENTER_RUBRIC: SurveyRubric = {
+  assessmentArea: "Shared Spaces",
+  categories: EMPOWER_CENTER_CATEGORIES,
+  subcategories: EMPOWER_CENTER_SUBCATEGORIES,
+  questions: EMPOWER_CENTER_QUESTIONS as SurveyRubric["questions"],
+  options: EMPOWER_CENTER_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const THEATER_ARTS_STUDIO_RUBRIC: SurveyRubric = {
+  assessmentArea: "Performing Arts",
+  categories: THEATER_ARTS_STUDIO_CATEGORIES,
+  subcategories: THEATER_ARTS_STUDIO_SUBCATEGORIES,
+  questions: THEATER_ARTS_STUDIO_QUESTIONS as SurveyRubric["questions"],
+  options: THEATER_ARTS_STUDIO_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const THEATER_ARTS_SUITE_RUBRIC: SurveyRubric = {
+  assessmentArea: "Performing Arts",
+  categories: THEATER_ARTS_SUITE_CATEGORIES,
+  subcategories: THEATER_ARTS_SUITE_SUBCATEGORIES,
+  questions: THEATER_ARTS_SUITE_QUESTIONS as SurveyRubric["questions"],
+  options: THEATER_ARTS_SUITE_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const REHEARSAL_HALL_RUBRIC: SurveyRubric = {
+  assessmentArea: "Performing Arts",
+  categories: REHEARSAL_HALL_CATEGORIES,
+  subcategories: REHEARSAL_HALL_SUBCATEGORIES,
+  questions: REHEARSAL_HALL_QUESTIONS as SurveyRubric["questions"],
+  options: REHEARSAL_HALL_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const BLACK_BOX_RUBRIC: SurveyRubric = {
+  assessmentArea: "Performing Arts",
+  categories: BLACK_BOX_CATEGORIES,
+  subcategories: BLACK_BOX_SUBCATEGORIES,
+  questions: BLACK_BOX_QUESTIONS as SurveyRubric["questions"],
+  options: BLACK_BOX_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const AUDITORIUM_RUBRIC: SurveyRubric = {
+  assessmentArea: "Performing Arts",
+  categories: AUDITORIUM_CATEGORIES,
+  subcategories: AUDITORIUM_SUBCATEGORIES,
+  questions: AUDITORIUM_QUESTIONS as SurveyRubric["questions"],
+  options: AUDITORIUM_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const DANCE_RUBRIC: SurveyRubric = {
+  assessmentArea: "Performing Arts",
+  categories: DANCE_CATEGORIES,
+  subcategories: DANCE_SUBCATEGORIES,
+  questions: DANCE_QUESTIONS as SurveyRubric["questions"],
+  options: DANCE_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const MUSIC_SUITE_RUBRIC: SurveyRubric = {
+  assessmentArea: "Performing Arts",
+  categories: MUSIC_SUITE_CATEGORIES,
+  subcategories: MUSIC_SUITE_SUBCATEGORIES,
+  questions: MUSIC_SUITE_QUESTIONS as SurveyRubric["questions"],
+  options: MUSIC_SUITE_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const MULTIPURPOSE_GYM_RUBRIC: SurveyRubric = {
+  assessmentArea: "Athletics and Wellness",
+  categories: MULTIPURPOSE_GYM_CATEGORIES,
+  subcategories: MULTIPURPOSE_GYM_SUBCATEGORIES,
+  questions: MULTIPURPOSE_GYM_QUESTIONS as SurveyRubric["questions"],
+  options: MULTIPURPOSE_GYM_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const COMPETITION_GYM_RUBRIC: SurveyRubric = {
+  assessmentArea: "Athletics and Wellness",
+  categories: COMPETITION_GYM_CATEGORIES,
+  subcategories: COMPETITION_GYM_SUBCATEGORIES,
+  questions: COMPETITION_GYM_QUESTIONS as SurveyRubric["questions"],
+  options: COMPETITION_GYM_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const PRACTICE_GYM_RUBRIC: SurveyRubric = {
+  assessmentArea: "Athletics and Wellness",
+  categories: PRACTICE_GYM_CATEGORIES,
+  subcategories: PRACTICE_GYM_SUBCATEGORIES,
+  questions: PRACTICE_GYM_QUESTIONS as SurveyRubric["questions"],
+  options: PRACTICE_GYM_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const ES_GYMNASIUM_RUBRIC: SurveyRubric = {
+  assessmentArea: "Athletics and Wellness",
+  categories: ES_GYMNASIUM_CATEGORIES,
+  subcategories: ES_GYMNASIUM_SUBCATEGORIES,
+  questions: ES_GYMNASIUM_QUESTIONS as SurveyRubric["questions"],
+  options: ES_GYMNASIUM_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const WEIGHT_ROOM_RUBRIC: SurveyRubric = {
+  assessmentArea: "Athletics and Wellness",
+  categories: WEIGHT_ROOM_CATEGORIES,
+  subcategories: WEIGHT_ROOM_SUBCATEGORIES,
+  questions: WEIGHT_ROOM_QUESTIONS as SurveyRubric["questions"],
+  options: WEIGHT_ROOM_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const WRESTLING_RUBRIC: SurveyRubric = {
+  assessmentArea: "Athletics and Wellness",
+  categories: WRESTLING_CATEGORIES,
+  subcategories: WRESTLING_SUBCATEGORIES,
+  questions: WRESTLING_QUESTIONS as SurveyRubric["questions"],
+  options: WRESTLING_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const LOCKER_ROOM_RUBRIC: SurveyRubric = {
+  assessmentArea: "Athletics and Wellness",
+  categories: LOCKER_ROOM_CATEGORIES,
+  subcategories: LOCKER_ROOM_SUBCATEGORIES,
+  questions: LOCKER_ROOM_QUESTIONS as SurveyRubric["questions"],
+  options: LOCKER_ROOM_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const PE_FITNESS_ROOM_RUBRIC: SurveyRubric = {
+  assessmentArea: "Athletics and Wellness",
+  categories: PE_FITNESS_ROOM_CATEGORIES,
+  subcategories: PE_FITNESS_ROOM_SUBCATEGORIES,
+  questions: PE_FITNESS_ROOM_QUESTIONS as SurveyRubric["questions"],
+  options: PE_FITNESS_ROOM_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const ATHLETICS_WING_RUBRIC: SurveyRubric = {
+  assessmentArea: "Athletics and Wellness",
+  categories: ATHLETICS_WING_CATEGORIES,
+  subcategories: ATHLETICS_WING_SUBCATEGORIES,
+  questions: ATHLETICS_WING_QUESTIONS as SurveyRubric["questions"],
+  options: ATHLETICS_WING_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const OUTDOOR_ATHLETICS_RUBRIC: SurveyRubric = {
+  assessmentArea: "Athletics and Wellness",
+  categories: OUTDOOR_ATHLETICS_CATEGORIES,
+  subcategories: OUTDOOR_ATHLETICS_SUBCATEGORIES,
+  questions: OUTDOOR_ATHLETICS_QUESTIONS as SurveyRubric["questions"],
+  options: OUTDOOR_ATHLETICS_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const CTE_STUDIO_RUBRIC: SurveyRubric = {
+  assessmentArea: "CTE",
+  categories: CTE_STUDIO_CATEGORIES,
+  subcategories: CTE_STUDIO_SUBCATEGORIES,
+  questions: CTE_STUDIO_QUESTIONS as SurveyRubric["questions"],
+  options: CTE_STUDIO_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const CTE_LOW_INTENSITY_LAB_RUBRIC: SurveyRubric = {
+  assessmentArea: "CTE",
+  categories: CTE_LOW_INTENSITY_LAB_CATEGORIES,
+  subcategories: CTE_LOW_INTENSITY_LAB_SUBCATEGORIES,
+  questions: CTE_LOW_INTENSITY_LAB_QUESTIONS as SurveyRubric["questions"],
+  options: CTE_LOW_INTENSITY_LAB_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const CTE_MEDIUM_INTENSITY_LAB_RUBRIC: SurveyRubric = {
+  assessmentArea: "CTE",
+  categories: CTE_MEDIUM_INTENSITY_LAB_CATEGORIES,
+  subcategories: CTE_MEDIUM_INTENSITY_LAB_SUBCATEGORIES,
+  questions: CTE_MEDIUM_INTENSITY_LAB_QUESTIONS as SurveyRubric["questions"],
+  options: CTE_MEDIUM_INTENSITY_LAB_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const CTE_HIGH_INTENSITY_LAB_RUBRIC: SurveyRubric = {
+  assessmentArea: "CTE",
+  categories: CTE_HIGH_INTENSITY_LAB_CATEGORIES,
+  subcategories: CTE_HIGH_INTENSITY_LAB_SUBCATEGORIES,
+  questions: CTE_HIGH_INTENSITY_LAB_QUESTIONS as SurveyRubric["questions"],
+  options: CTE_HIGH_INTENSITY_LAB_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
 const RUBRICS: Record<SurveyType, SurveyRubric | null> = {
   studios: STUDIOS_RUBRIC,
   /** Close Out reuses Studios questions for deferred unfinished items */
@@ -287,10 +645,10 @@ const RUBRICS: Record<SurveyType, SurveyRubric | null> = {
   neighborhoods: NEIGHBORHOOD_SPACE_RUBRIC,
   arrival: MAIN_OFFICE_RUBRIC,
   administration: ADMIN_OFFICE_RUBRIC,
-  athletics: null,
-  performing_arts: null,
-  cte: null,
-  shared_spaces: null,
+  athletics: MULTIPURPOSE_GYM_RUBRIC,
+  performing_arts: THEATER_ARTS_STUDIO_RUBRIC,
+  cte: CTE_STUDIO_RUBRIC,
+  shared_spaces: LIBRARY_MEDIA_CENTER_RUBRIC,
 }
 
 export function getSurveyRubric(type: SurveyType): SurveyRubric | null {
@@ -493,17 +851,55 @@ export function getRoomSurveyRubric(
     if (roomType === "Outdoor Spaces") {
       rubric = filterRubricBySchoolLevel(OUTDOOR_SPACES_RUBRIC, schoolClass)
     } else if (roomType === "Outdoor Athletics") {
-      rubric = filterRubricBySchoolLevel(OUTDOOR_SPACES_RUBRIC, schoolClass)
+      rubric = filterRubricBySchoolLevel(OUTDOOR_ATHLETICS_RUBRIC, schoolClass)
     } else {
       return null
     }
-  } else if (
-    effectiveType === "athletics" ||
-    effectiveType === "performing_arts" ||
-    effectiveType === "cte" ||
-    effectiveType === "shared_spaces"
-  ) {
-    rubric = filterRubricBySchoolLevel(TRADITIONAL_STUDIOS_RUBRIC, schoolClass)
+  } else if (effectiveType === "shared_spaces") {
+    const sharedType = normalizeSharedSpacesSpaceType(roomType ?? "")
+    let base: SurveyRubric | null = null
+    if (sharedType === "Library Media Center") base = LIBRARY_MEDIA_CENTER_RUBRIC
+    else if (sharedType === "Dining Commons") base = DINING_COMMONS_RUBRIC
+    else if (sharedType === "Kitchen") base = KITCHEN_RUBRIC
+    else if (sharedType === "Empower Center") base = EMPOWER_CENTER_RUBRIC
+    else if (sharedType === "Gym" || sharedType === "ES Gymnasium") base = ES_GYMNASIUM_RUBRIC
+    if (!base) return null
+    rubric = filterRubricBySchoolLevel(base, schoolClass)
+  } else if (effectiveType === "performing_arts") {
+    const artsType = normalizePerformingArtsSpaceType(roomType ?? "")
+    let base: SurveyRubric | null = null
+    if (artsType === "Theater Arts Studio") base = THEATER_ARTS_STUDIO_RUBRIC
+    else if (artsType === "Theater Arts Suite") base = THEATER_ARTS_SUITE_RUBRIC
+    else if (artsType === "Rehearsal Hall") base = REHEARSAL_HALL_RUBRIC
+    else if (artsType === "Black Box") base = BLACK_BOX_RUBRIC
+    else if (artsType === "Auditorium") base = AUDITORIUM_RUBRIC
+    else if (artsType === "Dance") base = DANCE_RUBRIC
+    else if (artsType === "Music Suite") base = MUSIC_SUITE_RUBRIC
+    if (!base) return null
+    rubric = filterRubricBySchoolLevel(base, schoolClass)
+  } else if (effectiveType === "athletics") {
+    const athleticsType = normalizeAthleticsSpaceType(roomType ?? "")
+    let base: SurveyRubric | null = null
+    if (athleticsType === "Multi-Purpose Gym") base = MULTIPURPOSE_GYM_RUBRIC
+    else if (athleticsType === "Competition Gym") base = COMPETITION_GYM_RUBRIC
+    else if (athleticsType === "Practice Gym") base = PRACTICE_GYM_RUBRIC
+    else if (athleticsType === "Weight Room") base = WEIGHT_ROOM_RUBRIC
+    else if (athleticsType === "Wrestling") base = WRESTLING_RUBRIC
+    else if (athleticsType === "Locker Room") base = LOCKER_ROOM_RUBRIC
+    else if (athleticsType === "PE Fitness Room") base = PE_FITNESS_ROOM_RUBRIC
+    else if (athleticsType === "Athletics Wing") base = ATHLETICS_WING_RUBRIC
+    else if (athleticsType === "Outdoor Athletics") base = OUTDOOR_ATHLETICS_RUBRIC
+    if (!base) return null
+    rubric = filterRubricBySchoolLevel(base, schoolClass)
+  } else if (effectiveType === "cte") {
+    const cteType = normalizeCteSpaceType(roomType ?? "")
+    let base: SurveyRubric | null = null
+    if (cteType === "CTE Studio") base = CTE_STUDIO_RUBRIC
+    else if (cteType === "Low Intensity Lab") base = CTE_LOW_INTENSITY_LAB_RUBRIC
+    else if (cteType === "Medium Intensity Lab") base = CTE_MEDIUM_INTENSITY_LAB_RUBRIC
+    else if (cteType === "High Intensity Lab") base = CTE_HIGH_INTENSITY_LAB_RUBRIC
+    if (!base) return null
+    rubric = filterRubricBySchoolLevel(base, schoolClass)
   } else if (effectiveType !== "studios" && effectiveType !== "closeout") {
     rubric = RUBRICS[effectiveType]
   } else if (roomType === "Traditional studio") {
@@ -880,6 +1276,34 @@ function normalizeNeighborhoodSpaceType(spaceType: string): string {
   return trimmed
 }
 
+function normalizeSharedSpacesSpaceType(spaceType: string): string {
+  const trimmed = spaceType.trim()
+  if (trimmed === "Media Center") return "Library Media Center"
+  if (trimmed === "Food Service") return "Dining Commons"
+  return trimmed
+}
+
+function normalizePerformingArtsSpaceType(spaceType: string): string {
+  const trimmed = spaceType.trim()
+  if (trimmed === "Theater Arts") return "Theater Arts Studio"
+  if (trimmed === "Rehersal Hall") return "Rehearsal Hall"
+  return trimmed
+}
+
+function normalizeAthleticsSpaceType(spaceType: string): string {
+  const trimmed = spaceType.trim()
+  if (trimmed === "Multipurpose Gym") return "Multi-Purpose Gym"
+  if (trimmed === "Locker rooms") return "Locker Room"
+  if (trimmed === "ES Gymnasium") return "Gym"
+  return trimmed
+}
+
+function normalizeCteSpaceType(spaceType: string): string {
+  const trimmed = spaceType.trim()
+  if (trimmed === "CTE") return "CTE Studio"
+  return trimmed
+}
+
 /** Neighborhoods module: scored per neighborhood, not a floor-plan room. */
 export function isNeighborhoodOnlySpaceType(
   surveyType: SurveyType,
@@ -939,7 +1363,66 @@ export function usesPackageNeighborhoodRubric(roomType: string | null | undefine
 
 /** Outdoor space types that use dedicated CSV package rubrics. */
 export function usesPackageOutdoorRubric(roomType: string | null | undefined): boolean {
-  return roomType === "Outdoor Spaces"
+  return roomType === "Outdoor Spaces" || roomType === "Outdoor Athletics"
+}
+
+/** Shared Spaces types that use dedicated CSV package rubrics. */
+export function usesPackageSharedSpacesRubric(roomType: string | null | undefined): boolean {
+  if (!roomType?.trim()) return false
+  const normalized = normalizeSharedSpacesSpaceType(roomType)
+  return (
+    normalized === "Library Media Center" ||
+    normalized === "Dining Commons" ||
+    normalized === "Kitchen" ||
+    normalized === "Empower Center" ||
+    normalized === "Gym" ||
+    normalized === "ES Gymnasium"
+  )
+}
+
+/** Performing Arts types that use dedicated CSV package rubrics. */
+export function usesPackagePerformingArtsRubric(roomType: string | null | undefined): boolean {
+  if (!roomType?.trim()) return false
+  const normalized = normalizePerformingArtsSpaceType(roomType)
+  return (
+    normalized === "Theater Arts Studio" ||
+    normalized === "Theater Arts Suite" ||
+    normalized === "Rehearsal Hall" ||
+    normalized === "Black Box" ||
+    normalized === "Auditorium" ||
+    normalized === "Dance" ||
+    normalized === "Music Suite"
+  )
+}
+
+/** Athletics types that use dedicated CSV package rubrics. */
+export function usesPackageAthleticsRubric(roomType: string | null | undefined): boolean {
+  if (!roomType?.trim()) return false
+  const normalized = normalizeAthleticsSpaceType(roomType)
+  return (
+    normalized === "Multi-Purpose Gym" ||
+    normalized === "Competition Gym" ||
+    normalized === "Practice Gym" ||
+    normalized === "Weight Room" ||
+    normalized === "Wrestling" ||
+    normalized === "Locker Room" ||
+    normalized === "PE Fitness Room" ||
+    normalized === "Athletics Wing" ||
+    normalized === "Outdoor Athletics" ||
+    normalized === "Gym"
+  )
+}
+
+/** CTE types that use dedicated CSV package rubrics. */
+export function usesPackageCteRubric(roomType: string | null | undefined): boolean {
+  if (!roomType?.trim()) return false
+  const normalized = normalizeCteSpaceType(roomType)
+  return (
+    normalized === "CTE Studio" ||
+    normalized === "Low Intensity Lab" ||
+    normalized === "Medium Intensity Lab" ||
+    normalized === "High Intensity Lab"
+  )
 }
 
 /** Dedicated package rubrics that should clear answers when switching types. */
@@ -949,7 +1432,11 @@ export function usesDedicatedSpaceRubric(roomType: string | null | undefined): b
     usesPackageAdminRubric(roomType) ||
     usesPackageArrivalRubric(roomType) ||
     usesPackageNeighborhoodRubric(roomType) ||
-    usesPackageOutdoorRubric(roomType)
+    usesPackageOutdoorRubric(roomType) ||
+    usesPackageSharedSpacesRubric(roomType) ||
+    usesPackagePerformingArtsRubric(roomType) ||
+    usesPackageAthleticsRubric(roomType) ||
+    usesPackageCteRubric(roomType)
   )
 }
 

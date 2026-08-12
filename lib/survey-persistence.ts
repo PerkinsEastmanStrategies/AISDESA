@@ -35,7 +35,7 @@ export interface PersistedSurveyDraft {
   pendingStudioType?: string | null
   /** Neighborhoods survey: selected neighborhood before existence gate / room pick */
   pendingNeighborhood?: string | null
-  view?: "survey" | "results"
+  view?: "home" | "survey" | "results"
   /** Rooms entered manually (not on the floor plan SVG) */
   manualRooms?: ParsedPlanRoom[]
   /** Building pre-walk room → space type mappings */

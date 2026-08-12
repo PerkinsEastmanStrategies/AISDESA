@@ -124,7 +124,7 @@ import {
   withPendingUpdatedForResponse,
 } from "@/lib/closeout"
 import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
-import { EMPTY_PREWALK, getPreWalkMappingForSurveyModule, migratePreWalkState, preWalkHasAssignments, preWalkHasCloudState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypeForRoom, preWalkSpaceTypePhotoKey, shouldPromptPreWalkOnSchoolSelect } from "@/lib/prewalk"
+import { EMPTY_PREWALK, getPreWalkMappingForSurveyModule, migratePreWalkState, preWalkHasAssignments, preWalkHasCloudState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypeForRoom, preWalkSpaceTypePhotoKey } from "@/lib/prewalk"
 import { applyTraditionalStudioCopyToRoom, getTraditionalStudioCopyOffer } from "@/lib/traditional-studio-copy"
 import { scoreRoomSessionWithMetadata, scoreAbsentSpaceTypeRoom } from "@/lib/traditional-studio-room-score"
 import {
@@ -150,7 +150,7 @@ import {
   mergeSchoolDrafts,
 } from "@/lib/school-draft-merge"
 
-export type SurveyView = "landing" | "admin" | "survey" | "results"
+export type SurveyView = "landing" | "admin" | "home" | "survey" | "results"
 
 interface SurveyState {
   surveyType: SurveyType
@@ -950,7 +950,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       return {
         ...state,
         assessorByType,
-        view: "survey",
+        view: state.school ? "home" : "landing",
       }
     }
     case "SET_SURVEY_TYPE": {
@@ -1053,7 +1053,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
           floorPlanLoading: false,
           allRooms: [],
           manualRooms: [],
-          view: "survey",
+          view: "landing",
           submission: null,
           showResumeBanner: false,
           weightOverrides: EMPTY_WEIGHT_OVERRIDES,
@@ -1069,7 +1069,9 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         const rooms = action.school.id === state.school?.id ? state.allRooms : []
         const floorPlan = action.school.id === state.school?.id ? state.floorPlan : null
         const restored = stateFromDraft(action.school, action.draft, false, state.assessorByType, rooms, floorPlan)
-        return bootstrapCampusScopedSurvey(restored)
+        // School switch lands on campus home unless the draft was mid-module work.
+        const draftView = restored.view === "survey" || restored.view === "results" ? restored.view : "home"
+        return bootstrapCampusScopedSurvey({ ...restored, view: draftView })
       }
       const assessor = resolveCampusAssessor(state.assessorByType, state.surveyType)
       const session = newSession(action.school, state.surveyType, assessor)
@@ -1085,7 +1087,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         floorPlanLoading: action.school.hasFloorPlan,
         allRooms: [],
         manualRooms: [],
-        view: "survey",
+        view: "home",
         submission: null,
         showResumeBanner: false,
         weightOverrides: EMPTY_WEIGHT_OVERRIDES,
@@ -1740,26 +1742,17 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         completedAt: state.preWalk.completedAt ?? incoming.completedAt,
         skippedAt: state.preWalk.skippedAt ?? incoming.skippedAt,
       }
-      const shouldPrompt =
-        !state.preWalkRequested &&
-        shouldPromptPreWalkOnSchoolSelect(preWalk, state.school?.schoolClass)
+      // Campus home offers pre-walk — do not auto-prompt on school select.
       return {
         ...state,
         preWalk,
-        preWalkPromptPending: shouldPrompt,
-        floorPlanLoading:
-          shouldPrompt && state.school?.hasFloorPlan ? false : state.floorPlanLoading,
+        preWalkPromptPending: false,
       }
     }
     case "PREWALK_PULL_DONE": {
-      const shouldPrompt =
-        !state.preWalkRequested &&
-        shouldPromptPreWalkOnSchoolSelect(state.preWalk, state.school?.schoolClass)
       return {
         ...state,
-        preWalkPromptPending: shouldPrompt,
-        floorPlanLoading:
-          shouldPrompt && state.school?.hasFloorPlan ? false : state.floorPlanLoading,
+        preWalkPromptPending: false,
       }
     }
     case "APPLY_TRADITIONAL_STUDIO_COPY": {
@@ -2159,6 +2152,8 @@ interface SurveyContextValue {
   setFinalComment: (comment: string) => void
   peekSubmitValidation: () => SubmitValidationResult | null
   setView: (view: SurveyView) => void
+  /** Enter a survey module from campus home (loads that module and enables conflict checks). */
+  enterSurveyModule: (t: SurveyType, options?: { pendingStudioType?: string | null }) => void
   continueSurvey: () => void
   resetSurvey: () => void
   dismissResumeBanner: () => void
@@ -2318,7 +2313,12 @@ function persistDraftFromState(state: SurveyState): string | null {
     pendingStudioType: state.pendingStudioType,
     pendingNeighborhood: state.pendingNeighborhood,
     preWalk: state.preWalk,
-    view: state.view === "admin" || state.view === "landing" ? "survey" : state.view,
+    view:
+      state.view === "admin" || state.view === "landing"
+        ? "home"
+        : state.view === "home" || state.view === "survey" || state.view === "results"
+          ? state.view
+          : "home",
     manualRooms: state.manualRooms,
     lastSubmission: state.submission,
     savedAt,
@@ -2512,8 +2512,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   ])
 
   // Alert when another assessor has started/submitted this survey module online.
+  // Only check after the user intentionally enters a module (not on campus home / login).
   useEffect(() => {
-    if (!state.hydrated || !state.school) return
+    if (!state.hydrated || !state.school || state.view !== "survey") return
 
     const assessor = resolveCampusAssessor(state.assessorByType, state.surveyType)
     void fetchRemoteSurveyStatusClient({
@@ -2526,7 +2527,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         setRemoteConflictOpen(true)
       }
     })
-  }, [state.hydrated, state.school?.id, state.surveyType, state.assessorByType])
+  }, [state.hydrated, state.school?.id, state.surveyType, state.assessorByType, state.view])
 
   const refreshRemoteSchoolDrafts = useCallback(async () => {
     if (!state.school || !isBrowserOnline()) {
@@ -3379,6 +3380,30 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     [],
   )
   const setView = useCallback((view: SurveyView) => dispatch({ type: "SET_VIEW", view }), [])
+  const enterSurveyModule = useCallback(
+    (t: SurveyType, options?: { pendingStudioType?: string | null }) => {
+      if (state.school) {
+        if (t !== state.surveyType && state.session) {
+          persistDraftFromState(state)
+        }
+        const draft = loadDraft(state.school.id, t)
+        dispatch({
+          type: "SET_SURVEY_TYPE",
+          surveyType: t,
+          draft: draft ?? undefined,
+          pendingStudioType: options?.pendingStudioType,
+        })
+      } else {
+        dispatch({
+          type: "SET_SURVEY_TYPE",
+          surveyType: t,
+          pendingStudioType: options?.pendingStudioType,
+        })
+      }
+      dispatch({ type: "SET_VIEW", view: "survey" })
+    },
+    [state],
+  )
   const openResults = useCallback(
     (tab: "campus" | "room" | "neighborhood" | "compare" | "photos" = "campus") => {
       setResultsInitialTab(tab)
@@ -3505,6 +3530,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         setFinalComment,
         peekSubmitValidation,
         setView,
+        enterSurveyModule,
         continueSurvey,
         resetSurvey,
         dismissResumeBanner,

@@ -1,9 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Check, CheckCircle2, ChevronDown, LoaderCircle, Search, X } from "lucide-react"
+import { Check, ChevronDown, Search, X } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
-import { surveyTypeLabel } from "@aisd/shared"
 import { isValidAssessorEmail, resolveCampusAssessor } from "@/lib/assessor"
 import { cn } from "@/lib/utils"
 
@@ -11,14 +10,12 @@ export default function SurveyAssessorLanding() {
   const {
     state,
     registerAssessor,
-    surveyTypeInfos,
     schools,
     schoolsLoading,
     setSchool,
   } = useSurvey()
   const existing =
     state.assessorByType[state.surveyType] ?? resolveCampusAssessor(state.assessorByType)
-  const typeInfo = surveyTypeInfos[state.surveyType]
 
   const [name, setName] = useState(existing?.name ?? "")
   const [email, setEmail] = useState(existing?.email ?? "")
@@ -70,22 +67,11 @@ export default function SurveyAssessorLanding() {
     <div className="flex flex-1 flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-white p-6 shadow-sm">
         <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-muted-foreground)]">
-          {surveyTypeLabel(state.surveyType)} assessment
+          Field assessor
         </p>
-        {typeInfo.status === "complete" ? (
-          <p className="mt-2 flex items-center gap-1.5 text-sm font-medium text-emerald-700">
-            <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
-            This survey is complete for the selected school
-          </p>
-        ) : typeInfo.status === "in_progress" && typeInfo.assessor ? (
-          <p className="mt-2 flex items-center gap-1.5 text-sm text-amber-800">
-            <LoaderCircle className="h-4 w-4 shrink-0" aria-hidden />
-            In progress · started by {typeInfo.assessor.name}
-          </p>
-        ) : null}
-        <h2 className="mt-1 text-xl font-semibold leading-tight">Before you begin</h2>
+        <h2 className="mt-1 text-xl font-semibold leading-tight">Sign in to continue</h2>
         <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
-          Select the school, then enter your name and email.
+          Select the school, then enter your name and email. You will choose a survey module next.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">

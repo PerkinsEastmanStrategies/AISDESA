@@ -227,7 +227,6 @@ export default function SurveyHeader() {
   const {
     state,
     setView,
-    continueSurvey,
     openResults,
     schoolHasResults,
     schoolScoredRoomCount,
@@ -235,7 +234,9 @@ export default function SurveyHeader() {
   } = useSurvey()
 
   const showResults =
-    schoolHasResults && state.view === "survey" && hasAssessorRegistered
+    schoolHasResults &&
+    (state.view === "survey" || state.view === "home") &&
+    hasAssessorRegistered
 
   return (
     <header className="z-50 shrink-0 border-b border-[var(--color-border)] bg-[var(--color-card)] shadow-sm safe-top">
@@ -251,19 +252,35 @@ export default function SurveyHeader() {
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-sm font-semibold leading-tight">ESA Survey</h1>
           <p className="truncate text-xs text-[var(--color-muted-foreground)]">
-            {state.view === "results" ? "Results" : "Field assessment"}
+            {state.view === "results"
+              ? "Results"
+              : state.view === "home"
+                ? "Campus hub"
+                : "Field assessment"}
           </p>
         </div>
         <AssessorProfileMenu />
         <div className="flex max-w-[min(100%,14rem)] shrink-0 items-center gap-1.5 overflow-x-auto sm:max-w-none sm:gap-2">
           <button
             type="button"
-            onClick={() => setView("landing")}
+            onClick={() => {
+              if (state.school && hasAssessorRegistered && state.view !== "home") {
+                setView("home")
+                return
+              }
+              setView("landing")
+            }}
             className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 active:bg-slate-100"
-            aria-label="Back to home"
+            aria-label={
+              state.school && hasAssessorRegistered && state.view !== "home"
+                ? "Back to campus hub"
+                : "Back to home"
+            }
           >
             <Home className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Home</span>
+            <span className="hidden sm:inline">
+              {state.school && hasAssessorRegistered && state.view !== "home" ? "Campus" : "Home"}
+            </span>
           </button>
           <button
             type="button"
@@ -287,11 +304,11 @@ export default function SurveyHeader() {
           {state.view === "results" && hasAssessorRegistered && (
             <button
               type="button"
-              onClick={() => continueSurvey()}
+              onClick={() => setView("home")}
               className="flex shrink-0 items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-[var(--color-primary)] active:bg-blue-100"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Questions
+              Campus
             </button>
           )}
         </div>
