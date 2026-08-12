@@ -164,15 +164,13 @@ export function isNeighborhoodsSurveyComplete(
   return isSpaceTypeSurveyComplete("neighborhoods", session, schoolClass)
 }
 
-/** Outdoor is complete when the campus outdoor survey is fully filled out. */
+/** Outdoor is complete when every required outdoor space type is filled out. */
 export function isOutdoorSurveyComplete(
   session: SurveySession | null | undefined,
   schoolClass?: string | null,
 ): boolean {
   if (!session) return false
-  const room = session.rooms[OUTDOOR_SURVEY_ROOM_ID]
-  if (!room) return false
-  return isRoomSurveyFilledOut(room, "outdoor", schoolClass)
+  return isSpaceTypeSurveyComplete("outdoor", session, schoolClass)
 }
 
 function isSurveyModuleComplete(

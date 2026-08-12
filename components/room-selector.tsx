@@ -27,6 +27,7 @@ import {
   neighborhoodSurveyRoomDisplayName,
   neighborhoodSurveyRoomId,
   outdoorSurveyRoomDisplayName,
+  spaceTypeFromOutdoorSurveyRoomId,
   studioTypeShowsGradePicker,
   surveyModuleUsesSpaceTypePicker,
   surveyTypeForSpaceType,
@@ -282,7 +283,9 @@ export default function RoomSelector({
         pending.push({
           id: roomSession.roomId,
           name: isOutdoorSurveyRoomId(roomSession.roomId)
-            ? outdoorSurveyRoomDisplayName()
+            ? outdoorSurveyRoomDisplayName(
+                roomSession.roomType || spaceTypeFromOutdoorSurveyRoomId(roomSession.roomId),
+              )
             : neighborhoodLabel
               ? neighborhoodSurveyRoomDisplayName(neighborhoodLabel)
               : roomSession.schoolRoomNumber?.trim() ||

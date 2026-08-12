@@ -49,6 +49,8 @@ import {
   isNeighborhoodOnlySpaceType,
   neighborhoodSurveyRoomId,
   spaceTypeFromNeighborhoodSurveyRoomId,
+  spaceTypeFromOutdoorSurveyRoomId,
+  outdoorSurveyRoomId,
   isRoomComplete,
   isSecondaryGrade,
   neighborhoodFromSurveyRoomId,
@@ -341,7 +343,10 @@ function resolveRoomType(
   existing?: RoomSurveySession,
 ): string {
   if (isOutdoorSurveyRoomId(roomId) && state.surveyType === "outdoor") {
-    return "Outdoor Spaces"
+    return (
+      spaceTypeFromOutdoorSurveyRoomId(roomId) ??
+      (state.pendingStudioType === "Outdoor Athletics" ? "Outdoor Athletics" : "Outdoor Spaces")
+    )
   }
   if (isNeighborhoodSurveyRoomId(roomId) && state.surveyType === "neighborhoods") {
     return (
@@ -382,7 +387,10 @@ function mergeOutdoorSessionsIntoCampusRoom(session: SurveySession): SurveySessi
   let merged = session.rooms[campusId]
 
   for (const [roomId, room] of Object.entries(session.rooms)) {
-    if (roomId === campusId || !isOutdoorSpaceType(room.roomType)) continue
+    // Only migrate legacy floor-plan rooms typed as Outdoor Spaces into the campus room.
+    // Keep Outdoor Athletics (and its synthetic room) separate.
+    if (roomId === campusId || isOutdoorSurveyRoomId(roomId)) continue
+    if (room.roomType !== "Outdoor Spaces") continue
     if (!merged) {
       merged = {
         ...room,
@@ -406,17 +414,17 @@ function mergeOutdoorSessionsIntoCampusRoom(session: SurveySession): SurveySessi
 
   const rooms = { ...session.rooms }
   for (const roomId of Object.keys(rooms)) {
-    if (roomId !== campusId && isOutdoorSpaceType(rooms[roomId]?.roomType ?? "")) {
+    if (
+      roomId !== campusId &&
+      !isOutdoorSurveyRoomId(roomId) &&
+      rooms[roomId]?.roomType === "Outdoor Spaces"
+    ) {
       delete rooms[roomId]
     }
   }
 
   if (!merged) {
-    merged = ensureRoomSession(
-      { surveyType: "outdoor" } as SurveyState,
-      campusId,
-      undefined,
-    )
+    return session
   }
 
   rooms[campusId] = merged
@@ -426,33 +434,48 @@ function mergeOutdoorSessionsIntoCampusRoom(session: SurveySession): SurveySessi
 function bootstrapCampusScopedSurvey(state: SurveyState): SurveyState {
   if (!isCampusScopedSurveyType(state.surveyType) || !state.school) return state
 
-  const roomId = OUTDOOR_SURVEY_ROOM_ID
+  const spaceType =
+    state.pendingStudioType === "Outdoor Athletics" ? "Outdoor Athletics" : "Outdoor Spaces"
+  const roomId = outdoorSurveyRoomId(spaceType)
   if (!state.session) {
     return {
       ...state,
       selectedRoomId: roomId,
-      pendingStudioType: "Outdoor Spaces",
+      pendingStudioType: spaceType,
     }
   }
 
   const session = mergeOutdoorSessionsIntoCampusRoom(state.session)
   const existing = session.rooms[roomId]
-  const ensured = ensureRoomSession(state, roomId, existing)
+  const ensured = ensureRoomSession(
+    { ...state, pendingStudioType: spaceType, session },
+    roomId,
+    existing,
+  )
 
   return {
     ...state,
     selectedRoomId: roomId,
-    pendingStudioType: "Outdoor Spaces",
+    pendingStudioType: spaceType,
     session: {
       ...session,
       updatedAt: new Date().toISOString(),
-      rooms: { ...session.rooms, [roomId]: ensured },
+      rooms: {
+        ...session.rooms,
+        [roomId]: {
+          ...ensured,
+          roomType: spaceType,
+          roomNumber: outdoorSurveyRoomDisplayName(spaceType),
+        },
+      },
     },
   }
 }
 
 function roomDisplayName(state: SurveyState, roomId: string): string {
-  if (isOutdoorSurveyRoomId(roomId)) return outdoorSurveyRoomDisplayName()
+  if (isOutdoorSurveyRoomId(roomId)) {
+    return outdoorSurveyRoomDisplayName(spaceTypeFromOutdoorSurveyRoomId(roomId))
+  }
   const absent = parseAbsentSpaceTypeRoomId(roomId)
   if (absent) return absentSpaceTypeRoomDisplayName(absent.spaceType, absent.neighborhood)
   const neighborhoodLabel = neighborhoodFromSurveyRoomId(roomId)
@@ -540,17 +563,21 @@ function ensureRoomSession(
   }
 
   if (isOutdoorSurveyRoomId(roomId) && state.surveyType === "outdoor") {
+    const roomType =
+      spaceTypeFromOutdoorSurveyRoomId(roomId) ??
+      (state.pendingStudioType === "Outdoor Athletics" ? "Outdoor Athletics" : "Outdoor Spaces")
+    const label = outdoorSurveyRoomDisplayName(roomType)
     if (existing) {
       return {
         ...existing,
-        roomType: "Outdoor Spaces",
-        roomNumber: existing.roomNumber?.trim() || "Outdoor Spaces",
+        roomType,
+        roomNumber: existing.roomNumber?.trim() || label,
       }
     }
     return {
       roomId,
-      roomNumber: "Outdoor Spaces",
-      roomType: "Outdoor Spaces",
+      roomNumber: label,
+      roomType,
       gradeType: "",
       neighborhood: "",
       preWalkNote1: "",
@@ -1240,6 +1267,43 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       }
     }
     case "SET_PENDING_STUDIO_TYPE": {
+      if (
+        state.surveyType === "outdoor" &&
+        action.roomType &&
+        isOutdoorSpaceType(action.roomType)
+      ) {
+        const roomId = outdoorSurveyRoomId(action.roomType)
+        if (!state.session) {
+          return {
+            ...state,
+            pendingStudioType: action.roomType,
+            selectedRoomId: roomId,
+          }
+        }
+        const existing = state.session.rooms[roomId]
+        const ensured = ensureRoomSession(
+          { ...state, pendingStudioType: action.roomType },
+          roomId,
+          existing,
+        )
+        return {
+          ...state,
+          pendingStudioType: action.roomType,
+          selectedRoomId: roomId,
+          session: {
+            ...state.session,
+            updatedAt: new Date().toISOString(),
+            rooms: {
+              ...state.session.rooms,
+              [roomId]: {
+                ...ensured,
+                roomType: action.roomType,
+                roomNumber: outdoorSurveyRoomDisplayName(action.roomType),
+              },
+            },
+          },
+        }
+      }
       const clearNeighborhood = action.roomType !== state.pendingStudioType
       const switchingNeighborhoodOnly =
         isNeighborhoodSurveyRoomId(state.selectedRoomId) ||

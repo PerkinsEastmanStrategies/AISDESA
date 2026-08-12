@@ -10,9 +10,14 @@ import { PreWalkBanner } from "@/components/pre-walk-launcher"
 import TraditionalStudioCopyReviewModal from "@/components/traditional-studio-copy-review-modal"
 import OutdoorElementsMapModal from "@/components/outdoor-elements-map-modal"
 import { resolveRoomNeighborhoodForCopy } from "@/lib/traditional-studio-copy"
-import { isNeighborhoodOnlySpaceType, isSpaceTypeMarkedAbsentAtSchool } from "@aisd/shared"
+import {
+  isNeighborhoodOnlySpaceType,
+  isSpaceTypeMarkedAbsentAtSchool,
+  spaceTypeOptionsForSurvey,
+} from "@aisd/shared"
 import { effectiveSpaceTypeForSelection } from "@/lib/prewalk"
 import { Map } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 function roomDisplayName(
   roomId: string,
@@ -25,7 +30,7 @@ function roomDisplayName(
 }
 
 export default function StudioSurvey() {
-  const { state, currentRoomSession, closeOutPending } = useSurvey()
+  const { state, currentRoomSession, closeOutPending, setPendingStudioType } = useSurvey()
   const [showFloorPlan, setShowFloorPlan] = useState(false)
   const [outdoorMapOpen, setOutdoorMapOpen] = useState(false)
   const [copyReviewModalOpen, setCopyReviewModalOpen] = useState(false)
@@ -65,6 +70,14 @@ export default function StudioSurvey() {
     setShowFloorPlan(false)
     setOutdoorMapOpen(false)
   }, [state.school?.id, state.surveyType, state.pendingStudioType])
+
+  const outdoorSpaceTypeOptions = useMemo(
+    () =>
+      state.surveyType === "outdoor"
+        ? spaceTypeOptionsForSurvey("outdoor", state.school?.schoolClass)
+        : [],
+    [state.surveyType, state.school?.schoolClass],
+  )
 
   if (!state.school) {
     return (
@@ -117,6 +130,8 @@ export default function StudioSurvey() {
             room.neighborhood?.trim() === pendingNeighborhood),
       ))
   const showQuestions = !!state.selectedRoomId && !spaceTypeAbsent
+  const outdoorSelectedType =
+    selectedSpaceType === "Outdoor Athletics" ? "Outdoor Athletics" : "Outdoor Spaces"
 
   return (
     <>
@@ -159,9 +174,34 @@ export default function StudioSurvey() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400">
               Assessment scope
             </p>
-            <p className="mt-1 text-sm font-medium text-slate-900">Campus outdoor elements</p>
-            <p className="mt-1 text-xs text-slate-500">
-              Score playground, outdoor studios, gardens, and other campus-wide outdoor features for this school.
+            {outdoorSpaceTypeOptions.length > 1 ? (
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {outdoorSpaceTypeOptions.map((type) => {
+                  const active = outdoorSelectedType === type
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setPendingStudioType(type)}
+                      className={cn(
+                        "min-h-[48px] rounded-xl border px-3 py-2 text-left text-sm font-semibold transition-colors",
+                        active
+                          ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-white"
+                          : "border-slate-200 bg-slate-50 text-slate-800 active:bg-slate-100",
+                      )}
+                    >
+                      {type}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="mt-1 text-sm font-medium text-slate-900">Campus outdoor elements</p>
+            )}
+            <p className="mt-2 text-xs text-slate-500">
+              {outdoorSelectedType === "Outdoor Athletics"
+                ? "Score outdoor athletic fields, tracks, courts, and related campus athletics features."
+                : "Score playground, outdoor studios, gardens, and other campus-wide outdoor features for this school."}
             </p>
             <button
               type="button"

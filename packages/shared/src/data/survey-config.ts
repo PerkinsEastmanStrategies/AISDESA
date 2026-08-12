@@ -1120,7 +1120,7 @@ export function isNeighborhoodSpaceType(value: string): value is NeighborhoodSpa
   return (NEIGHBORHOOD_SPACE_TYPE_OPTIONS as readonly string[]).includes(value)
 }
 
-export const OUTDOOR_SPACE_TYPE_OPTIONS = ["Outdoor Spaces"] as const
+export const OUTDOOR_SPACE_TYPE_OPTIONS = ["Outdoor Spaces", "Outdoor Athletics"] as const
 
 export type OutdoorSpaceType = (typeof OUTDOOR_SPACE_TYPE_OPTIONS)[number]
 
@@ -1132,7 +1132,7 @@ export function isOutdoorSpaceType(value: string): value is OutdoorSpaceType {
 export function spaceTypeRequiresExistenceGate(spaceType: string | null | undefined): boolean {
   if (!spaceType?.trim()) return false
   if (spaceType === "Traditional studio") return false
-  if (isOutdoorSpaceType(spaceType) || spaceType === "Outdoor Athletics") return false
+  if (isOutdoorSpaceType(spaceType)) return false
   return true
 }
 
@@ -1217,15 +1217,32 @@ export function absentSpaceTypeRoomDisplayName(
     : `${spaceType} — not present`
 }
 
-/** Synthetic session key for campus-wide Outdoor Elements scoring (not a floor-plan room). */
+/** Synthetic session keys for campus-wide Outdoor Elements scoring (not floor-plan rooms). */
 export const OUTDOOR_SURVEY_ROOM_ID = "__outdoor-spaces__" as const
+export const OUTDOOR_ATHLETICS_SURVEY_ROOM_ID = "__outdoor-athletics__" as const
 
-export function isOutdoorSurveyRoomId(roomId: string | null | undefined): boolean {
-  return roomId === OUTDOOR_SURVEY_ROOM_ID
+export function outdoorSurveyRoomId(spaceType?: string | null): string {
+  return spaceType === "Outdoor Athletics"
+    ? OUTDOOR_ATHLETICS_SURVEY_ROOM_ID
+    : OUTDOOR_SURVEY_ROOM_ID
 }
 
-export function outdoorSurveyRoomDisplayName(): string {
-  return "Outdoor Spaces"
+export function isOutdoorSurveyRoomId(roomId: string | null | undefined): boolean {
+  return roomId === OUTDOOR_SURVEY_ROOM_ID || roomId === OUTDOOR_ATHLETICS_SURVEY_ROOM_ID
+}
+
+export function spaceTypeFromOutdoorSurveyRoomId(
+  roomId: string | null | undefined,
+): OutdoorSpaceType | null {
+  if (roomId === OUTDOOR_ATHLETICS_SURVEY_ROOM_ID) return "Outdoor Athletics"
+  if (roomId === OUTDOOR_SURVEY_ROOM_ID) return "Outdoor Spaces"
+  return null
+}
+
+export function outdoorSurveyRoomDisplayName(spaceType?: string | null): string {
+  if (spaceType === "Outdoor Athletics") return "Outdoor Athletics"
+  if (!spaceType) return "Outdoor Spaces"
+  return spaceType === "Outdoor Spaces" ? "Outdoor Spaces" : spaceType
 }
 
 /** Synthetic session keys for Neighborhood space-type scoring (one per identified neighborhood). */

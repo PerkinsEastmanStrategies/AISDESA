@@ -18,6 +18,7 @@ import {
   neighborhoodFromSurveyRoomId,
   neighborhoodSurveyRoomDisplayName,
   outdoorSurveyRoomDisplayName,
+  spaceTypeFromOutdoorSurveyRoomId,
   scoringFocusAreaForRoom,
   SCORING_FOCUS_AREAS,
   spaceTypesForScoringFocusArea,
@@ -107,7 +108,9 @@ function averageCategoryScores(rooms: Pick<ScoredRoomEntry, "categoryScores" | "
 }
 
 function roomDisplayName(roomId: string, roomSession: RoomSurveySession): string {
-  if (isOutdoorSurveyRoomId(roomId)) return outdoorSurveyRoomDisplayName()
+  if (isOutdoorSurveyRoomId(roomId)) {
+    return outdoorSurveyRoomDisplayName(spaceTypeFromOutdoorSurveyRoomId(roomId))
+  }
   const absent = parseAbsentSpaceTypeRoomId(roomId)
   if (absent) return absentSpaceTypeRoomDisplayName(absent.spaceType, absent.neighborhood)
   const neighborhoodLabel = neighborhoodFromSurveyRoomId(roomId)
