@@ -168,8 +168,9 @@ export async function pullPrewalkClient(schoolId: string): Promise<PreWalkState 
 export async function pushPrewalkClient(input: {
   school: AisdSchoolOption
   preWalk: PreWalkState
-}): Promise<"pushed" | "offline" | "error"> {
-  if (!isBrowserOnline()) return "offline"
+  deletions?: Array<{ surveyType: SurveyType; roomId: string }>
+}): Promise<{ ok: true; preWalk: PreWalkState } | { ok: false; reason: "offline" | "error" }> {
+  if (!isBrowserOnline()) return { ok: false, reason: "offline" }
 
   try {
     const response = await fetch("/api/survey/prewalk", {
@@ -177,11 +178,20 @@ export async function pushPrewalkClient(input: {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     })
-    if (!response.ok) return "error"
-    const payload = (await response.json()) as { action?: "pushed" | "offline" }
-    return payload.action === "pushed" ? "pushed" : "error"
+    if (!response.ok) return { ok: false, reason: "error" }
+    const payload = (await response.json()) as {
+      action?: "pushed" | "offline"
+      preWalk?: PreWalkState
+    }
+    if (payload.action === "pushed" && payload.preWalk) {
+      return { ok: true, preWalk: payload.preWalk }
+    }
+    if (payload.action === "pushed") {
+      return { ok: true, preWalk: input.preWalk }
+    }
+    return { ok: false, reason: "error" }
   } catch {
-    return "offline"
+    return { ok: false, reason: "offline" }
   }
 }
 

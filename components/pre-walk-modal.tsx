@@ -40,6 +40,7 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
     clearPreWalkMappingsForSurvey,
     completePreWalk,
     savePreWalkToCloud,
+    refreshPreWalkFromCloud,
     skipPreWalk,
   } = useSurvey()
 
@@ -66,6 +67,16 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
   useEffect(() => {
     if (open) setShowDesignIntentPopup(true)
   }, [open])
+
+  // Keep shared room assignments fresh while the pre-walk map is open.
+  useEffect(() => {
+    if (!open) return
+    void refreshPreWalkFromCloud()
+    const timer = window.setInterval(() => {
+      void refreshPreWalkFromCloud()
+    }, 3000)
+    return () => window.clearInterval(timer)
+  }, [open, refreshPreWalkFromCloud])
 
   useEffect(() => {
     if (!open || !surveyOptions.length) return

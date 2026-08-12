@@ -15,6 +15,7 @@ import { surveyTypeLabel } from "@aisd/shared"
 import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
 import { sessionHasRegisteredAssessor } from "@/lib/assessor"
 import { countDraftResponses } from "@/lib/school-draft-merge"
+import { applyPreWalkMappingDeletes, mergePreWalkStates } from "@/lib/prewalk"
 import {
   isSupabaseServerConfigured,
   supabaseRestDelete,
@@ -300,6 +301,7 @@ function dbRoomToSession(row: DbSurveyRoom, responses: DbQuestionResponse[]): Ro
 async function syncPrewalk(
   school: AisdSchoolOption,
   preWalk: PreWalkState | undefined,
+  deletions?: Array<{ surveyType: string; roomId: string }>,
 ): Promise<void> {
   if (!preWalk) return
 
@@ -314,12 +316,7 @@ async function syncPrewalk(
     "school_id",
   )
 
-  // Replace school pre-walk mappings wholesale so clears/removals sync to Supabase.
-  await supabaseRestDelete(
-    "esa_prewalk_mappings",
-    `school_id=eq.${encodeURIComponent(school.id)}`,
-  )
-
+  // Upsert only — never wipe the whole school table (other assessors may have added rooms).
   const mappings = Object.values(preWalk.mappings ?? {})
   if (mappings.length > 0) {
     await supabaseRestUpsert(
@@ -335,6 +332,14 @@ async function syncPrewalk(
         mapped_at: m.mappedAt ?? null,
       })),
       "school_id,survey_type,room_id",
+    )
+  }
+
+  // Explicit removals only (so one device clearing a room does not erase others' work).
+  for (const deletion of deletions ?? []) {
+    await supabaseRestDelete(
+      "esa_prewalk_mappings",
+      `school_id=eq.${encodeURIComponent(school.id)}&survey_type=eq.${encodeURIComponent(deletion.surveyType)}&room_id=eq.${encodeURIComponent(deletion.roomId)}`,
     )
   }
 }
@@ -785,14 +790,24 @@ export function isSurveyDbConfigured(): boolean {
 export async function pushPrewalkOnly(input: {
   school: AisdSchoolOption
   preWalk: PreWalkState
-}): Promise<{ updatedAt: string }> {
+  deletions?: Array<{ surveyType: string; roomId: string }>
+}): Promise<{ updatedAt: string; preWalk: PreWalkState }> {
   if (!isSupabaseServerConfigured()) {
-    return { updatedAt: new Date().toISOString() }
+    return { updatedAt: new Date().toISOString(), preWalk: input.preWalk }
   }
 
   await upsertSchool(input.school)
-  await syncPrewalk(input.school, input.preWalk)
-  return { updatedAt: new Date().toISOString() }
+  const remote = await pullPrewalkForSchool(input.school.id)
+  const merged = applyPreWalkMappingDeletes(
+    mergePreWalkStates(remote, input.preWalk),
+    input.deletions?.map((d) => ({
+      surveyType: d.surveyType as SurveyType,
+      roomId: d.roomId,
+    })),
+  )
+
+  await syncPrewalk(input.school, merged, input.deletions)
+  return { updatedAt: new Date().toISOString(), preWalk: merged }
 }
 
 /** Load pre-walk room assignments for a school from Supabase. */

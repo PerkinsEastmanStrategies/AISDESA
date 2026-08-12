@@ -401,6 +401,53 @@ export function preWalkHasCloudState(preWalk?: PreWalkState | null): boolean {
   return preWalkHasAssignments(preWalk) || !!preWalk?.completedAt || !!preWalk?.skippedAt
 }
 
+export type PreWalkMappingRef = { surveyType: SurveyType; roomId: string }
+
+function mappingTimestamp(mapping: PreWalkRoomMapping | undefined): number {
+  if (!mapping?.mappedAt) return 0
+  const ms = Date.parse(mapping.mappedAt)
+  return Number.isFinite(ms) ? ms : 0
+}
+
+/** Union mappings/photos for multi-user sync; newer mappedAt wins on conflicts. */
+export function mergePreWalkStates(
+  base: PreWalkState | null | undefined,
+  incoming: PreWalkState | null | undefined,
+): PreWalkState {
+  const left = base ?? EMPTY_PREWALK
+  const right = incoming ?? EMPTY_PREWALK
+  const mappings: Record<string, PreWalkRoomMapping> = { ...left.mappings }
+
+  for (const [key, remoteMapping] of Object.entries(right.mappings ?? {})) {
+    const localMapping = mappings[key]
+    if (!localMapping || mappingTimestamp(remoteMapping) >= mappingTimestamp(localMapping)) {
+      mappings[key] = remoteMapping
+    }
+  }
+
+  return {
+    mappings,
+    spaceTypePhotos: {
+      ...(left.spaceTypePhotos ?? {}),
+      ...(right.spaceTypePhotos ?? {}),
+    },
+    completedAt: left.completedAt ?? right.completedAt ?? null,
+    skippedAt: left.skippedAt ?? right.skippedAt ?? null,
+  }
+}
+
+export function applyPreWalkMappingDeletes(
+  preWalk: PreWalkState,
+  deletions: PreWalkMappingRef[] | undefined,
+): PreWalkState {
+  if (!deletions?.length) return preWalk
+  const mappings = { ...preWalk.mappings }
+  for (const deletion of deletions) {
+    delete mappings[preWalkMappingKey(deletion.surveyType, deletion.roomId)]
+  }
+  return { ...preWalk, mappings }
+}
+
 /** Show the yes/no pre-walk prompt after the user picks a school. */
 export function shouldPromptPreWalkOnSchoolSelect(
   preWalk?: PreWalkState | null,
