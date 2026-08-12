@@ -350,7 +350,6 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
             <SurveyFloorPlan
               variant="prewalk"
               preWalkMappings={surveyMappings}
-              preWalkActiveSpaceType={activeSpaceType}
               preWalkSelectedRoomId={selectedRoomId}
               preWalkSpaceTypeColor={(type) => preWalkSpaceTypeColor(type, spaceTypeOptions)}
               onPreWalkRoomTap={handleRoomTap}

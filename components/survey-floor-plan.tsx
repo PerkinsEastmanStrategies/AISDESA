@@ -170,7 +170,6 @@ export default function SurveyFloorPlan({
   onRoomSelect,
   onClose,
   preWalkMappings,
-  preWalkActiveSpaceType,
   preWalkSelectedRoomId,
   preWalkSpaceTypeColor,
   onPreWalkRoomTap,
@@ -196,7 +195,6 @@ export default function SurveyFloorPlan({
   onRoomSelect?: () => void
   onClose?: () => void
   preWalkMappings?: Record<string, { spaceType: string }>
-  preWalkActiveSpaceType?: string | null
   preWalkSelectedRoomId?: string | null
   preWalkSpaceTypeColor?: (spaceType: string) => string
   onPreWalkRoomTap?: (roomId: string) => void
@@ -806,7 +804,6 @@ export default function SurveyFloorPlan({
         preWalkMappings?.[room.id]?.spaceType && preWalkSpaceTypeColor
           ? preWalkSpaceTypeColor(preWalkMappings[room.id].spaceType)
           : null,
-      preWalkActiveSpaceType,
       readOnly,
       interactive: photoGalleryMode
         ? false
@@ -1333,7 +1330,6 @@ function RoomOverlay({
   viewBoxArea,
   preWalkSpaceType,
   preWalkColor,
-  preWalkActiveSpaceType,
   readOnly,
   interactive = true,
   hasPhotoMarker = false,
@@ -1363,7 +1359,6 @@ function RoomOverlay({
   viewBoxArea: number
   preWalkSpaceType?: string
   preWalkColor?: string | null
-  preWalkActiveSpaceType?: string | null
   readOnly: boolean
   interactive?: boolean
   hasPhotoMarker?: boolean
@@ -1418,8 +1413,6 @@ function RoomOverlay({
     }
   } else if (preWalkColor && preWalkSpaceType) {
     fill = colorWithAlpha(preWalkColor, selected ? 0.32 : 0.22)
-  } else if (preWalkActiveSpaceType && !preWalkSpaceType) {
-    fill = selected ? "rgba(37, 99, 235, 0.08)" : "rgba(255, 255, 255, 0.01)"
   } else if (programTypeColor) {
     fill = colorWithAlpha(programTypeColor, selected ? 0.62 : 0.45)
     if (shaded && progressFill) {
