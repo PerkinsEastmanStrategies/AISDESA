@@ -408,12 +408,17 @@ export default function RoomSelector({
     for (const room of Object.values(state.session.rooms)) {
       if (!spaceTypeOptions.includes(room.roomType)) continue
       const started =
+        room.spaceTypeMarkedAbsent ||
         room.responses.length > 0 ||
         !!room.gradeType ||
         !!room.deferredToCloseOut
       if (!started) continue
       map[room.roomType].started += 1
 
+      if (room.spaceTypeMarkedAbsent) {
+        map[room.roomType].complete += 1
+        continue
+      }
       const detail = state.roomScoreDetails[room.roomId]
       const fullyScored = !!(
         detail &&
@@ -1014,12 +1019,14 @@ export default function RoomSelector({
                   state.school?.schoolClass,
                   (room) => roomSurveyComplete(room),
                 )
-                const typeComplete = isSpaceTypeRoomsComplete(
-                  type,
-                  roomsOfType,
-                  state.school?.schoolClass,
-                  (room) => roomSurveyComplete(room),
-                )
+                const typeComplete =
+                  absent ||
+                  isSpaceTypeRoomsComplete(
+                    type,
+                    roomsOfType,
+                    state.school?.schoolClass,
+                    (room) => roomSurveyComplete(room),
+                  )
                 const inProgress = hasSaved && !typeComplete
                 const isTraditional = spaceTypeCompletionRule(type, state.school?.schoolClass).kind === "perNeighborhood"
                 const itemClass = active

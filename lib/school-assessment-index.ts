@@ -26,6 +26,7 @@ export function roomHasAssessmentProgress(
   }
   if (!roomSession) return false
   return (
+    roomSession.spaceTypeMarkedAbsent ||
     roomSession.responses.length > 0 ||
     !!roomSession.gradeType ||
     !!roomSession.deferredToCloseOut

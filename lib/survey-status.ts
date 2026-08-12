@@ -2,8 +2,10 @@ import type { AssessorInfo, ParsedPlanRoom, SurveySession, SurveyType } from "@a
 import {
   getRoomSurveyRubric,
   getSurveyRubric,
+  isAbsentSpaceTypeRoomId,
   isOutdoorSurveyRoomId,
   isSpaceTypeForSurveyModule,
+  isSpaceTypeMarkedAbsentAtSchool,
   isStudioType,
   isSpaceTypeRoomsComplete,
   OUTDOOR_SURVEY_ROOM_ID,
@@ -27,12 +29,20 @@ export interface SurveyTypeInfo {
 }
 
 function sessionHasProgress(session: SurveySession): boolean {
+  if (
+    session.spaceTypeExistsAtSchool &&
+    Object.values(session.spaceTypeExistsAtSchool).some((exists) => exists === false)
+  ) {
+    return true
+  }
   return Object.values(session.rooms).some(
     (room) =>
+      room.spaceTypeMarkedAbsent ||
       room.responses.length > 0 ||
       !!room.gradeType ||
       (room.pendingQuestionIds?.length ?? 0) > 0 ||
-      !!room.pendingGrade,
+      !!room.pendingGrade ||
+      !!room.deferredToCloseOut,
   )
 }
 
@@ -41,10 +51,19 @@ function isRoomSurveyFilledOut(
   surveyType: SurveyType,
   schoolClass?: string | null,
 ): boolean {
-  const rubric = getRoomSurveyRubric(surveyType, room.roomType, room.gradeType, schoolClass)
+  if (room.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(room.roomId)) return true
+  const rubric = getRoomSurveyRubric(
+    surveyType,
+    room.roomType,
+    room.gradeType,
+    schoolClass,
+    surveyType === "closeout" ? room.sourceSurveyType : undefined,
+  )
   if (!rubric) return false
+  // Match dropdown / Save: deferred Close Out items do not block source-module completion.
   return validateRoomSession(room.roomId, room.roomId, room, rubric.questions, {
     schoolClass,
+    forSubmit: true,
   }).complete
 }
 
@@ -58,6 +77,22 @@ function roomsMatchingSpaceType(
     (room) =>
       room.roomType === spaceType &&
       isSpaceTypeForSurveyModule(surveyType, room.roomType, schoolClass),
+  )
+}
+
+function isRequiredSpaceTypeSatisfied(
+  session: SurveySession,
+  surveyType: SurveyType,
+  spaceType: string,
+  schoolClass?: string | null,
+): boolean {
+  if (isSpaceTypeMarkedAbsentAtSchool(session, spaceType)) return true
+  const ofType = roomsMatchingSpaceType(session, surveyType, spaceType, schoolClass)
+  if (ofType.some((room) => room.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(room.roomId))) {
+    return true
+  }
+  return isSpaceTypeRoomsComplete(spaceType, ofType, schoolClass, (room) =>
+    isRoomSurveyFilledOut(room, surveyType, schoolClass),
   )
 }
 
@@ -77,12 +112,7 @@ export function isStudiosSurveyComplete(
     .map((entry) => entry.spaceType)
 
   for (const studioType of requiredTypes) {
-    const ofType = roomsMatchingSpaceType(session, "studios", studioType, schoolClass)
-    if (
-      !isSpaceTypeRoomsComplete(studioType, ofType, schoolClass, (room) =>
-        isRoomSurveyFilledOut(room, "studios", schoolClass),
-      )
-    ) {
+    if (!isRequiredSpaceTypeSatisfied(session, "studios", studioType, schoolClass)) {
       return false
     }
   }
@@ -103,12 +133,7 @@ export function isSpaceTypeSurveyComplete(
     .map((entry) => entry.spaceType)
 
   for (const spaceType of requiredTypes) {
-    const ofType = roomsMatchingSpaceType(session, surveyType, spaceType, schoolClass)
-    if (
-      !isSpaceTypeRoomsComplete(spaceType, ofType, schoolClass, (room) =>
-        isRoomSurveyFilledOut(room, surveyType, schoolClass),
-      )
-    ) {
+    if (!isRequiredSpaceTypeSatisfied(session, surveyType, spaceType, schoolClass)) {
       return false
     }
   }
