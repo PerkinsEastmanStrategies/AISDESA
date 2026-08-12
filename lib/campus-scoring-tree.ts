@@ -162,6 +162,36 @@ function scoreSessionRooms(
   return next
 }
 
+/** Prefer the room copy that still has answers (live rows can lag behind submission snapshots). */
+function richerRoomSession(
+  live: RoomSurveySession | undefined,
+  submitted: RoomSurveySession | undefined,
+): RoomSurveySession | undefined {
+  if (!live) return submitted
+  if (!submitted) return live
+  const liveAnswers = live.responses?.length ?? 0
+  const submittedAnswers = submitted.responses?.length ?? 0
+  return submittedAnswers > liveAnswers ? submitted : live
+}
+
+function mergeSessionWithSubmission(
+  live: SurveySession | undefined,
+  submitted: SurveySession | undefined,
+): SurveySession | undefined {
+  if (!live) return submitted
+  if (!submitted) return live
+  const rooms: Record<string, RoomSurveySession> = { ...live.rooms }
+  for (const [roomId, submittedRoom] of Object.entries(submitted.rooms ?? {})) {
+    const merged = richerRoomSession(rooms[roomId], submittedRoom)
+    if (merged) rooms[roomId] = merged
+  }
+  return {
+    ...live,
+    rooms,
+    submittedAt: live.submittedAt ?? submitted.submittedAt,
+  }
+}
+
 function roomHasAssessment(
   detail: RoomScoreResult | undefined,
   options?: { allowScoreWithoutAnswers?: boolean },
@@ -335,6 +365,18 @@ export function buildCampusScoringSnapshot(input: {
     sessionsBySurveyType[input.liveSurveyType] = input.liveSession
   }
 
+  // Submission snapshots can retain answers after live esa_question_responses were cleared.
+  // Merge richer submitted rooms into the working session before scoring drill-downs.
+  for (const draft of drafts) {
+    if (draft.surveyType === "closeout") continue
+    const submittedSession = draft.lastSubmission?.session
+    if (!submittedSession) continue
+    sessionsBySurveyType[draft.surveyType] = mergeSessionWithSubmission(
+      sessionsBySurveyType[draft.surveyType],
+      submittedSession,
+    )
+  }
+
   for (const [surveyType, session] of Object.entries(sessionsBySurveyType) as [
     SurveyType,
     SurveySession,
@@ -361,7 +403,21 @@ export function buildCampusScoringSnapshot(input: {
 
     for (const entry of sub.campus.rooms) {
       if (!isSubmittedCampusRoom(entry)) continue
-      const existing = details[entry.roomId]
+      let existing = details[entry.roomId]
+
+      // If live scoring lacked subcategory/question detail, rebuild from submitted answers.
+      if (!existing?.subcategoryScores?.length) {
+        const submittedRoom = sub.session.rooms[entry.roomId]
+        if (submittedRoom && (submittedRoom.responses?.length ?? 0) > 0) {
+          const rescored = scoreSessionRooms(
+            { ...sub.session, rooms: { [entry.roomId]: submittedRoom } },
+            surveyType,
+            input.schoolClass,
+          )[entry.roomId]
+          if (rescored?.subcategoryScores?.length) existing = rescored
+        }
+      }
+
       details[entry.roomId] = {
         roomId: entry.roomId,
         overallScore: entry.overallScore,
