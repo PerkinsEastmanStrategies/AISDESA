@@ -80,12 +80,12 @@ export default function SurveyAssessorLanding() {
         ) : typeInfo.status === "in_progress" && typeInfo.assessor ? (
           <p className="mt-2 flex items-center gap-1.5 text-sm text-amber-800">
             <LoaderCircle className="h-4 w-4 shrink-0" aria-hidden />
-            In progress · signed in as {typeInfo.assessor.name}
+            In progress · started by {typeInfo.assessor.name}
           </p>
         ) : null}
         <h2 className="mt-1 text-xl font-semibold leading-tight">Before you begin</h2>
         <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
-          Select the school, then enter the name and email of the person completing this field assessment.
+          Select the school, then enter your name and email.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">

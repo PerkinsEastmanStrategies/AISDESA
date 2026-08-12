@@ -150,7 +150,9 @@ export default function SurveyTypeNav({ variant }: SurveyTypeNavProps) {
                 {assessor && (
                   <span className="mt-1 flex items-center gap-1 pl-6 text-xs text-[var(--color-muted-foreground)]">
                     <User className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
-                    <span className="truncate">{assessor.name}</span>
+                    <span className="truncate" title={`Started by ${assessor.name}`}>
+                      Started by {assessor.name}
+                    </span>
                   </span>
                 )}
               </button>

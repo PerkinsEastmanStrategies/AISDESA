@@ -86,11 +86,13 @@ import {
   removeOutdoorElementPin as dropOutdoorElementPin,
 } from "@/lib/outdoor-element-types"
 import {
+  assessorEmailsMatch,
   assessorFromSession,
   assessorSessionFields,
   isAssessorRegistered,
   resolveCampusAssessor,
   sessionHasRegisteredAssessor,
+  shouldStampSessionAssessor,
   withCampusAssessorOnSession,
 } from "@/lib/assessor"
 import { getSurveyTypeInfo, type SurveyTypeInfo } from "@/lib/survey-status"
@@ -681,14 +683,11 @@ function stateFromDraft(
   existingRooms: ParsedPlanRoom[] = [],
   existingFloorPlan: SchoolFloorPlanConfig | null = null,
 ): SurveyState {
-  const sessionAssessor = assessorFromSession(draft.session)
-  const mergedAssessors = { ...assessorByType }
-  if (sessionAssessor && isAssessorRegistered(sessionAssessor)) {
-    mergedAssessors[draft.surveyType] = sessionAssessor
-  }
+  // Keep this browser's logged-in user. Draft session.assessor* is document
+  // authorship, not a login — copying it here logged people in as whoever started the survey.
   const stamped = withCampusAssessorOnSession(
     draft.session,
-    mergedAssessors,
+    assessorByType,
     draft.surveyType,
   )
   const manualRooms = draft.manualRooms ?? []
@@ -915,16 +914,18 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         email: action.email.trim(),
         registeredAt,
       }
+      const previousForType = state.assessorByType[action.surveyType]
       const assessorByType = { ...state.assessorByType, [action.surveyType]: info }
       saveAssessors(assessorByType)
 
-      const session = state.session
-        ? {
-            ...state.session,
-            ...assessorSessionFields(info),
-            updatedAt: registeredAt,
-          }
-        : state.session
+      const session =
+        state.session && shouldStampSessionAssessor(state.session, info, previousForType)
+          ? {
+              ...state.session,
+              ...assessorSessionFields(info),
+              updatedAt: registeredAt,
+            }
+          : state.session
 
       return bootstrapCampusScopedSurvey({ ...state, assessorByType, session })
     }
@@ -933,21 +934,9 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       delete assessorByType[action.surveyType]
       saveAssessors(assessorByType)
 
-      const session =
-        state.session && state.surveyType === action.surveyType
-          ? {
-              ...state.session,
-              assessorName: undefined,
-              assessorEmail: undefined,
-              assessorRegisteredAt: undefined,
-              updatedAt: new Date().toISOString(),
-            }
-          : state.session
-
       return {
         ...state,
         assessorByType,
-        session,
         view: "survey",
       }
     }
@@ -2521,6 +2510,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
     const school = state.school
     const surveyType = state.surveyType
+    const currentAssessorEmail = resolveCampusAssessor(state.assessorByType, surveyType)?.email
     const timer = window.setTimeout(() => {
       const draft = loadDraft(school.id, surveyType)
       if (!draft) return
@@ -2543,16 +2533,20 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         if (result === "skipped_remote_newer") {
           const remote = await pullRemoteDraftClient({ schoolId: school.id, surveyType })
           if (remote && remote.savedAt > draft.savedAt) {
-            const localAnswers = countSessionResponses(draft.session)
-            const remoteAnswers = countSessionResponses(remote.session)
-            if (remoteAnswers >= localAnswers) {
-              const merged = {
-                ...remote,
-                pendingStudioType: draft.pendingStudioType ?? remote.pendingStudioType,
-                pendingNeighborhood: draft.pendingNeighborhood ?? remote.pendingNeighborhood,
+            const remoteAuthor = assessorFromSession(remote.session)
+            const sameAuthor = assessorEmailsMatch(currentAssessorEmail, remoteAuthor?.email)
+            if (sameAuthor) {
+              const localAnswers = countSessionResponses(draft.session)
+              const remoteAnswers = countSessionResponses(remote.session)
+              if (remoteAnswers >= localAnswers) {
+                const merged = {
+                  ...remote,
+                  pendingStudioType: draft.pendingStudioType ?? remote.pendingStudioType,
+                  pendingNeighborhood: draft.pendingNeighborhood ?? remote.pendingNeighborhood,
+                }
+                saveDraft(merged)
+                dispatch({ type: "RESTORE", school, draft: merged, showResumeBanner: false })
               }
-              saveDraft(merged)
-              dispatch({ type: "RESTORE", school, draft: merged, showResumeBanner: false })
             }
           }
         }
@@ -2568,6 +2562,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     state.surveyType,
     state.lastSavedAt,
     state.submission,
+    state.assessorByType,
     refreshRemoteSchoolDrafts,
   ])
 
@@ -3313,6 +3308,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
   const resetWeightOverrides = useCallback(() => dispatch({ type: "RESET_WEIGHT_OVERRIDES" }), [])
 
+  // Login is this browser's assessor record only — never the draft's document author.
   const hasAssessorRegistered =
     hasActiveVisit() &&
     (!!resolveCampusAssessor(state.assessorByType) ||

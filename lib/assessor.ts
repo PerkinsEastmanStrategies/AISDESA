@@ -54,6 +54,26 @@ export function assessorSessionFields(info: AssessorInfo) {
   }
 }
 
+export function assessorEmailsMatch(a?: string | null, b?: string | null): boolean {
+  const left = (a ?? "").trim().toLowerCase()
+  const right = (b ?? "").trim().toLowerCase()
+  return left.length > 0 && left === right
+}
+
+/** Stamp this browser's user onto a session only when it has no author, or they are the author. */
+export function shouldStampSessionAssessor(
+  session: { assessorName?: string; assessorEmail?: string } | null | undefined,
+  next: AssessorInfo,
+  previousForType?: AssessorInfo | null,
+): boolean {
+  if (!session) return false
+  if (!sessionHasRegisteredAssessor(session)) return true
+  return (
+    assessorEmailsMatch(session.assessorEmail, next.email) ||
+    assessorEmailsMatch(session.assessorEmail, previousForType?.email)
+  )
+}
+
 /** Stamp the campus assessor onto a module session when switching surveys. */
 export function withCampusAssessorOnSession(
   session: SurveySession,
