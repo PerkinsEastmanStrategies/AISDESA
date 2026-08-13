@@ -7,6 +7,7 @@ import type {
   SurveyType,
 } from "@aisd/shared"
 import {
+  asMultiSelectValues,
   getRoomSurveyRubric,
   hasRequiredUnableToAssessNote,
   isMultiSelectQuestionType,
@@ -35,7 +36,7 @@ export function isQuestionAnswered(
 ): boolean {
   if (value === undefined || value === "") return false
   if (isMultiSelectQuestionType(question.questionType)) {
-    return Array.isArray(value) && value.length > 0
+    return asMultiSelectValues(value).length > 0
   }
   return typeof value === "string" && value.length > 0
 }

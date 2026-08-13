@@ -6,8 +6,10 @@ import { useSurvey } from "@/lib/survey-store"
 import QuestionComment from "@/components/question-comment"
 import QuestionPhoto from "@/components/question-photo"
 import {
+  asMultiSelectValues,
   getRoomSurveyRubric,
   isMultiSelectQuestionType,
+  isNotAbleToAssessOption,
   canonicalizeResponseValues,
   isOptionValueSelected,
   isSpaceTypeForSurveyModule,
@@ -717,15 +719,20 @@ function QuestionField({
                   disabled={disabled}
                   multiple
                   onToggle={() => {
-                    const current = Array.isArray(value) ? value : []
+                    const current = asMultiSelectValues(value)
                     if (selected) {
                       onChange(
                         current.filter((v) =>
                           isOptionValueSelected(opt.option, v) ? false : true,
                         ),
                       )
+                    } else if (isNotAbleToAssessOption(opt.option)) {
+                      onChange([opt.option])
                     } else {
-                      onChange([...current, opt.option])
+                      onChange([
+                        ...current.filter((v) => !isNotAbleToAssessOption(v)),
+                        opt.option,
+                      ])
                     }
                   }}
                 />

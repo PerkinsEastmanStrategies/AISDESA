@@ -821,8 +821,16 @@ export function getRoomSurveyRubric(
   schoolClass?: string | null,
   sourceSurveyType?: SurveyType | null,
 ): SurveyRubric | null {
-  const effectiveType =
+  let effectiveType: SurveyType =
     surveyType === "closeout" && sourceSurveyType ? sourceSurveyType : surveyType
+  // Close Out may carry a stale sourceSurveyType (e.g. Open Collab tagged as studios).
+  // Prefer the module that owns this space type so pending/completion use the right rubric.
+  if (surveyType === "closeout" && roomType) {
+    const ownedBy = surveyTypeForSpaceType(roomType, schoolClass)
+    if (ownedBy && ownedBy !== "closeout") {
+      effectiveType = ownedBy
+    }
+  }
   let rubric: SurveyRubric | null = null
 
   if (effectiveType === "neighborhoods") {

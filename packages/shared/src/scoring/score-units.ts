@@ -1,5 +1,6 @@
 import type { EsaQuestion, EsaQuestionOption } from "../types/survey"
 import {
+  asMultiSelectValues,
   isNotAbleToAssessOption,
   responseRequiresUnableToAssessNote,
 } from "../data/not-able-to-assess"
@@ -108,7 +109,7 @@ export function scoreForScoreId(
   }
 
   if (isMultiSelectQuestionType(question.questionType)) {
-    const selected = Array.isArray(response.value) ? response.value : []
+    const selected = asMultiSelectValues(response.value)
     if (!selected.length) return null
 
     const selectedInGroup = groupOpts.filter((o) =>

@@ -30,6 +30,7 @@ import type {
 } from "@aisd/shared"
 import {
   aggregateCampusScores,
+  asMultiSelectValues,
   EMPTY_WEIGHT_OVERRIDES,
   getRoomSurveyRubric,
   getSurveyRubric,
@@ -37,6 +38,7 @@ import {
   isCampusScopedSurveyType,
   isElementaryGrade,
   isKnownSurveySpaceType,
+  isMultiSelectQuestionType,
   isOutdoorSpaceType,
   isNeighborhoodSurveyRoomId,
   isOutdoorSurveyRoomId,
@@ -111,6 +113,7 @@ import {
 import { deferFloorPlanDisplayWork, preferMobileFloorPlan, useMobileFloorPlanFiles } from "@/lib/floor-plans"
 import { loadAisdSchoolOptions } from "@/lib/load-aisd-schools"
 import {
+  clearStaleDeferredOnCompleteRooms,
   deferIncompleteToCloseOut,
   countCloseOutPendingItems,
   isCloseOutSurveyComplete,
@@ -1833,23 +1836,31 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         state.school?.schoolClass,
         base.sourceSurveyType,
       )
+      const question = rubric?.questions.find((q) => q.questionId === action.response.questionId)
+      const normalizedResponse: RoomQuestionResponse =
+        question && isMultiSelectQuestionType(question.questionType)
+          ? {
+              ...action.response,
+              value: asMultiSelectValues(action.response.value),
+            }
+          : action.response
       const responses = applyQuestionDependencies(
         base.responses,
-        action.response,
+        normalizedResponse,
         rubric?.questions,
       )
       let nextRoom: RoomSurveySession = { ...base, responses }
       if (state.surveyType === "closeout" && rubric) {
         nextRoom = withPendingUpdatedForResponse(
           nextRoom,
-          action.response,
+          normalizedResponse,
           rubric.questions,
           state.school?.schoolClass,
         )
       } else if (rubric && (base.deferredQuestionIds?.length ?? 0) > 0) {
         const cleared = withPendingUpdatedForResponse(
           { ...nextRoom, pendingQuestionIds: [...(base.deferredQuestionIds ?? [])] },
-          action.response,
+          normalizedResponse,
           rubric.questions,
           state.school?.schoolClass,
         )
@@ -2350,10 +2361,15 @@ function persistDraftFromState(state: SurveyState): string | null {
   if (!state.school || !state.session) return null
 
   const savedAt = new Date().toISOString()
+  const sessionToSave =
+    state.surveyType === "closeout"
+      ? state.session
+      : clearStaleDeferredOnCompleteRooms(state.session, state.school.schoolClass)
+
   saveDraft({
     schoolId: state.school.id,
     surveyType: state.surveyType,
-    session: state.session,
+    session: sessionToSave,
     selectedLevelId: state.selectedLevelId,
     selectedRoomId: state.selectedRoomId,
     pendingStudioType: state.pendingStudioType,
@@ -2379,12 +2395,20 @@ function persistDraftFromState(state: SurveyState): string | null {
         .map((room) => room.sourceSurveyType)
         .filter((surveyType): surveyType is Exclude<SurveyType, "closeout"> => !!surveyType),
     )
+    for (const draft of loadDraftsForSchool(state.school.id)) {
+      if (draft.session.surveyType === "closeout") continue
+      sourceTypes.add(draft.session.surveyType as Exclude<SurveyType, "closeout">)
+    }
     if (sourceTypes.size === 0) sourceTypes.add("studios")
 
     for (const sourceType of sourceTypes) {
       const sourceDraft = loadDraft(state.school.id, sourceType)
       if (!sourceDraft?.session) continue
-      const synced = syncCloseOutProgressToSource(state.session, sourceDraft.session)
+      const synced = syncCloseOutProgressToSource(
+        state.session,
+        sourceDraft.session,
+        state.school.schoolClass,
+      )
       saveDraft(
         {
           ...sourceDraft,
@@ -2397,7 +2421,7 @@ function persistDraftFromState(state: SurveyState): string | null {
   } else {
     const closeDraft = loadDraft(state.school.id, "closeout")
     if (closeDraft?.session) {
-      const synced = syncSourceProgressToCloseOut(state.session, closeDraft.session)
+      const synced = syncSourceProgressToCloseOut(sessionToSave, closeDraft.session)
       saveDraft(
         {
           ...closeDraft,

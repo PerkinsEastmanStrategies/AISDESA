@@ -31,6 +31,21 @@ export function canonicalizeResponseValues(
   return canonicalizeResponseValue(value)
 }
 
+/**
+ * Coerce multi-select response values to a string array.
+ * Legacy / buggy saves sometimes store a single selection as a plain string; treating that
+ * as `[]` in the UI made multi-select behave like single-select and fail "answered" checks.
+ */
+export function asMultiSelectValues(
+  value: string | string[] | null | undefined,
+): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === "string" && v.length > 0)
+  }
+  if (typeof value === "string" && value.length > 0) return [value]
+  return []
+}
+
 /** True when the selected value(s) include a not/unable-to-assess option. */
 export function responseRequiresUnableToAssessNote(
   value: string | string[] | null | undefined,

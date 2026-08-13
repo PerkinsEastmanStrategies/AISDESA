@@ -158,15 +158,27 @@ function mergeIncompleteFromSourceSurvey(
       { schoolClass },
     )
 
-    if (result.complete) {
-      if (next[roomId] && !roomHasCloseOutWork(next[roomId])) {
+    const deferredIds =
+      roomSession.deferredToCloseOut || (roomSession.deferredQuestionIds?.length ?? 0) > 0
+        ? [...(roomSession.deferredQuestionIds ?? [])]
+        : []
+
+    if (result.complete && deferredIds.length === 0) {
+      if (next[roomId] && !roomHasCloseOutWork(next[roomId], schoolClass)) {
         delete next[roomId]
       }
       continue
     }
 
-    const missingIds = result.missingQuestionIds
+    const missingIds = [...new Set([...result.missingQuestionIds, ...deferredIds])]
     const pendingGrade = result.missingGrade
+    if (missingIds.length === 0 && !pendingGrade) {
+      if (next[roomId] && !roomHasCloseOutWork(next[roomId], schoolClass)) {
+        delete next[roomId]
+      }
+      continue
+    }
+
     const existingClose = next[roomId]
 
     const responseMap = new Map((existingClose?.responses ?? []).map((r) => [r.questionId, r]))
@@ -424,12 +436,61 @@ export function applyCloseOutRoomToSource(
 export function syncCloseOutProgressToSource(
   closeOutSession: SurveySession,
   sourceSession: SurveySession,
+  schoolClass?: string | null,
 ): SurveySession {
   let next = sourceSession
   for (const room of Object.values(closeOutSession.rooms)) {
     next = applyCloseOutRoomToSource(next, room)
   }
-  return next
+  return clearStaleDeferredOnCompleteRooms(next, schoolClass)
+}
+
+/**
+ * Clear deferred-to-closeout flags on source rooms that now validate as complete
+ * (e.g. after multi-select answers are recognized, or rooms finished outside Close Out).
+ */
+export function clearStaleDeferredOnCompleteRooms(
+  sourceSession: SurveySession,
+  schoolClass?: string | null,
+): SurveySession {
+  if (sourceSession.surveyType === "closeout") return sourceSession
+
+  let changed = false
+  const rooms = { ...sourceSession.rooms }
+  for (const [roomId, room] of Object.entries(rooms)) {
+    if (!room.deferredToCloseOut && !(room.deferredQuestionIds?.length ?? 0)) continue
+
+    const rubric = getRoomSurveyRubric(
+      sourceSession.surveyType,
+      room.roomType,
+      room.gradeType,
+      schoolClass,
+    )
+    if (!rubric) continue
+
+    const result = validateRoomSession(
+      roomId,
+      room.roomNumber || roomId,
+      room,
+      rubric.questions,
+      { schoolClass },
+    )
+    if (!result.complete) continue
+
+    rooms[roomId] = {
+      ...room,
+      deferredQuestionIds: [],
+      deferredToCloseOut: false,
+    }
+    changed = true
+  }
+
+  if (!changed) return sourceSession
+  return {
+    ...sourceSession,
+    rooms,
+    updatedAt: new Date().toISOString(),
+  }
 }
 
 /**
