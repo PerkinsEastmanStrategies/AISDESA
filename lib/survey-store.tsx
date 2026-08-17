@@ -2421,7 +2421,11 @@ function persistDraftFromState(state: SurveyState): string | null {
   } else {
     const closeDraft = loadDraft(state.school.id, "closeout")
     if (closeDraft?.session) {
-      const synced = syncSourceProgressToCloseOut(sessionToSave, closeDraft.session)
+      const synced = syncSourceProgressToCloseOut(
+        sessionToSave,
+        closeDraft.session,
+        state.school.schoolClass,
+      )
       saveDraft(
         {
           ...closeDraft,

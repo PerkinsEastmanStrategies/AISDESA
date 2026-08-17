@@ -748,6 +748,21 @@ export function filterRubricBySchoolLevel(
   return { ...rubric, questions, options }
 }
 
+/** Prefer campus CLASS; if missing, infer ELEM/MID/HIGH from a room GradeType. */
+export function schoolClassForQuestionFilter(
+  schoolClass?: string | null,
+  gradeType?: string | null,
+): string | null {
+  if (schoolClass === "ELEM" || schoolClass === "MID" || schoolClass === "HIGH") {
+    return schoolClass
+  }
+  if (gradeType === "MS") return "MID"
+  if (gradeType === "HS") return "HIGH"
+  if (isElementaryGrade(gradeType)) return "ELEM"
+  const trimmed = String(schoolClass ?? "").trim()
+  return trimmed || null
+}
+
 /**
  * @deprecated Prefer filterRubricBySchoolLevel — room grade no longer drives question visibility.
  */
@@ -934,7 +949,12 @@ export function getRoomSurveyRubric(
     rubric = STUDIOS_RUBRIC
   }
 
-  return rubric ? ensureNotAbleToAssessOptions(rubric) : null
+  if (!rubric) return null
+  // Every module can ship ES / MS / HS copies of the same prompt. Always
+  // drop the ones that do not apply to this campus (e.g. Casis ELEM).
+  const level = schoolClassForQuestionFilter(schoolClass, gradeType)
+  const filtered = level ? filterRubricBySchoolLevel(rubric, level) : rubric
+  return ensureNotAbleToAssessOptions(filtered)
 }
 
 export function surveyTypeLabel(type: SurveyType): string {

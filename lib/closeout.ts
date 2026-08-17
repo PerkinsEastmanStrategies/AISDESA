@@ -499,6 +499,7 @@ export function clearStaleDeferredOnCompleteRooms(
 export function syncSourceProgressToCloseOut(
   sourceSession: SurveySession,
   closeOutSession: SurveySession,
+  schoolClass?: string | null,
 ): SurveySession {
   const rooms = { ...closeOutSession.rooms }
   let changed = false
@@ -511,7 +512,7 @@ export function syncSourceProgressToCloseOut(
       "closeout",
       sourceRoom.roomType,
       sourceRoom.gradeType,
-      undefined,
+      schoolClass,
       closeRoom.sourceSurveyType,
     )
     const questions = rubric?.questions ?? []

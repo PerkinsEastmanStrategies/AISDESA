@@ -174,6 +174,7 @@ export function buildQuestionRows(
   subcategory: string,
   surveyType: SurveyType,
   session: SurveySession,
+  schoolClass?: string | null,
 ): WalkthroughQuestionRow[] {
   const byUnit = new Map<
     string,
@@ -205,6 +206,7 @@ export function buildQuestionRows(
         surveyType === "closeout" ? roomSession?.sourceSurveyType ?? surveyType : surveyType,
         roomSession?.roomType,
         roomSession?.gradeType,
+        schoolClass,
       )
       const label = rubric
         ? resolveQuestionLabel(unitId, rubric.questions, rubric.options)
@@ -232,6 +234,7 @@ export function buildRoomRowsForFocus(
   surveyType: SurveyType,
   allRooms: ParsedPlanRoom[],
   focusRoomId?: string | null,
+  schoolClass?: string | null,
 ): WalkthroughRoomRow[] {
   const scored = campus.rooms.filter((r) => r.overallScore !== null)
   const rows: WalkthroughRoomRow[] = []
@@ -294,6 +297,7 @@ export function buildRoomRowsForFocus(
       surveyType === "closeout" ? roomSession?.sourceSurveyType ?? surveyType : surveyType,
       roomSession?.roomType,
       roomSession?.gradeType,
+      schoolClass,
     )
     const response = rubric
       ? responseForUnit(roomSession, focus.unitId, rubric.options)
@@ -356,6 +360,7 @@ export function ensureWalkthroughScoreDetails(
   roomScoreDetails: Record<string, RoomScoreResult>,
   surveyType: SurveyType,
   roomIds: string[],
+  schoolClass?: string | null,
 ): Record<string, RoomScoreResult> {
   let changed = false
   const next: Record<string, RoomScoreResult> = { ...roomScoreDetails }
@@ -371,6 +376,7 @@ export function ensureWalkthroughScoreDetails(
       effectiveType,
       roomSession.roomType,
       roomSession.gradeType,
+      schoolClass,
     )
     if (!rubric) continue
 

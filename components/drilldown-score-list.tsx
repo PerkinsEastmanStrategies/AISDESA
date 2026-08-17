@@ -49,8 +49,9 @@ export default function DrilldownScoreList({
         roomScoreDetails ?? state.roomScoreDetails,
         surveyType,
         scoredRoomIds,
+        state.school?.schoolClass,
       ),
-    [session, roomScoreDetails, state.roomScoreDetails, surveyType, scoredRoomIds],
+    [session, roomScoreDetails, state.roomScoreDetails, surveyType, scoredRoomIds, state.school?.schoolClass],
   )
 
   const toggleCategory = (category: string) => {
@@ -127,6 +128,7 @@ export default function DrilldownScoreList({
                             sub.subcategory,
                             surveyType,
                             session,
+                            state.school?.schoolClass,
                           )
                         : []
                       const questionWeightTotal = sumPositiveWeights(questions.map((row) => row.weight))
@@ -180,6 +182,7 @@ export default function DrilldownScoreList({
                                         q.unitId,
                                         session,
                                         surveyType,
+                                        state.school?.schoolClass,
                                       )
                                     : null
 
@@ -248,6 +251,7 @@ function formatQuestionAnswer(
   unitId: string,
   session: SurveySession,
   surveyType: SurveyType,
+  schoolClass?: string | null,
 ): string | null {
   const roomSession = session.rooms[roomId]
   if (!roomSession) return null
@@ -258,6 +262,7 @@ function formatQuestionAnswer(
     effectiveType,
     roomSession.roomType,
     roomSession.gradeType,
+    schoolClass,
   )
   if (!rubric) return null
 
