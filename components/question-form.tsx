@@ -110,8 +110,9 @@ function keepWithinScrollWindow(el: HTMLElement) {
   const target = (el.nextElementSibling as HTMLElement | null) ?? el
   const rootRect = scrollRoot.getBoundingClientRect()
   const targetRect = target.getBoundingClientRect()
+  const stickyTop = scrollRoot.querySelector(".sticky.top-0") as HTMLElement | null
   const stickyBottom = scrollRoot.querySelector(".sticky.bottom-0") as HTMLElement | null
-  const topPad = 12
+  const topPad = (stickyTop?.offsetHeight ?? 0) + 12
   const bottomPad = (stickyBottom?.offsetHeight ?? 0) + 16
 
   // Pull into view if any part sits outside the visible scroll window
@@ -500,6 +501,9 @@ function QuestionField({
   const [userExpanded, setUserExpanded] = useState(false)
   const wasAnsweredRef = useRef(answered)
   const prevCollapsedRef = useRef(collapsed)
+  const userExpandedRef = useRef(userExpanded)
+  userExpandedRef.current = userExpanded
+  const skipObserverCollapseRef = useRef(false)
 
   useEffect(() => {
     if (autoAnswered || highlighted || noteRequired) {
@@ -545,8 +549,18 @@ function QuestionField({
     const scrollRoot = el.closest(".overflow-y-auto") as Element | null
     const observer = new IntersectionObserver(
       ([entry]) => {
+        if (skipObserverCollapseRef.current) return
         if (!answered) {
           setCollapsed(false)
+          return
+        }
+        // An expanded last question often sits at the bottom with a low visible
+        // ratio; only auto-collapse it once it is fully off-screen.
+        if (userExpandedRef.current) {
+          if (!entry.isIntersecting) {
+            setCollapsed(true)
+            setUserExpanded(false)
+          }
           return
         }
         if (!entry.isIntersecting || entry.intersectionRatio < 0.35) {
@@ -563,12 +577,23 @@ function QuestionField({
 
     observer.observe(el)
     return () => observer.disconnect()
-  }, [answered, autoAnswered])
+  }, [answered, autoAnswered, collapsed])
 
   const expand = useCallback(() => {
+    skipObserverCollapseRef.current = true
     setCollapsed(false)
     setUserExpanded(true)
   }, [])
+
+  useEffect(() => {
+    if (collapsed || !skipObserverCollapseRef.current) return
+    const el = rootRef.current
+    const frame = window.requestAnimationFrame(() => {
+      skipObserverCollapseRef.current = false
+      el?.scrollIntoView({ behavior: "smooth", block: "start" })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [collapsed])
 
   const collapse = useCallback(() => {
     if (answered && !autoAnswered) {
@@ -588,7 +613,7 @@ function QuestionField({
       <div
         ref={rootRef}
         id={id}
-        className="w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-emerald-200/80 border-l-[3px] border-l-emerald-500 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] [overflow-anchor:none]"
+        className="w-full min-w-0 max-w-full scroll-mt-24 overflow-hidden rounded-2xl border border-emerald-200/80 border-l-[3px] border-l-emerald-500 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] [overflow-anchor:none]"
       >
         <button
           type="button"
@@ -631,7 +656,7 @@ function QuestionField({
       ref={rootRef}
       id={id}
       className={cn(
-        "w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200/90 border-l-[3px] bg-white shadow-[0_2px_8px_rgba(15,23,42,0.05)] [overflow-anchor:none]",
+        "w-full min-w-0 max-w-full scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200/90 border-l-[3px] bg-white shadow-[0_2px_8px_rgba(15,23,42,0.05)] [overflow-anchor:none]",
         accent,
         disabled && !autoAnswered && "opacity-90",
         highlighted && "border-red-300 ring-2 ring-red-100",
