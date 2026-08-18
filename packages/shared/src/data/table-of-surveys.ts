@@ -35,6 +35,7 @@ export interface ScoringFocusAreaDef {
 }
 
 export const TABLE_OF_SURVEY_ENTRIES: TableOfSurveyEntry[] = [
+  { surveyFocus: "Arrival/Administration", surveyType: "arrival", spaceType: "Main Entry/Reception", spaceTypeRaw: "Main Entry/Reception", schoolLevel: "ES", required: true, scoringFocusLabel: "Arrival/Administration", scoringFocusAreaId: "arrival_administration", spaceTypeWeight: 12, focusAreaWeight: 6, scoreCode: "ME" },
   { surveyFocus: "Arrival/Administration", surveyType: "arrival", spaceType: "Main Admin Suite", spaceTypeRaw: "Main Admin Suite", schoolLevel: "ES", required: true, scoringFocusLabel: "Arrival/Administration", scoringFocusAreaId: "arrival_administration", spaceTypeWeight: 12, focusAreaWeight: 6, scoreCode: "MA" },
   { surveyFocus: "Arrival/Administration", surveyType: "arrival", spaceType: "Community Partner Suite", spaceTypeRaw: "Community Partners Suite", schoolLevel: "ES", required: true, scoringFocusLabel: "Arrival/Administration", scoringFocusAreaId: "arrival_administration", spaceTypeWeight: 6, focusAreaWeight: 6, scoreCode: "CP" },
   { surveyFocus: "Arrival/Administration", surveyType: "administration", spaceType: "Admin Office", spaceTypeRaw: "Admin Offices", schoolLevel: "ES", required: true, scoringFocusLabel: "Arrival/Administration", scoringFocusAreaId: "arrival_administration", spaceTypeWeight: 9, focusAreaWeight: 6, scoreCode: "AD" },
@@ -59,6 +60,7 @@ export const TABLE_OF_SURVEY_ENTRIES: TableOfSurveyEntry[] = [
   { surveyFocus: "Shared Spaces", surveyType: "shared_spaces", spaceType: "Kitchen", spaceTypeRaw: "Kitchen", schoolLevel: "ES", required: true, scoringFocusLabel: "Shared Spaces", scoringFocusAreaId: "shared_spaces", spaceTypeWeight: 6, focusAreaWeight: 9, scoreCode: "KI" },
   { surveyFocus: "Shared Spaces", surveyType: "shared_spaces", spaceType: "Empower Center", spaceTypeRaw: "Empower Center", schoolLevel: "ES", required: false, scoringFocusLabel: "Shared Spaces", scoringFocusAreaId: "shared_spaces", spaceTypeWeight: 3, focusAreaWeight: 9, scoreCode: "EC" },
   { surveyFocus: "Outdoor Elements", surveyType: "outdoor", spaceType: "Outdoor Spaces", spaceTypeRaw: "Outdoor Spaces", schoolLevel: "ES", required: true, scoringFocusLabel: "Outdoor Elements", scoringFocusAreaId: "outdoor_elements", spaceTypeWeight: 12, focusAreaWeight: 9, scoreCode: "OS" },
+  { surveyFocus: "Arrival/Administration", surveyType: "arrival", spaceType: "Main Entry/Reception", spaceTypeRaw: "Main Entry/Reception", schoolLevel: "MS", required: true, scoringFocusLabel: "Arrival/Administration", scoringFocusAreaId: "arrival_administration", spaceTypeWeight: 12, focusAreaWeight: 6, scoreCode: "ME" },
   { surveyFocus: "Arrival/Administration", surveyType: "arrival", spaceType: "Main Admin Suite", spaceTypeRaw: "Main Admin Suite", schoolLevel: "MS", required: true, scoringFocusLabel: "Arrival/Administration", scoringFocusAreaId: "arrival_administration", spaceTypeWeight: 12, focusAreaWeight: 6, scoreCode: "MA" },
   { surveyFocus: "Arrival/Administration", surveyType: "arrival", spaceType: "Community Partner Suite", spaceTypeRaw: "Community Partners Suite", schoolLevel: "MS", required: true, scoringFocusLabel: "Arrival/Administration", scoringFocusAreaId: "arrival_administration", spaceTypeWeight: 6, focusAreaWeight: 6, scoreCode: "CP" },
   { surveyFocus: "Arrival/Administration", surveyType: "administration", spaceType: "Admin Office", spaceTypeRaw: "Admin Offices", schoolLevel: "MS", required: true, scoringFocusLabel: "Arrival/Administration", scoringFocusAreaId: "arrival_administration", spaceTypeWeight: 9, focusAreaWeight: 6, scoreCode: "AD" },
@@ -101,6 +103,7 @@ export const TABLE_OF_SURVEY_ENTRIES: TableOfSurveyEntry[] = [
   { surveyFocus: "Shared Spaces", surveyType: "shared_spaces", spaceType: "Empower Center", spaceTypeRaw: "Empower Center", schoolLevel: "MS", required: true, scoringFocusLabel: "Shared Spaces", scoringFocusAreaId: "shared_spaces", spaceTypeWeight: 9, focusAreaWeight: 9, scoreCode: "EC" },
   { surveyFocus: "Outdoor Elements", surveyType: "outdoor", spaceType: "Outdoor Spaces", spaceTypeRaw: "Outdoor Spaces", schoolLevel: "MS", required: true, scoringFocusLabel: "Outdoor Elements", scoringFocusAreaId: "outdoor_elements", spaceTypeWeight: 12, focusAreaWeight: 9, scoreCode: "OS" },
   { surveyFocus: "Outdoor Elements", surveyType: "outdoor", spaceType: "Outdoor Athletics", spaceTypeRaw: "Outdoor Athletics", schoolLevel: "MS", required: true, scoringFocusLabel: "Athletics and Wellness", scoringFocusAreaId: "athletics_wellness", spaceTypeWeight: 12, focusAreaWeight: 9, scoreCode: "OA" },
+  { surveyFocus: "Arrival/Administration", surveyType: "arrival", spaceType: "Main Entry/Reception", spaceTypeRaw: "Main Entry/Reception", schoolLevel: "HS", required: true, scoringFocusLabel: "Arrival/Administration", scoringFocusAreaId: "arrival_administration", spaceTypeWeight: 12, focusAreaWeight: 6, scoreCode: "ME" },
   { surveyFocus: "Arrival/Administration", surveyType: "arrival", spaceType: "Main Admin Suite", spaceTypeRaw: "Main Admin Suite", schoolLevel: "HS", required: true, scoringFocusLabel: "Arrival/Administration", scoringFocusAreaId: "arrival_administration", spaceTypeWeight: 12, focusAreaWeight: 6, scoreCode: "MA" },
   { surveyFocus: "Arrival/Administration", surveyType: "arrival", spaceType: "Community Partner Suite", spaceTypeRaw: "Community Partners Suite", schoolLevel: "HS", required: true, scoringFocusLabel: "Arrival/Administration", scoringFocusAreaId: "arrival_administration", spaceTypeWeight: 6, focusAreaWeight: 6, scoreCode: "CP" },
   { surveyFocus: "Arrival/Administration", surveyType: "administration", spaceType: "Admin Office", spaceTypeRaw: "Admin Offices", schoolLevel: "HS", required: true, scoringFocusLabel: "Arrival/Administration", scoringFocusAreaId: "arrival_administration", spaceTypeWeight: 9, focusAreaWeight: 6, scoreCode: "AD" },
@@ -238,6 +241,7 @@ export function spaceTypesForSurveyModule(
 const SPACE_TYPE_ALIASES = {
   Gym: "Multi-Purpose Gym",
   "Competition Gym": "Multi-Purpose Gym",
+  "Main Office": "Main Entry/Reception",
 } as const
 
 export function lookupTableEntry(

@@ -123,7 +123,8 @@ function scoringFocusAreaIdFromLabel(label) {
 function canonicalSpaceType(name) {
   const map = {
     "Tranditional Studio": "Traditional studio",
-    "Main Entry/Reception": "Main Office",
+    "Main Entry/Reception": "Main Entry/Reception",
+    "Main Office": "Main Entry/Reception",
     "Main Admin Suite": "Main Admin Suite",
     "Community Partners Suite": "Community Partner Suite",
     "Admin Offices": "Admin Office",
@@ -381,6 +382,7 @@ export function spaceTypesForSurveyModule(
 const SPACE_TYPE_ALIASES = {
   Gym: "Multi-Purpose Gym",
   "Competition Gym": "Multi-Purpose Gym",
+  "Main Office": "Main Entry/Reception",
 } as const
 
 export function lookupTableEntry(

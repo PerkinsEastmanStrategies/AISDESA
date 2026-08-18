@@ -931,7 +931,7 @@ export function getRoomSurveyRubric(
       (schoolClass === "ELEM" ? "K" : schoolClass === "MID" ? "MS" : schoolClass === "HIGH" ? "HS" : null)
     rubric = filterNeighborhoodRubricByGrade(base, neighborhoodGrade)
   } else if (effectiveType === "arrival") {
-    if (roomType === "Main Office") rubric = MAIN_OFFICE_RUBRIC
+    if (roomType === "Main Office" || roomType === "Main Entry/Reception") rubric = MAIN_OFFICE_RUBRIC
     else if (roomType === "Main Admin Suite") rubric = MAIN_ADMIN_SUITE_RUBRIC
     else if (roomType === "Community Partner Suite") rubric = COMMUNITY_PARTNER_RUBRIC
     else return null
@@ -1197,6 +1197,8 @@ export function isAdminSpaceType(value: string): value is AdminSpaceType {
 }
 
 export const ARRIVAL_SPACE_TYPE_OPTIONS = [
+  "Main Entry/Reception",
+  "Main Office",
   "Main Admin Suite",
   "Community Partner Suite",
 ] as const
@@ -1466,6 +1468,8 @@ export function usesPackageAdminRubric(roomType: string | null | undefined): boo
 /** Arrival space types that use dedicated CSV package rubrics. */
 export function usesPackageArrivalRubric(roomType: string | null | undefined): boolean {
   return (
+    roomType === "Main Entry/Reception" ||
+    roomType === "Main Office" ||
     roomType === "Main Admin Suite" ||
     roomType === "Community Partner Suite"
   )
