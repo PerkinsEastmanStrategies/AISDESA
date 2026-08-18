@@ -1,4 +1,4 @@
-import type { AisdSchoolOption } from "@aisd/shared"
+import { testCampusCloneForSchool, type AisdSchoolOption } from "@aisd/shared"
 
 /** Live Google Sheet (published CSV) — updated as floor plans are uploaded to Supabase. */
 export const DEFAULT_FLOOR_PLAN_MANIFEST_URL =
@@ -209,12 +209,14 @@ export async function loadFloorPlanManifest(forceReload = false): Promise<FloorP
   return manifestLoadPromise
 }
 
-export function getManifestRowForAisdSchool(
+function matchManifestRow(
   manifest: FloorPlanManifestRow[],
-  school: AisdSchoolOption,
+  schoolName: string,
+  displayName: string,
+  campusId: string,
 ): FloorPlanManifestRow | undefined {
-  const normalizedName = school.name.toUpperCase().replace(/\s+/g, " ").trim()
-  const normalizedDisplay = school.displayName.toUpperCase().replace(/\s+/g, " ").trim()
+  const normalizedName = schoolName.toUpperCase().replace(/\s+/g, " ").trim()
+  const normalizedDisplay = displayName.toUpperCase().replace(/\s+/g, " ").trim()
   return manifest.find((row) => {
     const rowName = row.schoolName.toUpperCase().replace(/\s+/g, " ").trim()
     const updatedName = row.updatedName?.toUpperCase().replace(/\s+/g, " ").trim()
@@ -222,9 +224,20 @@ export function getManifestRowForAisdSchool(
       rowName === normalizedName ||
       rowName === normalizedDisplay ||
       (!!updatedName && (updatedName === normalizedName || updatedName === normalizedDisplay)) ||
-      (!!row.campusId && row.campusId === school.campusId)
+      (!!row.campusId && !!campusId && row.campusId === campusId)
     )
   })
+}
+
+export function getManifestRowForAisdSchool(
+  manifest: FloorPlanManifestRow[],
+  school: AisdSchoolOption,
+): FloorPlanManifestRow | undefined {
+  const clone = testCampusCloneForSchool(school)
+  if (clone) {
+    return matchManifestRow(manifest, clone.sourceName, clone.sourceName, clone.sourceCampusId)
+  }
+  return matchManifestRow(manifest, school.name, school.displayName, school.campusId)
 }
 
 /** Prefer live sheet `UpdatedName` for school picker labels; fall back to geojson name. */
@@ -232,7 +245,14 @@ export function displayNameForSchoolFromManifest(
   school: AisdSchoolOption,
   manifest: FloorPlanManifestRow[],
 ): string {
-  const updatedName = getManifestRowForAisdSchool(manifest, school)?.updatedName?.trim()
+  const clone = testCampusCloneForSchool(school)
+  if (clone) return clone.displayName
+  const updatedName = matchManifestRow(
+    manifest,
+    school.name,
+    school.displayName,
+    school.campusId,
+  )?.updatedName?.trim()
   return updatedName || school.displayName
 }
 

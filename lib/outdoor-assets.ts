@@ -1,5 +1,5 @@
 import type { Feature, FeatureCollection } from "geojson"
-import type { AisdSchoolOption } from "@aisd/shared"
+import { testCampusCloneForSchool, type AisdSchoolOption } from "@aisd/shared"
 import { schoolNamesMatch } from "@/lib/room-neighborhood-lookup"
 
 export const OUTDOOR_ASSETS_GEOJSON_PATH =
@@ -191,6 +191,16 @@ function outdoorAssetMatchesSchool(
   feature: Feature,
   school: Pick<AisdSchoolOption, "id" | "name" | "campusId" | "displayName">,
 ): boolean {
+  const clone = testCampusCloneForSchool(school)
+  if (clone) {
+    return outdoorAssetMatchesSchool(feature, {
+      id: clone.sourceName.toLowerCase(),
+      name: clone.sourceName,
+      campusId: clone.sourceCampusId,
+      displayName: clone.sourceName,
+    })
+  }
+
   const props = (feature.properties ?? {}) as Record<string, unknown>
 
   const campusId = propertyString(props, ["campus_id", "CAMPUS_ID", "campusId", "CampusId"])

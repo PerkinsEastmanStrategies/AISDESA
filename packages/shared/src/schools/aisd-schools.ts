@@ -58,8 +58,69 @@ function formatDisplayName(name: string, cls: string): string {
   return titled
 }
 
-function schoolIdFromName(name: string): string {
+export function schoolIdFromName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+}
+
+/**
+ * Sandbox campuses that reuse another school's floor plans, rooms, and
+ * questions, but store survey results under a separate school/campus id.
+ */
+export interface TestCampusClone {
+  id: string
+  name: string
+  displayName: string
+  sourceName: string
+  sourceCampusId: string
+  campusId: string
+}
+
+export const TEST_CAMPUS_CLONES: readonly TestCampusClone[] = [
+  {
+    id: "lbj-test",
+    name: "LBJ TEST",
+    displayName: "LBJ TEST",
+    sourceName: "LBJ",
+    sourceCampusId: "014",
+    campusId: "014-TEST",
+  },
+]
+
+export function testCampusCloneForSchool(
+  school: Pick<AisdSchoolOption, "id" | "name" | "campusId"> | { name?: string | null; campusId?: string | null; id?: string | null },
+): TestCampusClone | undefined {
+  const id = school.id?.trim() ?? ""
+  const name = school.name?.trim().toUpperCase() ?? ""
+  const campusId = school.campusId?.trim() ?? ""
+  return TEST_CAMPUS_CLONES.find(
+    (clone) =>
+      clone.id === id ||
+      clone.name.toUpperCase() === name ||
+      clone.campusId === campusId,
+  )
+}
+
+/** Attach sandbox campuses after the live AISD list is parsed. */
+export function withTestCampusClones(schools: AisdSchoolOption[]): AisdSchoolOption[] {
+  const next = [...schools]
+  for (const clone of TEST_CAMPUS_CLONES) {
+    if (next.some((school) => school.id === clone.id)) continue
+    const source = next.find(
+      (school) =>
+        school.id === schoolIdFromName(clone.sourceName) ||
+        school.name.toUpperCase() === clone.sourceName.toUpperCase() ||
+        school.campusId === clone.sourceCampusId,
+    )
+    if (!source) continue
+    next.push({
+      ...source,
+      id: clone.id,
+      name: clone.name,
+      displayName: clone.displayName,
+      campusId: clone.campusId,
+    })
+  }
+  return next
 }
 
 const FLOOR_PLAN_SCHOOLS = new Set<string>()

@@ -1,7 +1,7 @@
 /** Load school room→neighborhood assignments from the live Google Sheet CSV. */
 
 import type { AisdSchoolOption } from "@aisd/shared"
-import { NEIGHBORHOOD_OPTIONS } from "@aisd/shared"
+import { NEIGHBORHOOD_OPTIONS, testCampusCloneForSchool } from "@aisd/shared"
 
 export type RoomNeighborhoodMap = Map<string, string>
 
@@ -292,6 +292,24 @@ function findSchoolData(
   index: Map<string, SchoolNeighborhoodData>,
   school: SchoolLookupInput,
 ): SchoolNeighborhoodData | null {
+  const clone =
+    school && typeof school === "object"
+      ? testCampusCloneForSchool({
+          id: "",
+          name: school.name ?? "",
+          campusId: school.campusId ?? "",
+        })
+      : typeof school === "string"
+        ? testCampusCloneForSchool({ id: "", name: school, campusId: "" })
+        : undefined
+  if (clone) {
+    return findSchoolData(index, {
+      name: clone.sourceName,
+      displayName: clone.sourceName,
+      campusId: clone.sourceCampusId,
+    })
+  }
+
   const schoolName = resolveSchoolName(school)
   if (!schoolName) return null
 

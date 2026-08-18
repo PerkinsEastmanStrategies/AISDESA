@@ -1,4 +1,9 @@
-import { parseAisdSchools, type AisdSchoolOption, type AisdSchoolsGeoJSON } from "@aisd/shared"
+import {
+  parseAisdSchools,
+  withTestCampusClones,
+  type AisdSchoolOption,
+  type AisdSchoolsGeoJSON,
+} from "@aisd/shared"
 import {
   loadFloorPlanManifest,
   schoolHasFloorPlan,
@@ -24,7 +29,7 @@ export async function loadAisdSchoolOptions(): Promise<AisdSchoolOption[]> {
     manifest = []
   }
 
-  const parsed = parseAisdSchools(data).map((school) => ({
+  const parsed = withTestCampusClones(parseAisdSchools(data)).map((school) => ({
     ...school,
     hasFloorPlan: schoolHasFloorPlan(school, manifest),
   }))
