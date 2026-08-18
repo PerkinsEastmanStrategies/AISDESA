@@ -110,7 +110,9 @@ function keepWithinScrollWindow(el: HTMLElement) {
   const target = (el.nextElementSibling as HTMLElement | null) ?? el
   const rootRect = scrollRoot.getBoundingClientRect()
   const targetRect = target.getBoundingClientRect()
-  const stickyTop = scrollRoot.querySelector(".sticky.top-0") as HTMLElement | null
+  const stickyTop =
+    (scrollRoot.querySelector("[data-survey-sticky-progress]") as HTMLElement | null) ??
+    (scrollRoot.querySelector(".sticky.top-0") as HTMLElement | null)
   const stickyBottom = scrollRoot.querySelector(".sticky.bottom-0") as HTMLElement | null
   const topPad = (stickyTop?.offsetHeight ?? 0) + 12
   const bottomPad = (stickyBottom?.offsetHeight ?? 0) + 16
@@ -330,7 +332,7 @@ export default function QuestionForm() {
           No pending questions for this room.
         </p>
       ) : null}
-      <div className="min-w-0 space-y-3.5">
+      <div className="relative z-0 min-w-0 space-y-3.5">
         {questions
           .filter(
             (q) =>
@@ -386,6 +388,16 @@ export default function QuestionForm() {
   )
 }
 
+function blurActiveTextInput() {
+  const active = document.activeElement
+  if (
+    active instanceof HTMLTextAreaElement ||
+    (active instanceof HTMLInputElement && active.type !== "radio" && active.type !== "checkbox")
+  ) {
+    active.blur()
+  }
+}
+
 function optionGridClass(options: EsaQuestionOption[]): string {
   const longest = Math.max(...options.map((o) => o.option.length), 0)
   const count = options.length
@@ -423,8 +435,9 @@ function OptionTile({
 }) {
   return (
     <label
+      onPointerDown={blurActiveTextInput}
       className={cn(
-        "relative flex h-full min-h-12 cursor-pointer items-center rounded-xl border px-3 py-2.5 text-left text-sm leading-snug transition-all duration-150",
+        "relative flex h-full min-h-12 cursor-pointer touch-manipulation items-center rounded-xl border px-3 py-2.5 text-left text-sm leading-snug transition-all duration-150",
         disabled && !selected ? "cursor-not-allowed opacity-55" : null,
         disabled && selected ? "cursor-default" : null,
         !disabled && "active:scale-[0.98]",
@@ -506,27 +519,33 @@ function QuestionField({
   const skipObserverCollapseRef = useRef(false)
 
   useEffect(() => {
-    if (autoAnswered || highlighted || noteRequired) {
+    if (autoAnswered || highlighted) {
       setCollapsed(false)
-      if (noteRequired) setUserExpanded(true)
     }
-  }, [autoAnswered, highlighted, noteRequired])
+    // Keep the card open only while the required NATA note is still missing.
+    if (noteRequired && !answered) {
+      setCollapsed(false)
+    }
+  }, [autoAnswered, highlighted, noteRequired, answered])
 
   useEffect(() => {
     const justAnswered = answered && !wasAnsweredRef.current
     wasAnsweredRef.current = answered
 
-    if (!answered || noteRequired || autoAnswered) {
+    if (autoAnswered) {
       setCollapsed(false)
-      if (noteRequired) setUserExpanded(true)
-      if (!answered) setUserExpanded(false)
+      return
+    }
+    if (!answered) {
+      setCollapsed(false)
+      setUserExpanded(false)
       return
     }
     if (!justAnswered || highlighted || userExpanded || multiSelect) return
 
     const timer = window.setTimeout(() => setCollapsed(true), 400)
     return () => window.clearTimeout(timer)
-  }, [answered, highlighted, userExpanded, multiSelect, value, noteRequired, autoAnswered])
+  }, [answered, highlighted, userExpanded, multiSelect, value, autoAnswered])
 
   // When a question is manually collapsed, keep following content inside the scroll window.
   useEffect(() => {
@@ -613,7 +632,7 @@ function QuestionField({
       <div
         ref={rootRef}
         id={id}
-        className="w-full min-w-0 max-w-full scroll-mt-24 overflow-hidden rounded-2xl border border-emerald-200/80 border-l-[3px] border-l-emerald-500 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] [overflow-anchor:none]"
+        className="w-full min-w-0 max-w-full scroll-mt-[calc(var(--survey-sticky-progress-height,5.5rem)+0.75rem)] overflow-hidden rounded-2xl border border-emerald-200/80 border-l-[3px] border-l-emerald-500 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] [overflow-anchor:none]"
       >
         <button
           type="button"
@@ -656,7 +675,7 @@ function QuestionField({
       ref={rootRef}
       id={id}
       className={cn(
-        "w-full min-w-0 max-w-full scroll-mt-24 overflow-hidden rounded-2xl border border-slate-200/90 border-l-[3px] bg-white shadow-[0_2px_8px_rgba(15,23,42,0.05)] [overflow-anchor:none]",
+        "w-full min-w-0 max-w-full scroll-mt-[calc(var(--survey-sticky-progress-height,5.5rem)+0.75rem)] overflow-clip rounded-2xl border border-slate-200/90 border-l-[3px] bg-white shadow-[0_2px_8px_rgba(15,23,42,0.05)] [overflow-anchor:none]",
         accent,
         disabled && !autoAnswered && "opacity-90",
         highlighted && "border-red-300 ring-2 ring-red-100",

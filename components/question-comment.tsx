@@ -28,6 +28,7 @@ export default function QuestionComment({
   const hasSavedComment = !!savedText
   const [open, setOpen] = useState(() => required && !hasSavedComment)
   const [draft, setDraft] = useState(savedText)
+  const [blockAutoFocus, setBlockAutoFocus] = useState(false)
   const noteId = useId()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const draftTrimmed = draft.trim()
@@ -49,6 +50,19 @@ export default function QuestionComment({
     }
     if (!hasSavedComment) setOpen(true)
   }, [required, hasSavedComment])
+
+  // iOS may auto-focus a newly mounted textarea, which opens the keyboard and
+  // leaves a dead tap zone over the next questions.
+  useEffect(() => {
+    if (!open || !required || hasSavedComment) return
+    setBlockAutoFocus(true)
+    textareaRef.current?.blur()
+    const timer = window.setTimeout(() => setBlockAutoFocus(false), 150)
+    return () => {
+      window.clearTimeout(timer)
+      setBlockAutoFocus(false)
+    }
+  }, [open, required, hasSavedComment])
 
   useEffect(() => {
     if (!open) return
@@ -99,6 +113,7 @@ export default function QuestionComment({
 
   const handleDone = () => {
     speech.stop()
+    textareaRef.current?.blur()
     const next = speech.isActive ? speech.displayValue : draft
     const trimmed = next.trim()
     if (trimmed) {
@@ -231,10 +246,13 @@ export default function QuestionComment({
             if (!speech.isActive) persistDraft(draft)
           }}
           rows={3}
-          required={required}
+          readOnly={blockAutoFocus}
+          aria-required={required || undefined}
           aria-invalid={missingRequired || undefined}
           autoComplete="off"
           autoCorrect="on"
+          autoFocus={false}
+          enterKeyHint="done"
           spellCheck
           placeholder={
             required

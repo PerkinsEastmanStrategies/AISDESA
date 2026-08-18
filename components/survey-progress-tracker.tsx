@@ -73,7 +73,12 @@ export default function SurveyProgressTracker({
   useLayoutEffect(() => {
     if (!stickyBarRef.current) return
     const node = stickyBarRef.current
-    const measure = () => setBarHeight(node.offsetHeight)
+    const measure = () => {
+      const height = node.offsetHeight
+      setBarHeight(height)
+      const scrollRoot = document.querySelector("[data-survey-scroll-root]") as HTMLElement | null
+      scrollRoot?.style.setProperty("--survey-sticky-progress-height", `${height}px`)
+    }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(node)
@@ -129,9 +134,14 @@ export default function SurveyProgressTracker({
   return (
     <div
       ref={stickyBarRef}
-      className="sticky top-0 z-40 -mx-3 mb-3 border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-sm"
+      data-survey-sticky-progress
+      className="pointer-events-none sticky top-0 z-40 -mx-3 mb-3"
     >
-      <ProgressBarContent progress={progress} activeIndex={activeIndex} complete={complete} />
+      {/* pointer-events-none on the sticky wrapper: WebKit + backdrop-filter can make
+          the stuck layer intercept taps on questions that have scrolled below the bar. */}
+      <div className="pointer-events-auto border-b border-slate-200/90 bg-white shadow-sm">
+        <ProgressBarContent progress={progress} activeIndex={activeIndex} complete={complete} />
+      </div>
     </div>
   )
 }
