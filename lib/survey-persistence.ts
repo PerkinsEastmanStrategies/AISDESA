@@ -9,7 +9,12 @@ import type {
 } from "@aisd/shared"
 import { SURVEY_TYPES } from "@aisd/shared"
 import {
+  ART_RUBRIC_VERSION,
+  EARLY_CHILDHOOD_RUBRIC_VERSION,
+  EARLY_CHILDHOOD_SPED_RUBRIC_VERSION,
   LIFE_SKILLS_RUBRIC_VERSION,
+  MUSIC_RUBRIC_VERSION,
+  SCIENCE_RUBRIC_VERSION,
   SENSORY_LAB_RUBRIC_VERSION,
   SPED_FLEX_RUBRIC_VERSION,
   TRADITIONAL_STUDIOS_RUBRIC_VERSION,
@@ -63,6 +68,26 @@ export interface PersistedSurveyDraft {
    * Stamped after Sped Flex Studio rooms are cleared for the Sped Flex package.
    */
   spedFlexRubricVersion?: number
+  /**
+   * Stamped after Science rooms are cleared for the Science package.
+   */
+  scienceRubricVersion?: number
+  /**
+   * Stamped after Art rooms are cleared for the Art package.
+   */
+  artRubricVersion?: number
+  /**
+   * Stamped after Music rooms are cleared for the Music package.
+   */
+  musicRubricVersion?: number
+  /**
+   * Stamped after Early childhood studio rooms are cleared for that package.
+   */
+  earlyChildhoodRubricVersion?: number
+  /**
+   * Stamped after Early childhood special education studio rooms are cleared.
+   */
+  earlyChildhoodSpedRubricVersion?: number
 }
 
 export interface ActiveDraftMeta {
@@ -269,6 +294,46 @@ function migratePackageStudioDrafts(draft: PersistedSurveyDraft): PersistedSurve
     changed = true
   }
 
+  if (next.scienceRubricVersion !== SCIENCE_RUBRIC_VERSION) {
+    next = {
+      ...stripStudioTypeFromDraft(next, "Science"),
+      scienceRubricVersion: SCIENCE_RUBRIC_VERSION,
+    }
+    changed = true
+  }
+
+  if (next.artRubricVersion !== ART_RUBRIC_VERSION) {
+    next = {
+      ...stripStudioTypeFromDraft(next, "Art"),
+      artRubricVersion: ART_RUBRIC_VERSION,
+    }
+    changed = true
+  }
+
+  if (next.musicRubricVersion !== MUSIC_RUBRIC_VERSION) {
+    next = {
+      ...stripStudioTypeFromDraft(next, "Music"),
+      musicRubricVersion: MUSIC_RUBRIC_VERSION,
+    }
+    changed = true
+  }
+
+  if (next.earlyChildhoodRubricVersion !== EARLY_CHILDHOOD_RUBRIC_VERSION) {
+    next = {
+      ...stripStudioTypeFromDraft(next, "Early childhood studio"),
+      earlyChildhoodRubricVersion: EARLY_CHILDHOOD_RUBRIC_VERSION,
+    }
+    changed = true
+  }
+
+  if (next.earlyChildhoodSpedRubricVersion !== EARLY_CHILDHOOD_SPED_RUBRIC_VERSION) {
+    next = {
+      ...stripStudioTypeFromDraft(next, "Early childhood special education studio"),
+      earlyChildhoodSpedRubricVersion: EARLY_CHILDHOOD_SPED_RUBRIC_VERSION,
+    }
+    changed = true
+  }
+
   return changed ? next : draft
 }
 
@@ -305,6 +370,13 @@ export function saveDraft(
         draft.vocationalLabRubricVersion ?? VOCATIONAL_LAB_RUBRIC_VERSION,
       lifeSkillsRubricVersion: draft.lifeSkillsRubricVersion ?? LIFE_SKILLS_RUBRIC_VERSION,
       spedFlexRubricVersion: draft.spedFlexRubricVersion ?? SPED_FLEX_RUBRIC_VERSION,
+      scienceRubricVersion: draft.scienceRubricVersion ?? SCIENCE_RUBRIC_VERSION,
+      artRubricVersion: draft.artRubricVersion ?? ART_RUBRIC_VERSION,
+      musicRubricVersion: draft.musicRubricVersion ?? MUSIC_RUBRIC_VERSION,
+      earlyChildhoodRubricVersion:
+        draft.earlyChildhoodRubricVersion ?? EARLY_CHILDHOOD_RUBRIC_VERSION,
+      earlyChildhoodSpedRubricVersion:
+        draft.earlyChildhoodSpedRubricVersion ?? EARLY_CHILDHOOD_SPED_RUBRIC_VERSION,
     }
     localStorage.setItem(draftKey(draft.schoolId, draft.surveyType), JSON.stringify(payload))
     // Only the survey currently being viewed should become the restore target on reload.

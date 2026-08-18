@@ -55,6 +55,31 @@ import {
   VOCATIONAL_LAB_QUESTIONS,
   VOCATIONAL_LAB_RUBRIC_VERSION,
   VOCATIONAL_LAB_SUBCATEGORIES,
+  SCIENCE_CATEGORIES,
+  SCIENCE_QUESTION_OPTIONS,
+  SCIENCE_QUESTIONS,
+  SCIENCE_RUBRIC_VERSION,
+  SCIENCE_SUBCATEGORIES,
+  ART_CATEGORIES,
+  ART_QUESTION_OPTIONS,
+  ART_QUESTIONS,
+  ART_RUBRIC_VERSION,
+  ART_SUBCATEGORIES,
+  MUSIC_CATEGORIES,
+  MUSIC_QUESTION_OPTIONS,
+  MUSIC_QUESTIONS,
+  MUSIC_RUBRIC_VERSION,
+  MUSIC_SUBCATEGORIES,
+  EARLY_CHILDHOOD_CATEGORIES,
+  EARLY_CHILDHOOD_QUESTION_OPTIONS,
+  EARLY_CHILDHOOD_QUESTIONS,
+  EARLY_CHILDHOOD_RUBRIC_VERSION,
+  EARLY_CHILDHOOD_SUBCATEGORIES,
+  EARLY_CHILDHOOD_SPED_CATEGORIES,
+  EARLY_CHILDHOOD_SPED_QUESTION_OPTIONS,
+  EARLY_CHILDHOOD_SPED_QUESTIONS,
+  EARLY_CHILDHOOD_SPED_RUBRIC_VERSION,
+  EARLY_CHILDHOOD_SPED_SUBCATEGORIES,
 } from "../data/traditional-studio-rubric"
 import {
   ADMIN_OFFICE_CATEGORIES,
@@ -257,6 +282,11 @@ export {
   VOCATIONAL_LAB_RUBRIC_VERSION,
   LIFE_SKILLS_RUBRIC_VERSION,
   SPED_FLEX_RUBRIC_VERSION,
+  SCIENCE_RUBRIC_VERSION,
+  ART_RUBRIC_VERSION,
+  MUSIC_RUBRIC_VERSION,
+  EARLY_CHILDHOOD_RUBRIC_VERSION,
+  EARLY_CHILDHOOD_SPED_RUBRIC_VERSION,
   ADMIN_OFFICE_RUBRIC_VERSION,
   COUNSELING_SUITE_RUBRIC_VERSION,
   MAIN_OFFICE_RUBRIC_VERSION,
@@ -355,6 +385,46 @@ const SPED_FLEX_RUBRIC: SurveyRubric = {
   subcategories: SPED_FLEX_SUBCATEGORIES,
   questions: SPED_FLEX_QUESTIONS as SurveyRubric["questions"],
   options: SPED_FLEX_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const SCIENCE_RUBRIC: SurveyRubric = {
+  assessmentArea: "Studios",
+  categories: SCIENCE_CATEGORIES,
+  subcategories: SCIENCE_SUBCATEGORIES,
+  questions: SCIENCE_QUESTIONS as SurveyRubric["questions"],
+  options: SCIENCE_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const ART_RUBRIC: SurveyRubric = {
+  assessmentArea: "Studios",
+  categories: ART_CATEGORIES,
+  subcategories: ART_SUBCATEGORIES,
+  questions: ART_QUESTIONS as SurveyRubric["questions"],
+  options: ART_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const MUSIC_RUBRIC: SurveyRubric = {
+  assessmentArea: "Studios",
+  categories: MUSIC_CATEGORIES,
+  subcategories: MUSIC_SUBCATEGORIES,
+  questions: MUSIC_QUESTIONS as SurveyRubric["questions"],
+  options: MUSIC_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const EARLY_CHILDHOOD_RUBRIC: SurveyRubric = {
+  assessmentArea: "Studios",
+  categories: EARLY_CHILDHOOD_CATEGORIES,
+  subcategories: EARLY_CHILDHOOD_SUBCATEGORIES,
+  questions: EARLY_CHILDHOOD_QUESTIONS as SurveyRubric["questions"],
+  options: EARLY_CHILDHOOD_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const EARLY_CHILDHOOD_SPED_RUBRIC: SurveyRubric = {
+  assessmentArea: "Studios",
+  categories: EARLY_CHILDHOOD_SPED_CATEGORIES,
+  subcategories: EARLY_CHILDHOOD_SPED_SUBCATEGORIES,
+  questions: EARLY_CHILDHOOD_SPED_QUESTIONS as SurveyRubric["questions"],
+  options: EARLY_CHILDHOOD_SPED_QUESTION_OPTIONS as SurveyRubric["options"],
 }
 
 const OUTDOOR_SPACES_RUBRIC: SurveyRubric = {
@@ -937,14 +1007,16 @@ export function getRoomSurveyRubric(
     rubric = filterRubricBySchoolLevel(SPED_FLEX_RUBRIC, schoolClass)
   } else if (roomType === "Maker space") {
     rubric = filterRubricBySchoolLevel(MAKER_SPACE_RUBRIC, schoolClass)
-  } else if (
-    roomType === "Early childhood studio" ||
-    roomType === "Early childhood special education studio" ||
-    roomType === "Art" ||
-    roomType === "Music" ||
-    roomType === "Science"
-  ) {
-    rubric = filterRubricBySchoolLevel(TRADITIONAL_STUDIOS_RUBRIC, schoolClass)
+  } else if (roomType === "Science") {
+    rubric = filterRubricBySchoolLevel(SCIENCE_RUBRIC, schoolClass)
+  } else if (roomType === "Art") {
+    rubric = filterRubricBySchoolLevel(ART_RUBRIC, schoolClass)
+  } else if (roomType === "Music") {
+    rubric = filterRubricBySchoolLevel(MUSIC_RUBRIC, schoolClass)
+  } else if (roomType === "Early childhood studio") {
+    rubric = filterRubricBySchoolLevel(EARLY_CHILDHOOD_RUBRIC, schoolClass)
+  } else if (roomType === "Early childhood special education studio") {
+    rubric = filterRubricBySchoolLevel(EARLY_CHILDHOOD_SPED_RUBRIC, schoolClass)
   } else {
     rubric = STUDIOS_RUBRIC
   }
@@ -1373,7 +1445,12 @@ export function usesPackageStudioRubric(roomType: string | null | undefined): bo
     roomType === "Vocational Lab" ||
     roomType === "Vocational lab" ||
     roomType === "Life Skills Room" ||
-    roomType === "Sped flex studio"
+    roomType === "Sped flex studio" ||
+    roomType === "Science" ||
+    roomType === "Art" ||
+    roomType === "Music" ||
+    roomType === "Early childhood studio" ||
+    roomType === "Early childhood special education studio"
   )
 }
 

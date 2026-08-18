@@ -89,6 +89,58 @@ const PACKAGES = [
     csvDir: v4CsvDir,
     format: "v4",
   },
+  {
+    spaceTypeId: "SPT-SCIENCE-2593B2",
+    extraSpaceTypeIds: ["SPT-SCIENCE-PREP-ROOM-C6879C"],
+    extraSpaceTypeLabels: { "SPT-SCIENCE-PREP-ROOM-C6879C": "Science Prep Room" },
+    versionConst: "SCIENCE_RUBRIC_VERSION",
+    version: 1,
+    prefix: "SCIENCE",
+    label: "Science",
+    assessmentArea: "Studios",
+    csvDir: v4CsvDir,
+    format: "v4",
+  },
+  {
+    spaceTypeId: "SPT-ART-STUDIO-B083D5",
+    versionConst: "ART_RUBRIC_VERSION",
+    version: 1,
+    prefix: "ART",
+    label: "Art",
+    assessmentArea: "Studios",
+    csvDir: v4CsvDir,
+    format: "v4",
+  },
+  {
+    spaceTypeId: "SPT-MUSIC-STUDIO-7170B4",
+    versionConst: "MUSIC_RUBRIC_VERSION",
+    version: 1,
+    prefix: "MUSIC",
+    label: "Music",
+    assessmentArea: "Studios",
+    csvDir: v4CsvDir,
+    format: "v4",
+  },
+  {
+    spaceTypeId: "SPT-EARLY-CHILDHOOD-STUDIO-49159F",
+    versionConst: "EARLY_CHILDHOOD_RUBRIC_VERSION",
+    version: 1,
+    prefix: "EARLY_CHILDHOOD",
+    label: "Early Childhood Studio",
+    assessmentArea: "Studios",
+    csvDir: v4CsvDir,
+    format: "v4",
+  },
+  {
+    spaceTypeId: "SPT-EARLY-CHILDHOOD-SPECIAL-EDUCAT-0E3811",
+    versionConst: "EARLY_CHILDHOOD_SPED_RUBRIC_VERSION",
+    version: 1,
+    prefix: "EARLY_CHILDHOOD_SPED",
+    label: "Early Childhood Special Education Studio",
+    assessmentArea: "Special Education",
+    csvDir: v4CsvDir,
+    format: "v4",
+  },
 ]
 
 function parseCsv(text) {
@@ -211,9 +263,16 @@ function emitPackage(pkg) {
   const subById = new Map(bundle.subcategories.map((s) => [s.SubcategoryID, s]))
   const isV4 = pkg.format === "v4"
   const assessmentArea = pkg.assessmentArea ?? "Studios"
+  const spaceTypeIds = new Set([pkg.spaceTypeId, ...(pkg.extraSpaceTypeIds ?? [])])
+  const extraLabels = pkg.extraSpaceTypeLabels ?? {}
+
+  const categoryLabel = (c) => {
+    const prefix = extraLabels[c.SpaceTypeID]
+    return prefix ? `${prefix} ${c.CategoryName}` : c.CategoryName
+  }
 
   const categories = bundle.categories
-    .filter((c) => c.SpaceTypeID === pkg.spaceTypeId)
+    .filter((c) => spaceTypeIds.has(c.SpaceTypeID))
     .sort((a, b) => Number(a.DisplayOrder) - Number(b.DisplayOrder))
 
   const catIds = new Set(categories.map((c) => c.CategoryID))
@@ -227,7 +286,7 @@ function emitPackage(pkg) {
     })
 
   const questions = bundle.questions
-    .filter((q) => q.SpaceTypeID === pkg.spaceTypeId && (isV4 ? isTrue(q.IsActive) : true))
+    .filter((q) => spaceTypeIds.has(q.SpaceTypeID) && (isV4 ? isTrue(q.IsActive) : true))
     .sort((a, b) => Number(a.DisplayOrder) - Number(b.DisplayOrder))
 
   const questionIds = new Set(questions.map((q) => q.QuestionID))
@@ -244,7 +303,7 @@ export const ${pkg.prefix}_CATEGORIES: EsaCategory[] = [
 `
 
   for (const c of categories) {
-    out += `  { assessmentArea: ${esc(assessmentArea)}, category: ${esc(c.CategoryName)}, categoryWeight: ${parseWeight(c.CategoryWeight)} },\n`
+    out += `  { assessmentArea: ${esc(assessmentArea)}, category: ${esc(categoryLabel(c))}, categoryWeight: ${parseWeight(c.CategoryWeight)} },\n`
   }
 
   out += `]
@@ -255,7 +314,7 @@ export const ${pkg.prefix}_SUBCATEGORIES: EsaSubcategory[] = [
   for (const s of subcategories) {
     const parent = catById.get(s.CategoryID)
     if (!parent) throw new Error(`Missing category for subcategory ${s.SubcategoryID}`)
-    out += `  { category: ${esc(parent.CategoryName)}, subcategory: ${esc(s.SubcategoryName)}, subcategoryWeight: ${parseWeight(s.SubcategoryWeight)} },\n`
+    out += `  { category: ${esc(categoryLabel(parent))}, subcategory: ${esc(s.SubcategoryName)}, subcategoryWeight: ${parseWeight(s.SubcategoryWeight)} },\n`
   }
 
   out += `]
@@ -282,7 +341,7 @@ export const ${pkg.prefix}_QUESTIONS: (EsaQuestion & {
     out += `  {
     questionId: ${esc(q.QuestionID)},
     assessmentArea: ${esc(assessmentArea)},
-    category: ${esc(cat.CategoryName)},
+    category: ${esc(categoryLabel(cat))},
     subcategory: ${esc(sub.SubcategoryName)},
     question: ${esc(q.QuestionText)},
     questionType: ${esc(normalizeQuestionType(q.QuestionType))},
