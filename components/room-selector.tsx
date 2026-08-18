@@ -6,13 +6,11 @@ import { Check, CheckCircle2, ChevronDown, CircleHelp, Map as MapIcon, Search, X
 import { useSurvey } from "@/lib/survey-store"
 import SurveyFloorPlan from "@/components/survey-floor-plan"
 import {
-  getRoomSurveyRubric,
   gradeOptionsForSchool,
   isClassroomRoom,
   isNeighborhoodOnlySpaceType,
   isNeighborhoodSurveyRoomId,
   isOutdoorSurveyRoomId,
-  isRoomComplete,
   isSpaceTypeRequiredForSchool,
   isSpaceTypeRoomsComplete,
   isStudioType,
@@ -47,7 +45,7 @@ import {
   neighborhoodLegendColors,
   neighborhoodOptionsForSchool,
 } from "@/lib/room-neighborhood-lookup"
-import { validateRoomSession } from "@/lib/survey-validation"
+import { isRoomSurveyFilledOut } from "@/lib/room-survey-progress"
 import { cn } from "@/lib/utils"
 import { useSelectRoomWithConfirm } from "@/components/use-select-room-with-confirm"
 import { useFloorPlanDisplay } from "@/lib/use-floor-plan-display"
@@ -55,6 +53,18 @@ import SpaceTypeAssessmentGuidanceModal from "@/components/space-type-assessment
 import SpaceTypeExistenceGate from "@/components/space-type-existence-gate"
 import TraditionalStudioCopyOffer from "@/components/traditional-studio-copy-offer"
 import NeighborhoodLegend from "@/components/neighborhood-legend"
+
+function roomsWithPlanNeighborhood(
+  rooms: RoomSurveySession[],
+  allRooms: { id: string; neighborhood?: string | null }[],
+): RoomSurveySession[] {
+  return rooms.map((room) => {
+    if (room.neighborhood?.trim()) return room
+    const fromPlan = allRooms.find((planRoom) => planRoom.id === room.roomId)?.neighborhood?.trim()
+    if (!fromPlan) return room
+    return { ...room, neighborhood: fromPlan }
+  })
+}
 
 function BodyPortal({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false)
@@ -422,24 +432,7 @@ export default function RoomSelector({
         map[room.roomType].complete += 1
         continue
       }
-      const detail = state.roomScoreDetails[room.roomId]
-      const fullyScored = !!(
-        detail &&
-        isRoomComplete(detail, room.gradeType, room.roomType, state.school?.schoolClass)
-      )
-      const rubric = getRoomSurveyRubric(
-        state.surveyType,
-        room.roomType,
-        room.gradeType,
-        state.school?.schoolClass,
-      )
-      const submitReady =
-        !!rubric &&
-        validateRoomSession(room.roomId, room.roomId, room, rubric.questions, {
-          forSubmit: true,
-          schoolClass: state.school?.schoolClass,
-        }).complete
-      if (fullyScored || submitReady) {
+      if (isRoomSurveyFilledOut(room, state.surveyType, state.school?.schoolClass)) {
         map[room.roomType].complete += 1
       }
     }
@@ -457,35 +450,15 @@ export default function RoomSelector({
   }, [
     spaceTypeOptions,
     state.session,
-    state.roomScoreDetails,
     showSpaceType,
     state.school?.schoolClass,
     state.surveyType,
   ])
 
   const roomSurveyComplete = useCallback(
-    (room: RoomSurveySession) => {
-      if (room.spaceTypeMarkedAbsent) return true
-      const detail = state.roomScoreDetails[room.roomId]
-      const fullyScored = !!(
-        detail &&
-        isRoomComplete(detail, room.gradeType, room.roomType, state.school?.schoolClass)
-      )
-      const rubric = getRoomSurveyRubric(
-        state.surveyType,
-        room.roomType,
-        room.gradeType,
-        state.school?.schoolClass,
-      )
-      const submitReady =
-        !!rubric &&
-        validateRoomSession(room.roomId, room.roomId, room, rubric.questions, {
-          forSubmit: true,
-          schoolClass: state.school?.schoolClass,
-        }).complete
-      return fullyScored || submitReady
-    },
-    [state.roomScoreDetails, state.school?.schoolClass, state.surveyType],
+    (room: RoomSurveySession) =>
+      isRoomSurveyFilledOut(room, state.surveyType, state.school?.schoolClass),
+    [state.school?.schoolClass, state.surveyType],
   )
 
   const selectedRoom = selectedId
@@ -1013,9 +986,12 @@ export default function RoomSelector({
                 )
                 const absent = isSpaceTypeMarkedAbsentAtSchool(state.session, type)
                 const hasSaved = absent || progress.started > 0
-                const roomsOfType = state.session
-                  ? Object.values(state.session.rooms).filter((room) => room.roomType === type)
-                  : []
+                const roomsOfType = roomsWithPlanNeighborhood(
+                  state.session
+                    ? Object.values(state.session.rooms).filter((room) => room.roomType === type)
+                    : [],
+                  state.allRooms,
+                )
                 const completionProgress = spaceTypeCompletionProgress(
                   type,
                   roomsOfType,

@@ -293,6 +293,15 @@ export interface SpaceTypeRoomSession {
   neighborhood?: string | null
 }
 
+function neighborhoodKey(value: string | null | undefined): string {
+  return value?.trim().toUpperCase() ?? ""
+}
+
+/** Neighborhoods that already have a finished room — incomplete rooms do not raise the bar. */
+function filledNeighborhoodKeys<T extends SpaceTypeRoomSession>(filled: T[]): string[] {
+  return [...new Set(filled.map((room) => neighborhoodKey(room.neighborhood)).filter(Boolean))]
+}
+
 export function isSpaceTypeRoomsComplete<T extends SpaceTypeRoomSession>(
   spaceType: string,
   rooms: T[],
@@ -306,13 +315,13 @@ export function isSpaceTypeRoomsComplete<T extends SpaceTypeRoomSession>(
     return filled.length >= rule.count
   }
 
-  const identified = new Set(
-    rooms.map((room) => room.neighborhood?.trim()).filter((n): n is string => !!n),
-  )
-  if (identified.size === 0) return false
+  const identified = filledNeighborhoodKeys(filled)
+  if (identified.length === 0) {
+    return filled.length >= rule.minPerNeighborhood
+  }
 
   for (const neighborhood of identified) {
-    const count = filled.filter((room) => room.neighborhood?.trim() === neighborhood).length
+    const count = filled.filter((room) => neighborhoodKey(room.neighborhood) === neighborhood).length
     if (count < rule.minPerNeighborhood) return false
   }
   return true
@@ -331,11 +340,17 @@ export function spaceTypeCompletionProgress<T extends SpaceTypeRoomSession>(
     return { complete: filled.length, required: rule.count }
   }
 
-  const identified = new Set(
-    rooms.map((room) => room.neighborhood?.trim()).filter((n): n is string => !!n),
-  )
-  const required = identified.size * rule.minPerNeighborhood
-  return { complete: filled.length, required: Math.max(required, rule.minPerNeighborhood) }
+  const identified = filledNeighborhoodKeys(filled)
+  if (identified.length === 0) {
+    return { complete: filled.length, required: rule.minPerNeighborhood }
+  }
+
+  const required = identified.length * rule.minPerNeighborhood
+  const complete = identified.reduce((sum, neighborhood) => {
+    const count = filled.filter((room) => neighborhoodKey(room.neighborhood) === neighborhood).length
+    return sum + Math.min(count, rule.minPerNeighborhood)
+  }, 0)
+  return { complete, required }
 }
 
 export function lookupSpaceTypeAssessmentGuidance(

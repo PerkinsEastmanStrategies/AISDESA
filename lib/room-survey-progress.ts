@@ -1,9 +1,5 @@
 import type { RoomSurveySession, SurveyType } from "@aisd/shared"
-import {
-  getRoomSurveyRubric,
-  isRoomComplete,
-  type RoomScoreResult,
-} from "@aisd/shared"
+import { getRoomSurveyRubric, isAbsentSpaceTypeRoomId } from "@aisd/shared"
 import { roomNeedsCloseOut } from "@/lib/closeout"
 import { validateRoomSession } from "@/lib/survey-validation"
 
@@ -15,6 +11,31 @@ export const ROOM_PROGRESS_FILL: Record<"in_progress" | "complete", string> = {
 }
 
 /**
+ * True when the room's answers meet Save/submit rules (required questions, Close Out deferrals).
+ * Scoring counts (`answeredCount >= totalCount`) are not used — multi-select score units can
+ * leave those short after the survey itself is finished.
+ */
+export function isRoomSurveyFilledOut(
+  room: RoomSurveySession,
+  surveyType: SurveyType,
+  schoolClass?: string | null,
+): boolean {
+  if (room.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(room.roomId)) return true
+  const rubric = getRoomSurveyRubric(
+    surveyType,
+    room.roomType,
+    room.gradeType,
+    schoolClass,
+    surveyType === "closeout" ? room.sourceSurveyType : undefined,
+  )
+  if (!rubric) return false
+  return validateRoomSession(room.roomId, room.roomId, room, rubric.questions, {
+    schoolClass,
+    forSubmit: true,
+  }).complete
+}
+
+/**
  * Floor-plan shading status for a room's current survey session.
  * idle = not started; in_progress = started but incomplete; complete = fully answered.
  */
@@ -23,7 +44,6 @@ export function getRoomSurveyProgress(
   options: {
     surveyType: SurveyType
     schoolClass?: string | null
-    scoreDetail?: RoomScoreResult | null
   },
 ): RoomSurveyProgress {
   if (!room) return "idle"
@@ -40,28 +60,6 @@ export function getRoomSurveyProgress(
     room.responses.length > 0 || !!room.gradeType || !!room.deferredToCloseOut
   if (!started) return "idle"
 
-  const fullyScored = !!(
-    options.scoreDetail &&
-    isRoomComplete(
-      options.scoreDetail,
-      room.gradeType,
-      room.roomType,
-      options.schoolClass,
-    )
-  )
-  const rubric = getRoomSurveyRubric(
-    options.surveyType,
-    room.roomType,
-    room.gradeType,
-    options.schoolClass,
-  )
-  const submitReady =
-    !!rubric &&
-    validateRoomSession(room.roomId, room.roomId, room, rubric.questions, {
-      forSubmit: true,
-      schoolClass: options.schoolClass,
-    }).complete
-
-  if (fullyScored || submitReady) return "complete"
+  if (isRoomSurveyFilledOut(room, options.surveyType, options.schoolClass)) return "complete"
   return "in_progress"
 }

@@ -778,7 +778,6 @@ export default function SurveyFloorPlan({
       progress: getRoomSurveyProgress(state.session?.rooms[room.id], {
         surveyType: state.surveyType,
         schoolClass: state.school?.schoolClass,
-        scoreDetail: state.roomScoreDetails[room.id] ?? null,
       }),
       selected: photoGalleryMode
         ? photoSelected

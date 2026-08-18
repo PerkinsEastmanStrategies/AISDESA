@@ -53,7 +53,6 @@ import {
   spaceTypeFromNeighborhoodSurveyRoomId,
   spaceTypeFromOutdoorSurveyRoomId,
   outdoorSurveyRoomId,
-  isRoomComplete,
   isSecondaryGrade,
   neighborhoodFromSurveyRoomId,
   neighborhoodSurveyRoomDisplayName,
@@ -1906,7 +1905,6 @@ function reducer(state: SurveyState, action: Action): SurveyState {
           campusRoom || neighborhoodSurveyRoom || absentRoom
             ? undefined
             : state.allRooms.find((r) => r.id === roomId)
-        if (!parsed && !campusRoom && !neighborhoodSurveyRoom && !absentRoom) continue
 
         if (absentRoom) {
           const result = scoreAbsentSpaceTypeRoom(roomId)
@@ -2327,7 +2325,6 @@ function buildScoredRoomEntries(state: SurveyState): ScoredRoomEntry[] {
         totalCount = progress.totalCount
       }
       const detail = state.roomScoreDetails[roomId]
-      const pendingDone = !roomNeedsCloseOut(roomSession)
       return {
         roomId,
         roomName: roomDisplayName(state, roomId),
@@ -2342,16 +2339,7 @@ function buildScoredRoomEntries(state: SurveyState): ScoredRoomEntry[] {
         categoryScores: detail?.categoryScores ?? [],
         answeredCount,
         totalCount,
-        complete: absentRoom
-          ? true
-          : detail
-            ? isRoomComplete(
-                detail,
-                roomSession.gradeType,
-                roomSession.roomType,
-                state.school?.schoolClass,
-              ) && (state.surveyType !== "closeout" || pendingDone)
-            : roomSurveyComplete(state, roomId, roomSession),
+        complete: roomSurveyComplete(state, roomId, roomSession),
       }
     })
     .sort((a, b) => a.roomName.localeCompare(b.roomName))
@@ -3620,6 +3608,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         t,
         getSurveyTypeInfo(t, schoolId, state.assessorByType, {
           classroomRooms: classroomRoomsForSchool,
+          planRooms: state.allRooms,
           liveSession: t === state.surveyType ? state.session : undefined,
           schoolClass: state.school?.schoolClass,
         }),
