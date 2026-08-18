@@ -447,6 +447,84 @@ export function loadDraftsForSchool(schoolId: string): PersistedSurveyDraft[] {
     .filter((d): d is PersistedSurveyDraft => d != null)
 }
 
+function submittedRoomCount(draft: PersistedSurveyDraft | null | undefined): number {
+  return draft?.lastSubmission?.campus?.rooms?.length ?? 0
+}
+
+/**
+ * Keep a local submission snapshot when the cloud draft has answers but no
+ * snapshot yet (common on a new sandbox campus after the first Save).
+ */
+export function mergePulledDraftWithLocal(
+  remote: PersistedSurveyDraft,
+  local: PersistedSurveyDraft | null,
+): PersistedSurveyDraft {
+  if (!local) return remote
+  if (submittedRoomCount(remote) > 0) return remote
+  if (submittedRoomCount(local) === 0) return remote
+  return {
+    ...remote,
+    lastSubmission: local.lastSubmission,
+    session: {
+      ...remote.session,
+      submittedAt: remote.session.submittedAt ?? local.session.submittedAt,
+    },
+  }
+}
+
+/**
+ * Results should include the in-memory Save even before the cloud pull catches up.
+ * Remote drafts still win as the base so deleted rooms are not resurrected.
+ */
+export function mergeDraftsForScoring(input: {
+  remote: PersistedSurveyDraft[] | null
+  remoteConfigured: boolean
+  local: PersistedSurveyDraft[]
+  live?: {
+    schoolId: string
+    surveyType: SurveyType
+    session: SurveySession
+    submission: SurveySubmission | null
+  }
+}): PersistedSurveyDraft[] | undefined {
+  const byType = new Map<SurveyType, PersistedSurveyDraft>()
+  const remoteReady = input.remoteConfigured && input.remote !== null
+  const base = remoteReady ? (input.remote ?? []) : input.local
+
+  for (const draft of base) byType.set(draft.surveyType, draft)
+
+  if (remoteReady) {
+    for (const local of input.local) {
+      const remote = byType.get(local.surveyType)
+      byType.set(local.surveyType, mergePulledDraftWithLocal(remote ?? local, local))
+    }
+  }
+
+  const live = input.live
+  const liveRooms = live?.submission?.campus?.rooms?.length ?? 0
+  if (live && live.submission && liveRooms > 0) {
+    const existing = byType.get(live.surveyType)
+    byType.set(live.surveyType, {
+      version: DRAFT_VERSION,
+      schoolId: live.schoolId,
+      surveyType: live.surveyType,
+      session: live.session,
+      selectedLevelId: existing?.selectedLevelId ?? null,
+      selectedRoomId: existing?.selectedRoomId,
+      pendingStudioType: existing?.pendingStudioType,
+      pendingNeighborhood: existing?.pendingNeighborhood,
+      view: existing?.view,
+      manualRooms: existing?.manualRooms,
+      preWalk: existing?.preWalk,
+      lastSubmission: live.submission,
+      savedAt: live.submission.submittedAt,
+    })
+  }
+
+  const list = [...byType.values()]
+  return list.length ? list : undefined
+}
+
 /** Copy school-level pre-walk data onto every local draft for that school. */
 export function propagatePreWalkToSchoolDrafts(
   schoolId: string,

@@ -73,6 +73,8 @@ import {
   loadDraft,
   loadDraftsForSchool,
   loadResumableDraft,
+  mergeDraftsForScoring,
+  mergePulledDraftWithLocal,
   propagatePreWalkToSchoolDrafts,
   saveAssessors,
   saveDraft,
@@ -2606,11 +2608,15 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       const result = await pullRemoteDraftsForSchoolClient(state.school.id)
       if (result.configured) {
         // Supabase is the shared source of truth for multi-assessor Results.
-        for (const draft of result.drafts) {
+        // Keep a newer local submission snapshot when the cloud row has no snapshot yet.
+        const merged = result.drafts.map((draft) =>
+          mergePulledDraftWithLocal(draft, loadDraft(draft.schoolId, draft.surveyType)),
+        )
+        for (const draft of merged) {
           saveDraft(draft, { setActive: false })
         }
         setRemoteDraftsConfigured(true)
-        setRemoteSchoolDrafts(result.drafts)
+        setRemoteSchoolDrafts(merged)
       } else {
         setRemoteDraftsConfigured(false)
         setRemoteSchoolDrafts(null)
@@ -3029,13 +3035,29 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
   const scoringDrafts = useMemo(() => {
     if (!state.school) return undefined
-    // Online Results: use Supabase drafts only so stale local history cannot resurrect deleted rooms.
-    if (remoteDraftsConfigured && remoteSchoolDrafts !== null) {
-      return remoteSchoolDrafts.length ? remoteSchoolDrafts : undefined
-    }
-    const local = loadDraftsForSchool(state.school.id)
-    return local.length ? local : undefined
-  }, [remoteDraftsConfigured, remoteSchoolDrafts, state.school?.id])
+    return mergeDraftsForScoring({
+      remote: remoteSchoolDrafts,
+      remoteConfigured: remoteDraftsConfigured,
+      local: loadDraftsForSchool(state.school.id),
+      live:
+        state.session && state.submission
+          ? {
+              schoolId: state.school.id,
+              surveyType: state.surveyType,
+              session: state.session,
+              submission: state.submission,
+            }
+          : undefined,
+    })
+  }, [
+    remoteDraftsConfigured,
+    remoteSchoolDrafts,
+    state.school?.id,
+    state.surveyType,
+    state.session,
+    state.submission,
+    state.lastSavedAt,
+  ])
 
   const campusSnapshotInput = useMemo(
     () =>
@@ -3046,9 +3068,12 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
             campusId: state.school.campusId,
             schoolClass: state.school.schoolClass,
             drafts: scoringDrafts,
+            liveSurveyType: state.surveyType,
+            liveSession: state.session,
+            liveRoomScoreDetails: state.roomScoreDetails,
           }
         : null,
-    [state.school, scoringDrafts],
+    [state.school, scoringDrafts, state.surveyType, state.session, state.roomScoreDetails],
   )
 
   const schoolHasResultsFlag = useMemo(

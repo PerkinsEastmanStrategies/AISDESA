@@ -480,6 +480,40 @@ export function buildCampusScoringSnapshot(input: {
     }
   }
 
+  // Just-finished rooms on this device (e.g. first save on a sandbox campus)
+  // are not always in a cloud submission snapshot yet.
+  if (input.liveSession && input.liveSurveyType && input.liveSurveyType !== "closeout") {
+    const surveyType = input.liveSurveyType
+    const session = input.liveSession
+    let details = roomScoreDetailsBySurveyType[surveyType]
+    if (!details) {
+      details = scoreSessionRooms(session, surveyType, input.schoolClass)
+      roomScoreDetailsBySurveyType[surveyType] = details
+    }
+    const seen = new Set(allRooms.map((room) => room.roomId))
+    for (const [roomId, roomSession] of Object.entries(session.rooms)) {
+      if (seen.has(roomId)) continue
+      const detail = details[roomId]
+      const complete =
+        roomSession.spaceTypeMarkedAbsent ||
+        isAbsentSpaceTypeRoomId(roomId) ||
+        (detail
+          ? isRoomComplete(detail, roomSession.gradeType, roomSession.roomType, input.schoolClass)
+          : false)
+      if (!complete) continue
+      const record = buildAssessedRoom(
+        roomId,
+        roomSession,
+        surveyType,
+        detail,
+        input.schoolClass,
+        input.liveNeighborhoodResolver?.(roomId, roomSession) ?? roomSession.neighborhood,
+        { allowScoreWithoutAnswers: true },
+      )
+      if (record) allRooms.push(record)
+    }
+  }
+
   allRooms.sort((a, b) => a.roomName.localeCompare(b.roomName))
 
   const campusAgg = aggregateCampusScores(allRooms, {
