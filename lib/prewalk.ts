@@ -7,6 +7,7 @@ import {
   surveyTypesForSchool,
   surveyTypesInSameNavGroup,
 } from "@aisd/shared"
+import { roomHasAssessmentProgress } from "@/lib/school-assessment-index"
 
 export const EMPTY_PREWALK: PreWalkState = { mappings: {}, spaceTypePhotos: {} }
 
@@ -333,11 +334,17 @@ export function effectiveSpaceTypeForSelection(args: {
   } = args
   if (!surveyUsesSpaceTypePicker(surveyType, schoolClass)) return null
 
-  const sessionType =
-    selectedRoomId && sessionRooms?.[selectedRoomId]?.roomType
-      ? sessionRooms[selectedRoomId].roomType
-      : null
-  if (sessionType && isSpaceTypeForSurveyModule(surveyType, sessionType, schoolClass)) {
+  const sessionRoom = selectedRoomId ? sessionRooms?.[selectedRoomId] : undefined
+  const sessionType = sessionRoom?.roomType?.trim() || null
+  const sessionHasProgress = roomHasAssessmentProgress(sessionRoom)
+
+  // A started room's type wins so resuming an assessment updates the picker.
+  // Unstarted leftover sessions must not override the type the assessor just chose.
+  if (
+    sessionHasProgress &&
+    sessionType &&
+    isSpaceTypeForSurveyModule(surveyType, sessionType, schoolClass)
+  ) {
     return sessionType
   }
   if (
@@ -345,6 +352,9 @@ export function effectiveSpaceTypeForSelection(args: {
     isSpaceTypeForSurveyModule(surveyType, pendingStudioType, schoolClass)
   ) {
     return pendingStudioType
+  }
+  if (sessionType && isSpaceTypeForSurveyModule(surveyType, sessionType, schoolClass)) {
+    return sessionType
   }
   const preWalkType = selectedRoomId
     ? preWalkSpaceTypeForRoom(preWalkMappings, selectedRoomId, surveyType, schoolClass)
@@ -365,12 +375,14 @@ export function canSelectRoomForSurvey(args: {
   roomId: string
   schoolClass?: string | null
 }): boolean {
-  const { roomId, preWalkMappings, schoolClass, surveyType, ...rest } = args
+  const { roomId, preWalkMappings, schoolClass, surveyType, sessionRooms, ...rest } = args
   if (!surveyUsesSpaceTypePicker(surveyType, schoolClass)) return true
 
   const mappedType = preWalkSpaceTypeForRoom(preWalkMappings, roomId, surveyType, schoolClass)
+  const existing = sessionRooms?.[roomId]
   const spaceType = effectiveSpaceTypeForSelection({
     ...rest,
+    sessionRooms,
     surveyType,
     preWalkMappings,
     schoolClass,
@@ -378,6 +390,16 @@ export function canSelectRoomForSurvey(args: {
 
   // Hide/block rooms pre-mapped to a different space type while surveying one type.
   if (spaceType && mappedType && mappedType !== spaceType) return false
+
+  // Same for rooms that already have a started assessment of another type.
+  if (
+    spaceType &&
+    roomHasAssessmentProgress(existing) &&
+    existing?.roomType &&
+    existing.roomType !== spaceType
+  ) {
+    return false
+  }
 
   return true
 }

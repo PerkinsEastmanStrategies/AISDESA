@@ -33,6 +33,7 @@ import {
   type RoomSurveySession,
 } from "@aisd/shared"
 import { roomNeedsCloseOut } from "@/lib/closeout"
+import { roomHasAssessmentProgress } from "@/lib/school-assessment-index"
 import {
   canSelectRoomForSurvey,
   effectiveSpaceTypeForSelection,
@@ -271,6 +272,15 @@ export default function RoomSelector({
     const schoolClass = state.school?.schoolClass
     const mappedTypeForRoom = (roomId: string) =>
       preWalkSpaceTypeForRoom(state.preWalk.mappings, roomId, state.surveyType, schoolClass)
+    const startedAsOtherType = (roomId: string) => {
+      if (!selectedSpaceType) return false
+      const session = state.session?.rooms[roomId]
+      return (
+        roomHasAssessmentProgress(session) &&
+        !!session?.roomType &&
+        session.roomType !== selectedSpaceType
+      )
+    }
 
     if (state.surveyType === "closeout" && state.session) {
       const seen = new Set<string>()
@@ -329,7 +339,9 @@ export default function RoomSelector({
         effectiveLevelId,
       )
       if (selectedSpaceType) {
-        pinned = pinnedSource.filter((r) => mappedTypeForRoom(r.id) === selectedSpaceType)
+        pinned = pinnedSource.filter(
+          (r) => mappedTypeForRoom(r.id) === selectedSpaceType && !startedAsOtherType(r.id),
+        )
       } else {
         pinned = pinnedSource.filter((r) => !!mappedTypeForRoom(r.id))
       }
@@ -344,6 +356,7 @@ export default function RoomSelector({
       if (pinnedIds.has(r.id) || pinnedIds.has(r.id.toUpperCase())) return false
       const mappedType = mappedTypeForRoom(r.id)
       if (selectedSpaceType && mappedType && mappedType !== selectedSpaceType) return false
+      if (startedAsOtherType(r.id)) return false
       return true
     })
     other = sortRoomsByName(dedupeRoomsById(other, effectiveLevelId))

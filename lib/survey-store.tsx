@@ -284,14 +284,6 @@ function isPendingSpaceType(value: string | null | undefined): boolean {
   return isKnownSurveySpaceType(value)
 }
 
-function roomHasSurveyStarted(session: RoomSurveySession): boolean {
-  return (
-    session.responses.length > 0 ||
-    !!session.gradeType ||
-    !!session.deferredToCloseOut
-  )
-}
-
 function currentAssessmentSpaceType(state: SurveyState): string {
   if (state.pendingStudioType && isPendingSpaceType(state.pendingStudioType)) {
     return state.pendingStudioType
@@ -356,29 +348,32 @@ function resolveRoomType(
     )
   }
 
+  const pendingType =
+    state.pendingStudioType && isPendingSpaceType(state.pendingStudioType)
+      ? state.pendingStudioType
+      : ""
+  const existingType = existing?.roomType?.trim() || ""
+  const existingKnown = isPendingSpaceType(existingType) ? existingType : ""
+  const existingHasProgress = roomHasAssessmentProgress(existing)
+
+  // Resume a started assessment instead of retagging it from the picker.
+  if (existingHasProgress && existingKnown) return existingKnown
+
+  // The assessor just chose this space type — apply it to empty/placeholder rooms
+  // before pre-walk or a leftover unstarted session type.
+  if (pendingType) return pendingType
+
   const preWalkType = preWalkSpaceTypeForRoom(
     state.preWalk.mappings,
     roomId,
     state.surveyType,
     state.school?.schoolClass,
   )
-  const canApplyPreWalk =
-    !!preWalkType &&
-    isPendingSpaceType(preWalkType) &&
-    (!existing || !roomHasSurveyStarted(existing))
+  if (preWalkType && isPendingSpaceType(preWalkType)) return preWalkType
 
-  if (canApplyPreWalk) return preWalkType
-
-  if (existing) {
-    if (isPendingSpaceType(existing.roomType)) return existing.roomType
-    if (existing.roomType === "Studios") return state.pendingStudioType ?? ""
-    return existing.roomType
-  }
-
-  if (state.pendingStudioType && isPendingSpaceType(state.pendingStudioType)) {
-    return state.pendingStudioType
-  }
-  return ""
+  if (existingKnown) return existingKnown
+  if (existingType === "Studios") return pendingType
+  return existingType
 }
 
 function mergeOutdoorSessionsIntoCampusRoom(session: SurveySession): SurveySession {
@@ -1256,8 +1251,9 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         selectedRoomId: action.roomId,
         selectedLevelId: room?.levelId ?? state.selectedLevelId,
         view: "survey",
-        // Only keep the pending space type if this room already has one (or pending was just applied).
-        pendingStudioType: isPendingSpaceType(ensured.roomType) ? ensured.roomType : null,
+        pendingStudioType: isPendingSpaceType(ensured.roomType)
+          ? ensured.roomType
+          : state.pendingStudioType,
         session: {
           ...state.session,
           updatedAt: new Date().toISOString(),
