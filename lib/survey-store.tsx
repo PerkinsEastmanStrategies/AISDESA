@@ -189,7 +189,14 @@ type Action =
       pendingStudioType?: string | null
     }
   | { type: "SET_SCHOOL"; school: AisdSchoolOption | null; draft?: PersistedSurveyDraft | null }
-  | { type: "RESTORE"; school: AisdSchoolOption; draft: PersistedSurveyDraft; showResumeBanner?: boolean }
+  | {
+      type: "RESTORE"
+      school: AisdSchoolOption
+      draft: PersistedSurveyDraft
+      showResumeBanner?: boolean
+      /** Background sync: keep the live survey screen and picker, do not jump home. */
+      preserveLiveUi?: boolean
+    }
   | { type: "UPDATE_SCHOOL"; school: AisdSchoolOption }
   | { type: "SET_LEVEL"; levelId: string }
   | { type: "SET_FLOOR_PLAN"; plan: SchoolFloorPlanConfig | null; rooms: ParsedPlanRoom[] }
@@ -273,6 +280,26 @@ function emptyScoreState(): Pick<SurveyState, "roomScores" | "roomScoreDetails" 
 function countSessionResponses(session: SurveySession | null | undefined): number {
   if (!session) return 0
   return Object.values(session.rooms).reduce((total, room) => total + room.responses.length, 0)
+}
+
+/** Keep a just-selected (often still unanswered) room when a remote draft is applied. */
+function sessionWithLiveSelectedRoom(
+  remoteSession: SurveySession | null | undefined,
+  live: SurveyState,
+): SurveySession | null {
+  if (!remoteSession) return live.session
+  if (!live.selectedRoomId || !live.session) return remoteSession
+  const liveRoom = live.session.rooms[live.selectedRoomId]
+  if (!liveRoom) return remoteSession
+  const remoteRoom = remoteSession.rooms[live.selectedRoomId]
+  if (remoteRoom && roomHasAssessmentProgress(remoteRoom)) return remoteSession
+  return {
+    ...remoteSession,
+    rooms: {
+      ...remoteSession.rooms,
+      [live.selectedRoomId]: liveRoom,
+    },
+  }
 }
 
 function lookupNeighborhoodFromPlan(
@@ -899,10 +926,25 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         sameSchool ? state.floorPlan : null,
       )
       // Keep in-progress picker choices when a background sync restores an older remote draft.
+      if (!action.preserveLiveUi) {
+        return {
+          ...restored,
+          pendingStudioType: state.pendingStudioType ?? restored.pendingStudioType,
+          pendingNeighborhood: state.pendingNeighborhood ?? restored.pendingNeighborhood,
+        }
+      }
+      const session = sessionWithLiveSelectedRoom(restored.session, state)
       return {
         ...restored,
+        view: state.view,
+        selectedRoomId: state.selectedRoomId ?? restored.selectedRoomId,
+        selectedLevelId: state.selectedLevelId ?? restored.selectedLevelId,
         pendingStudioType: state.pendingStudioType ?? restored.pendingStudioType,
         pendingNeighborhood: state.pendingNeighborhood ?? restored.pendingNeighborhood,
+        session,
+        floorPlan: state.floorPlan ?? restored.floorPlan,
+        allRooms: state.allRooms.length > 0 ? state.allRooms : restored.allRooms,
+        floorPlanLoading: state.floorPlanLoading,
       }
     }
     case "UPDATE_SCHOOL": {
@@ -2763,14 +2805,39 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
             if (sameAuthor) {
               const localAnswers = countSessionResponses(draft.session)
               const remoteAnswers = countSessionResponses(remote.session)
-              if (remoteAnswers >= localAnswers) {
+              // Equal counts still happen after picking a room with no answers yet —
+              // do not replace the live survey with a remote draft that has no selection.
+              if (remoteAnswers > localAnswers) {
+                const liveRoomId = draft.selectedRoomId
+                const liveRoom = liveRoomId ? draft.session.rooms[liveRoomId] : undefined
+                const remoteHasLiveRoomProgress =
+                  !!liveRoomId &&
+                  !!remote.session.rooms[liveRoomId] &&
+                  roomHasAssessmentProgress(remote.session.rooms[liveRoomId])
                 const merged = {
                   ...remote,
                   pendingStudioType: draft.pendingStudioType ?? remote.pendingStudioType,
                   pendingNeighborhood: draft.pendingNeighborhood ?? remote.pendingNeighborhood,
+                  selectedRoomId: draft.selectedRoomId ?? remote.selectedRoomId,
+                  selectedLevelId: draft.selectedLevelId ?? remote.selectedLevelId,
+                  view:
+                    draft.view === "survey" || draft.view === "results" ? draft.view : remote.view,
+                  session:
+                    liveRoomId && liveRoom && !remoteHasLiveRoomProgress
+                      ? {
+                          ...remote.session,
+                          rooms: { ...remote.session.rooms, [liveRoomId]: liveRoom },
+                        }
+                      : remote.session,
                 }
                 saveDraft(merged)
-                dispatch({ type: "RESTORE", school, draft: merged, showResumeBanner: false })
+                dispatch({
+                  type: "RESTORE",
+                  school,
+                  draft: merged,
+                  showResumeBanner: false,
+                  preserveLiveUi: true,
+                })
               }
             }
           }
