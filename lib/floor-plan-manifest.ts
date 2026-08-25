@@ -1,6 +1,6 @@
 import { testCampusCloneForSchool, type AisdSchoolOption } from "@aisd/shared"
 
-/** Live Google Sheet (published CSV) — updated as floor plans are uploaded to Supabase. */
+/** Live Google Sheet (published CSV) — fallback when `floor_plan_manifest` has no row for a campus. */
 export const DEFAULT_FLOOR_PLAN_MANIFEST_URL =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vTGFUvsaGfYsp9TK7ZjHT8_ZHaUq4xqxiPSedQC9XeGpmY5QCS2rkcyGuZJm517sB4RWRsNqhmxFaW_/pub?output=csv"
 
@@ -47,6 +47,22 @@ export interface FloorPlanManifestRow {
   /** Assessor-facing label from the live Google Sheet `UpdatedName` column. */
   updatedName?: string
   floors: Partial<Record<FloorLevelId, string>>
+}
+
+/** DXF converter `floor_plan_manifest` table (one row per campus + floor). */
+type FloorPlanManifestDbRow = {
+  campus_id: string
+  school_name: string
+  school_class: string | null
+  floor_level_id: string
+  floor_label: string
+  filename: string
+  mobile_filename: string | null
+}
+
+/** Converter floor ids that differ from ESA `FLOOR_LEVELS`. */
+const FLOOR_LEVEL_ID_ALIASES: Record<string, FloorLevelId> = {
+  athletics: "athletics-building",
 }
 
 let manifestCache: FloorPlanManifestRow[] | null = null
@@ -168,34 +184,130 @@ async function fetchManifestCsv(url: string): Promise<string | null> {
   }
 }
 
+function normalizeFloorLevelId(raw: string): FloorLevelId | null {
+  const id = raw.trim()
+  if (!id) return null
+  const aliased = FLOOR_LEVEL_ID_ALIASES[id] ?? id
+  return FLOOR_LEVELS.some((level) => level.id === aliased) ? (aliased as FloorLevelId) : null
+}
+
+function desktopFilenameFromDbRow(row: FloorPlanManifestDbRow): string {
+  const filename = row.filename?.trim() || ""
+  if (filename) return filename
+  return row.mobile_filename?.trim() || ""
+}
+
+function supabaseRowsToManifest(rows: FloorPlanManifestDbRow[]): FloorPlanManifestRow[] {
+  const byKey = new Map<string, FloorPlanManifestRow>()
+
+  for (const row of rows) {
+    const campusId = row.campus_id?.trim() ?? ""
+    const schoolName = row.school_name?.trim() ?? ""
+    if (!campusId && !schoolName) continue
+
+    const levelId = normalizeFloorLevelId(row.floor_level_id ?? "")
+    const filename = desktopFilenameFromDbRow(row)
+    if (!levelId || !filename) continue
+
+    const key = campusId || schoolName.toUpperCase().replace(/\s+/g, " ")
+    let existing = byKey.get(key)
+    if (!existing) {
+      existing = {
+        schoolName,
+        schoolLevel: "",
+        classCode: row.school_class?.trim() ?? "",
+        campusId,
+        floors: {},
+      }
+      byKey.set(key, existing)
+    }
+    existing.floors[levelId] = filename
+  }
+
+  return [...byKey.values()]
+}
+
+/**
+ * Supabase (DXF converter) wins per campus. Schools with no table rows keep the Google Sheet.
+ * When a campus has some converter floors, those filenames overlay the sheet; other sheet floors stay.
+ */
+function mergeSheetWithSupabase(
+  sheetRows: FloorPlanManifestRow[],
+  supabaseRows: FloorPlanManifestRow[],
+): FloorPlanManifestRow[] {
+  if (!supabaseRows.length) return sheetRows
+
+  const merged = sheetRows.map((row) => ({
+    ...row,
+    floors: { ...row.floors },
+  }))
+
+  for (const supabaseRow of supabaseRows) {
+    const match = matchManifestRow(
+      merged,
+      supabaseRow.schoolName,
+      supabaseRow.schoolName,
+      supabaseRow.campusId,
+    )
+    if (match) {
+      match.floors = { ...match.floors, ...supabaseRow.floors }
+      if (!match.campusId && supabaseRow.campusId) match.campusId = supabaseRow.campusId
+      if (!match.classCode && supabaseRow.classCode) match.classCode = supabaseRow.classCode
+    } else {
+      merged.push(supabaseRow)
+    }
+  }
+
+  return merged
+}
+
+async function loadSheetManifest(): Promise<FloorPlanManifestRow[]> {
+  const liveCsv = await fetchManifestCsv(getManifestUrl())
+  if (liveCsv) {
+    const liveRows = parseManifestCsv(liveCsv)
+    if (liveRows.length > 0) return liveRows
+  }
+
+  const localCsv = await fetchManifestCsv(FLOOR_PLAN_MANIFEST_PATH)
+  if (localCsv) {
+    const localRows = parseManifestCsv(localCsv)
+    if (localRows.length > 0) return localRows
+  }
+
+  return []
+}
+
+async function loadSupabaseManifest(): Promise<FloorPlanManifestRow[]> {
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 8000)
+    const response = await fetch("/api/floor-plan-manifest", {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+    clearTimeout(timer)
+    if (!response.ok) return []
+    const payload = (await response.json()) as { rows?: FloorPlanManifestDbRow[] }
+    if (!Array.isArray(payload.rows) || payload.rows.length === 0) return []
+    return supabaseRowsToManifest(payload.rows)
+  } catch {
+    return []
+  }
+}
+
 export async function loadFloorPlanManifest(forceReload = false): Promise<FloorPlanManifestRow[]> {
   if (manifestCache && !forceReload) return manifestCache
   if (manifestLoadPromise && !forceReload) return manifestLoadPromise
 
   manifestLoadPromise = (async () => {
     try {
-      const liveCsv = await fetchManifestCsv(getManifestUrl())
-      if (liveCsv) {
-        const liveRows = parseManifestCsv(liveCsv)
-        if (liveRows.length > 0) {
-          manifestCache = liveRows
-          manifestLoadedSuccessfully = true
-          return manifestCache
-        }
-      }
-
-      const localCsv = await fetchManifestCsv(FLOOR_PLAN_MANIFEST_PATH)
-      if (localCsv) {
-        const localRows = parseManifestCsv(localCsv)
-        if (localRows.length > 0) {
-          manifestCache = localRows
-          manifestLoadedSuccessfully = true
-          return manifestCache
-        }
-      }
-
-      manifestCache = []
-      manifestLoadedSuccessfully = false
+      const [sheetRows, supabaseRows] = await Promise.all([
+        loadSheetManifest(),
+        loadSupabaseManifest(),
+      ])
+      const merged = mergeSheetWithSupabase(sheetRows, supabaseRows)
+      manifestCache = merged
+      manifestLoadedSuccessfully = merged.length > 0
       return manifestCache
     } catch {
       manifestCache = []
