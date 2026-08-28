@@ -37,7 +37,7 @@ import {
   loadRoomUseMap,
   neighborhoodForRoom,
   roomAreaForRoom,
-  roomUseForRoom,
+  buildingForRoom,
   resolveRoomDisplayName,
 } from "@/lib/room-neighborhood-lookup"
 
@@ -548,10 +548,12 @@ async function withRoomSheetData(
     const neighborhood = neighborhoodForRoom(neighborhoodMap, room.id, room.levelId, room.name)
     const areaSqft = roomAreaForRoom(areaMap, room.id, room.name)
     const name = resolveRoomDisplayName(room, useMap)
+    const building = buildingForRoom(useMap, room.id, room.name) || room.building
     if (
       name === room.name &&
       !neighborhood &&
-      areaSqft == null
+      areaSqft == null &&
+      building === room.building
     ) {
       return room
     }
@@ -560,8 +562,50 @@ async function withRoomSheetData(
       name,
       ...(neighborhood ? { neighborhood } : {}),
       ...(areaSqft != null ? { areaSqft } : {}),
+      ...(building ? { building } : {}),
     }
   })
+}
+
+function uniqueBuildingLabels(values: Iterable<string | undefined>): string[] {
+  const labels = new Set<string>()
+  for (const value of values) {
+    const trimmed = value?.trim()
+    if (trimmed) labels.add(trimmed)
+  }
+  return [...labels].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+}
+
+function attachScheduleBuildingsToPlan(
+  plan: SchoolFloorPlanConfig | null,
+  rooms: ParsedPlanRoom[],
+): SchoolFloorPlanConfig | null {
+  if (!plan) return plan
+  const campusBuildings = uniqueBuildingLabels(rooms.map((room) => room.building))
+  return {
+    ...plan,
+    levels: plan.levels.map((level) => {
+      const fromLevel = uniqueBuildingLabels([
+        ...(level.buildings ?? []),
+        ...rooms.filter((room) => room.levelId === level.id).map((room) => room.building),
+      ])
+      const buildings = fromLevel.length > 0 ? fromLevel : campusBuildings
+      if (buildings.length === 0) return level
+      return { ...level, buildings }
+    }),
+  }
+}
+
+async function withScheduleRoomData(
+  school: AisdSchoolOption,
+  plan: SchoolFloorPlanConfig | null,
+  rooms: ParsedPlanRoom[],
+): Promise<FloorPlanLoadResult> {
+  const withSheet = await withRoomSheetData(school, rooms)
+  return {
+    plan: attachScheduleBuildingsToPlan(plan, withSheet),
+    rooms: withSheet,
+  }
 }
 
 /**
@@ -577,10 +621,7 @@ export async function loadFloorPlanForSchool(
 
   if (isLivelySchool(school)) {
     const result = await loadLivelyFloorPlan(school, onFirstFloorReady)
-    return {
-      plan: result.plan,
-      rooms: await withRoomSheetData(school, result.rooms),
-    }
+    return withScheduleRoomData(school, result.plan, result.rooms)
   }
 
   const manifest = await loadFloorPlanManifest()
@@ -648,20 +689,16 @@ export async function loadFloorPlanForSchool(
     .map((floor) => loadedById.get(floor.id))
     .filter((result): result is LevelLoadResult => Boolean(result))
 
-  const rooms = await withRoomSheetData(
+  return withScheduleRoomData(
     school,
-    ordered.flatMap((r) => r.rooms),
-  )
-
-  return {
-    plan: {
+    {
       schoolId: school.id,
       defaultLevelId: defaultFloor.id,
       buildingSqft: DEFAULT_BUILDING_SQFT,
       levels: ordered.map((r) => r.level),
     },
-    rooms,
-  }
+    ordered.flatMap((r) => r.rooms),
+  )
 }
 
 /** Let the UI process taps between heavy per-floor SVG parses (iPhone). */
@@ -686,10 +723,7 @@ export async function loadSchoolRoomsForSchool(
 
   if (isLivelySchool(school)) {
     const result = await loadLivelySchoolRooms(school)
-    return {
-      plan: result.plan,
-      rooms: await withRoomSheetData(school, result.rooms),
-    }
+    return withScheduleRoomData(school, result.plan, result.rooms)
   }
 
   const manifest = await loadFloorPlanManifest()
@@ -727,20 +761,16 @@ export async function loadSchoolRoomsForSchool(
     ? preferredDefaultId
     : ordered[0].level.id
 
-  const rooms = await withRoomSheetData(
+  return withScheduleRoomData(
     school,
-    ordered.flatMap((entry) => entry.rooms),
-  )
-
-  return {
-    plan: {
+    {
       schoolId: school.id,
       defaultLevelId,
       buildingSqft: DEFAULT_BUILDING_SQFT,
       levels: ordered.map((entry) => entry.level),
     },
-    rooms,
-  }
+    ordered.flatMap((entry) => entry.rooms),
+  )
 }
 
 /** Load one floor's SVG for display (pre-walk, room picker, results map). */

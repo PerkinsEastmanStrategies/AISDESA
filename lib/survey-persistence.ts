@@ -1,4 +1,5 @@
 import type {
+  AisdSchoolOption,
   SurveySession,
   SurveySubmission,
   SurveyType,
@@ -7,7 +8,10 @@ import type {
   RoomSurveySession,
   PreWalkState,
 } from "@aisd/shared"
-import { SURVEY_TYPES } from "@aisd/shared"
+import {
+  SURVEY_TYPES,
+  applyPreWalkSpaceTypeExistsToSession,
+} from "@aisd/shared"
 import {
   ART_RUBRIC_VERSION,
   EARLY_CHILDHOOD_RUBRIC_VERSION,
@@ -542,6 +546,93 @@ export function propagatePreWalkToSchoolDrafts(
       { setActive: false },
     )
   }
+}
+
+/**
+ * Write pre-walk “space type exists?” answers onto each matching survey draft so
+ * assessors can skip that space type later. Creates a draft when something is marked
+ * as not present. Returns survey types that were written (for cloud sync).
+ */
+export function persistPreWalkSpaceTypeExistsToSchoolDrafts(input: {
+  school: AisdSchoolOption
+  preWalk: PreWalkState
+  skipSurveyType?: SurveyType
+  assessor?: AssessorInfo | null
+}): SurveyType[] {
+  const answers = input.preWalk.spaceTypeExists ?? {}
+  const written: SurveyType[] = []
+  const bySurvey = new Map<SurveyType, boolean[]>()
+
+  for (const key of Object.keys(answers)) {
+    const sep = key.indexOf("::")
+    if (sep < 0) continue
+    const surveyType = key.slice(0, sep) as SurveyType
+    if (!SURVEY_TYPES.includes(surveyType)) continue
+    if (surveyType === input.skipSurveyType) continue
+    if (surveyType === "neighborhoods" || surveyType === "outdoor" || surveyType === "closeout") {
+      continue
+    }
+    const list = bySurvey.get(surveyType) ?? []
+    list.push(answers[key] === true)
+    bySurvey.set(surveyType, list)
+  }
+
+  const savedAt = new Date().toISOString()
+  for (const surveyType of bySurvey.keys()) {
+    const flags = bySurvey.get(surveyType) ?? []
+    const hasAbsent = flags.some((exists) => exists === false)
+    const existing = loadDraft(input.school.id, surveyType)
+    if (!existing && !hasAbsent) continue
+
+    const now = new Date().toISOString()
+    const baseSession: SurveySession = existing?.session ?? {
+      surveyId: `AISD-${Date.now()}-${surveyType}`,
+      surveyType,
+      schoolId: input.school.id,
+      schoolName: input.school.displayName,
+      campusId: input.school.campusId,
+      building: existing?.session.building ?? "Main",
+      rooms: {},
+      startedAt: now,
+      updatedAt: now,
+      ...(input.assessor
+        ? {
+            assessorName: input.assessor.name,
+            assessorEmail: input.assessor.email,
+            assessorRegisteredAt: input.assessor.registeredAt,
+          }
+        : {}),
+    }
+
+    const session = applyPreWalkSpaceTypeExistsToSession(
+      baseSession,
+      answers,
+      surveyType,
+    )
+
+    saveDraft(
+      existing
+        ? {
+            ...existing,
+            session,
+            preWalk: input.preWalk,
+            savedAt,
+          }
+        : {
+            schoolId: input.school.id,
+            surveyType,
+            session,
+            selectedLevelId: null,
+            preWalk: input.preWalk,
+            lastSubmission: null,
+            savedAt,
+          },
+      { setActive: false },
+    )
+    written.push(surveyType)
+  }
+
+  return written
 }
 
 export function formatSavedAt(iso: string): string {

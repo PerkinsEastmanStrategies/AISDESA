@@ -11,6 +11,8 @@ export interface RoomUseEntry {
   useName: string
   /** Program Type column — drives Room use toggle fill colors. */
   programType?: string
+  /** Building column / `building_label` for multi-building campuses. */
+  building?: string
 }
 
 export type RoomUseMap = Map<string, RoomUseEntry>
@@ -181,19 +183,122 @@ export function parseSizeDeviationBand(raw: string | undefined): SizeDeviationBa
   return "red"
 }
 
+function findHeaderIndex(header: string[], aliases: string[]): number {
+  const normalized = header.map((h) =>
+    h.trim().toLowerCase().replace(/_/g, " ").replace(/\s+/g, " "),
+  )
+  const want = aliases.map((alias) => alias.toLowerCase())
+  return normalized.findIndex((h) => want.includes(h))
+}
+
+type RoomScheduleSourceRow = {
+  schoolName: string
+  campusId?: string
+  cafmId: string
+  roomName: string
+  neighborhood: string
+  programType: string
+  areaRaw?: string
+  sfDeviationRaw?: string
+  building: string
+}
+
+function emptySchoolData(): SchoolNeighborhoodData {
+  return {
+    byRoomKey: new Map(),
+    byRoomUse: new Map(),
+    byRoomArea: new Map(),
+    byRoomSizeDeviation: new Map(),
+    neighborhoods: new Set(),
+  }
+}
+
+function ensureSchoolData(
+  index: Map<string, SchoolNeighborhoodData>,
+  schoolName: string,
+  campusId: string,
+): SchoolNeighborhoodData {
+  if (campusId && campusIdIndex.has(campusId)) {
+    return campusIdIndex.get(campusId)!
+  }
+
+  const schoolKey = normalizeSchoolLookupName(schoolName)
+  let data = index.get(schoolKey)
+  if (!data) {
+    for (const [csvName, existing] of index) {
+      if (schoolNamesMatch(csvName, schoolName)) {
+        data = existing
+        break
+      }
+    }
+  }
+  if (!data) {
+    data = emptySchoolData()
+    index.set(schoolKey, data)
+  }
+  if (campusId && !campusIdIndex.has(campusId)) {
+    campusIdIndex.set(campusId, data)
+  }
+  return data
+}
+
+function ingestRoomRow(data: SchoolNeighborhoodData, row: RoomScheduleSourceRow) {
+  const { cafmId, roomName, neighborhood, programType, building } = row
+  const areaSqft = parseAreaSqft(row.areaRaw)
+  const sizeDeviation = parseSizeDeviationBand(row.sfDeviationRaw)
+
+  if (neighborhood) {
+    data.neighborhoods.add(neighborhood)
+    if (cafmId) setNeighborhood(data.byRoomKey, cafmId, neighborhood)
+  }
+
+  const useName = roomName || cafmId
+  if (useName || programType || building) {
+    const existing =
+      (cafmId
+        ? data.byRoomUse.get(cafmId) ??
+          data.byRoomUse.get(cafmId.toUpperCase())
+        : undefined) ??
+      (roomName
+        ? data.byRoomUse.get(roomName) ?? data.byRoomUse.get(roomName.toUpperCase())
+        : undefined)
+    const entry: RoomUseEntry = {
+      id: cafmId || existing?.id || roomName,
+      useName: useName || existing?.useName || cafmId,
+      ...(programType || existing?.programType
+        ? { programType: programType || existing?.programType }
+        : {}),
+      ...(building || existing?.building ? { building: building || existing?.building } : {}),
+    }
+    if (cafmId) setRoomUse(data.byRoomUse, cafmId, entry)
+    if (roomName) setRoomUse(data.byRoomUse, roomName, entry)
+  }
+
+  if (areaSqft != null) {
+    if (cafmId) setRoomArea(data.byRoomArea, cafmId, areaSqft)
+    if (roomName) setRoomArea(data.byRoomArea, roomName, areaSqft)
+  }
+
+  if (sizeDeviation) {
+    if (cafmId) setRoomSizeDeviation(data.byRoomSizeDeviation, cafmId, sizeDeviation)
+    if (roomName) setRoomSizeDeviation(data.byRoomSizeDeviation, roomName, sizeDeviation)
+  }
+}
+
 function buildSchoolIndex(csvText: string): Map<string, SchoolNeighborhoodData> {
   const rows = parseCsv(csvText.replace(/^\uFEFF/, ""))
   if (rows.length < 2) return new Map()
 
   const header = rows[0].map((h) => h.trim())
-  const schoolIdx = header.findIndex((h) => h.toLowerCase() === "school_name")
-  const cafmIdx = header.findIndex((h) => h.toLowerCase() === "cafm_id")
-  const nameIdx = header.findIndex((h) => h.toLowerCase() === "name")
-  const nbhIdx = header.findIndex((h) => h.toLowerCase() === "neighborhood")
-  const programTypeIdx = header.findIndex((h) => h.toLowerCase() === "program type")
-  const areaIdx = header.findIndex((h) => h.toLowerCase() === "area")
-  const sfDeviationIdx = header.findIndex((h) => h.toLowerCase() === "sf deviation")
-  const campusIdx = header.findIndex((h) => h.toLowerCase() === "campus_id")
+  const schoolIdx = findHeaderIndex(header, ["school_name"])
+  const cafmIdx = findHeaderIndex(header, ["cafm_id"])
+  const nameIdx = findHeaderIndex(header, ["name"])
+  const nbhIdx = findHeaderIndex(header, ["neighborhood"])
+  const programTypeIdx = findHeaderIndex(header, ["program type"])
+  const areaIdx = findHeaderIndex(header, ["area"])
+  const sfDeviationIdx = findHeaderIndex(header, ["sf deviation"])
+  const campusIdx = findHeaderIndex(header, ["campus_id"])
+  const buildingIdx = findHeaderIndex(header, ["building", "building label"])
   if (schoolIdx < 0 || cafmIdx < 0) return new Map()
 
   const index = new Map<string, SchoolNeighborhoodData>()
@@ -202,72 +307,105 @@ function buildSchoolIndex(csvText: string): Map<string, SchoolNeighborhoodData> 
   for (const row of rows.slice(1)) {
     const schoolName = (row[schoolIdx] ?? "").trim()
     const cafmId = (row[cafmIdx] ?? "").trim()
-    const roomName = nameIdx >= 0 ? (row[nameIdx] ?? "").trim() : ""
-    const neighborhood = nbhIdx >= 0 ? (row[nbhIdx] ?? "").trim().toUpperCase() : ""
-    const programType =
-      programTypeIdx >= 0 ? (row[programTypeIdx] ?? "").trim() : ""
-    const areaSqft = areaIdx >= 0 ? parseAreaSqft(row[areaIdx]) : undefined
-    const sizeDeviation =
-      sfDeviationIdx >= 0 ? parseSizeDeviationBand(row[sfDeviationIdx]) : undefined
-    const campusId = campusIdx >= 0 ? (row[campusIdx] ?? "").trim() : ""
     if (!schoolName) continue
 
-    const schoolKey = normalizeSchoolLookupName(schoolName)
-    let data = index.get(schoolKey)
-    if (!data) {
-      data = { byRoomKey: new Map(), byRoomUse: new Map(), byRoomArea: new Map(), byRoomSizeDeviation: new Map(), neighborhoods: new Set() }
-      index.set(schoolKey, data)
-    }
-
-    if (campusId && !campusIdIndex.has(campusId)) {
-      campusIdIndex.set(campusId, data)
-    }
-
-    if (neighborhood) {
-      data.neighborhoods.add(neighborhood)
-      if (cafmId) setNeighborhood(data.byRoomKey, cafmId, neighborhood)
-    }
-
-    const useName = roomName || cafmId
-    if (useName || programType) {
-      const entry: RoomUseEntry = {
-        id: cafmId || roomName,
-        useName: useName || cafmId,
-        ...(programType ? { programType } : {}),
-      }
-      if (cafmId) setRoomUse(data.byRoomUse, cafmId, entry)
-      if (roomName) setRoomUse(data.byRoomUse, roomName, entry)
-    }
-
-    if (areaSqft != null) {
-      if (cafmId) setRoomArea(data.byRoomArea, cafmId, areaSqft)
-      if (roomName) setRoomArea(data.byRoomArea, roomName, areaSqft)
-    }
-
-    if (sizeDeviation) {
-      if (cafmId) setRoomSizeDeviation(data.byRoomSizeDeviation, cafmId, sizeDeviation)
-      if (roomName) setRoomSizeDeviation(data.byRoomSizeDeviation, roomName, sizeDeviation)
-    }
+    const data = ensureSchoolData(
+      index,
+      schoolName,
+      campusIdx >= 0 ? (row[campusIdx] ?? "").trim() : "",
+    )
+    ingestRoomRow(data, {
+      schoolName,
+      cafmId,
+      roomName: nameIdx >= 0 ? (row[nameIdx] ?? "").trim() : "",
+      neighborhood: nbhIdx >= 0 ? (row[nbhIdx] ?? "").trim().toUpperCase() : "",
+      programType: programTypeIdx >= 0 ? (row[programTypeIdx] ?? "").trim() : "",
+      areaRaw: areaIdx >= 0 ? row[areaIdx] : undefined,
+      sfDeviationRaw: sfDeviationIdx >= 0 ? row[sfDeviationIdx] : undefined,
+      building: buildingIdx >= 0 ? (row[buildingIdx] ?? "").trim() : "",
+    })
   }
 
   return index
 }
 
+type RoomScheduleDbRow = {
+  campus_id: string
+  school_name: string
+  cafm_id: string
+  building_label: string | null
+  name: string | null
+  neighborhood: string | null
+  area: string | null
+  program_type: string | null
+  sf_deviation: string | null
+}
+
+function applySupabaseRoomSchedule(
+  index: Map<string, SchoolNeighborhoodData>,
+  rows: RoomScheduleDbRow[],
+) {
+  for (const row of rows) {
+    const schoolName = row.school_name?.trim() ?? ""
+    const campusId = row.campus_id?.trim() ?? ""
+    const cafmId = row.cafm_id?.trim() ?? ""
+    if (!schoolName || !cafmId) continue
+
+    const data = ensureSchoolData(index, schoolName, campusId)
+    ingestRoomRow(data, {
+      schoolName,
+      campusId,
+      cafmId,
+      roomName: row.name?.trim() ?? "",
+      neighborhood: row.neighborhood?.trim().toUpperCase() ?? "",
+      programType: row.program_type?.trim() ?? "",
+      areaRaw: row.area ?? undefined,
+      sfDeviationRaw: row.sf_deviation ?? undefined,
+      building: row.building_label?.trim() ?? "",
+    })
+  }
+}
+
+async function fetchSupabaseRoomSchedule(): Promise<RoomScheduleDbRow[]> {
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 12_000)
+    const response = await fetch("/api/room-schedule", {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+    clearTimeout(timer)
+    if (!response.ok) return []
+    const payload = (await response.json()) as { rows?: RoomScheduleDbRow[] }
+    return Array.isArray(payload.rows) ? payload.rows : []
+  } catch {
+    return []
+  }
+}
+
 async function loadSchoolIndex(): Promise<Map<string, SchoolNeighborhoodData>> {
   if (csvLoadPromise) return csvLoadPromise
 
-  csvLoadPromise = fetch(getCsvUrl(), { cache: "no-store" })
-    .then(async (res) => {
-      if (!res.ok) {
-        csvLoadPromise = null
-        return new Map<string, SchoolNeighborhoodData>()
-      }
-      return buildSchoolIndex(await res.text())
-    })
-    .catch(() => {
+  csvLoadPromise = (async () => {
+    try {
+      const sheetText = await fetch(getCsvUrl(), { cache: "no-store" })
+        .then((res) => (res.ok ? res.text() : ""))
+        .catch(() => "")
+      const supabaseRows = await fetchSupabaseRoomSchedule()
+      const index = sheetText
+        ? buildSchoolIndex(sheetText)
+        : new Map<string, SchoolNeighborhoodData>()
+      if (index.size === 0) campusIdIndex = new Map()
+      if (supabaseRows.length > 0) applySupabaseRoomSchedule(index, supabaseRows)
+      return index
+    } catch {
       csvLoadPromise = null
       return new Map<string, SchoolNeighborhoodData>()
-    })
+    }
+  })().catch(() => {
+    csvLoadPromise = null
+    return new Map<string, SchoolNeighborhoodData>()
+  })
 
   return csvLoadPromise
 }
@@ -481,6 +619,14 @@ export function roomUseForRoom(
   return undefined
 }
 
+export function buildingForRoom(
+  map: RoomUseMap,
+  roomId: string,
+  roomName?: string | null,
+): string | undefined {
+  return roomUseForRoom(map, roomId, roomName)?.building?.trim() || undefined
+}
+
 /** Prefer the live sheet room name; otherwise show the floor plan id (not "Classroom …" labels). */
 export function resolveRoomDisplayName(
   room: { id: string; name: string },
@@ -496,12 +642,19 @@ export function resolveRoomDisplayName(
   return room.name.trim() || id
 }
 
-export function formatRoomPickerLabel(room: { id: string; name: string }): string {
+export function formatRoomPickerLabel(room: {
+  id: string
+  name: string
+  building?: string
+}): string {
   const name = room.name.trim()
   const id = room.id.trim()
-  if (!name || name.toUpperCase() === id.toUpperCase()) return id
-  if (name.toUpperCase().includes(id.toUpperCase())) return name
-  return `${name} (${id})`
+  const building = room.building?.trim()
+  let label = id
+  if (name && name.toUpperCase() !== id.toUpperCase()) {
+    label = name.toUpperCase().includes(id.toUpperCase()) ? name : `${name} (${id})`
+  }
+  return building ? `${label} · Bldg ${building}` : label
 }
 
 export async function neighborhoodOptionsForSchool(

@@ -11,7 +11,12 @@ import type {
   SurveySubmission,
   SurveyType,
 } from "@aisd/shared"
-import { surveyTypeLabel } from "@aisd/shared"
+import {
+  surveyTypeLabel,
+  isAbsentSpaceTypeRoomId,
+  parseAbsentSpaceTypeRoomId,
+  spaceTypeExistenceKey,
+} from "@aisd/shared"
 import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
 import { sessionHasRegisteredAssessor } from "@/lib/assessor"
 import { countDraftResponses } from "@/lib/school-draft-merge"
@@ -118,12 +123,20 @@ function normalizeEmail(email: string | null | undefined): string {
 
 function sessionHasProgress(session: SurveySession): boolean {
   if ((session.outdoorElementPins?.length ?? 0) > 0) return true
+  if (
+    session.spaceTypeExistsAtSchool &&
+    Object.values(session.spaceTypeExistsAtSchool).some((exists) => exists === false)
+  ) {
+    return true
+  }
   return Object.values(session.rooms).some(
     (room) =>
       room.responses.length > 0 ||
       !!room.gradeType ||
       (room.pendingQuestionIds?.length ?? 0) > 0 ||
-      !!room.pendingGrade,
+      !!room.pendingGrade ||
+      room.spaceTypeMarkedAbsent ||
+      isAbsentSpaceTypeRoomId(room.roomId),
   )
 }
 
@@ -295,6 +308,7 @@ function dbRoomToSession(row: DbSurveyRoom, responses: DbQuestionResponse[]): Ro
       comment: r.comment ?? undefined,
       photos: r.photos ?? undefined,
     })),
+    spaceTypeMarkedAbsent: isAbsentSpaceTypeRoomId(row.room_id) || undefined,
   }
 }
 
@@ -613,6 +627,15 @@ function buildDraftFromSessionRow(
     rooms[row.room_id] = dbRoomToSession(row, responsesByRoom.get(row.room_id) ?? [])
   }
 
+  const spaceTypeExistsAtSchool: Record<string, boolean> = {}
+  for (const room of Object.values(rooms)) {
+    if (!room.spaceTypeMarkedAbsent && !isAbsentSpaceTypeRoomId(room.roomId)) continue
+    const parsed = parseAbsentSpaceTypeRoomId(room.roomId)
+    const spaceType = parsed?.spaceType || room.roomType
+    if (!spaceType) continue
+    spaceTypeExistsAtSchool[spaceTypeExistenceKey(spaceType, parsed?.neighborhood)] = false
+  }
+
   const outdoorElementPins: OutdoorElementPin[] = pinRows.map((pin) => ({
     id: pin.pin_id,
     elementType: pin.element_type,
@@ -638,6 +661,8 @@ function buildDraftFromSessionRow(
     submittedAt: sessionRow.submitted_at ?? undefined,
     finalComment: sessionRow.final_comment ?? undefined,
     campusSubmittedAt: sessionRow.campus_submitted_at ?? undefined,
+    spaceTypeExistsAtSchool:
+      Object.keys(spaceTypeExistsAtSchool).length > 0 ? spaceTypeExistsAtSchool : undefined,
   }
 
   const lastSubmission: SurveySubmission | null = snapshot

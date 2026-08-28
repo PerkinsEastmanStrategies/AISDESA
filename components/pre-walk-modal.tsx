@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { createPortal } from "react-dom"
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Info, Map as MapIcon, X } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Info, ListChecks, Map as MapIcon, X } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
 import SurveyFloorPlan from "@/components/survey-floor-plan"
+import PreWalkQuestionsPanel from "@/components/pre-walk-questions-panel"
 import { useFloorPlanDisplay } from "@/lib/use-floor-plan-display"
 import {
   countMappingsBySpaceType,
@@ -17,24 +18,37 @@ import {
   PREWALK_DESIGN_INTENT_NOTE,
   PREWALK_DESIGN_INTENT_SHORT,
   PREWALK_DESIGN_INTENT_TITLE,
+  readPreWalkSpaceTypeExists,
   spaceTypeOptionsForPreWalk,
 } from "@/lib/prewalk"
+import { spaceTypesWithPreWalkQuestions } from "@/lib/prewalk-questions"
+import { loadDraft } from "@/lib/survey-persistence"
 import { loadRoomUseMap, roomUseForRoom, type RoomUseMap } from "@/lib/room-neighborhood-lookup"
 import { cn } from "@/lib/utils"
-import { surveyTypeLabel, type SurveyType } from "@aisd/shared"
+import { readSpaceTypeExistsAtSchool, surveyTypeLabel, type SurveyType } from "@aisd/shared"
 
 interface PreWalkModalProps {
   open: boolean
   onClose: () => void
   /** First-time flow — marks pre-walk complete when starting survey */
   initialFlow?: boolean
+  /** Local preview: open on Map or Pre-answer */
+  initialPanelTab?: "map" | "questions"
+  skipDesignIntent?: boolean
 }
 
-export default function PreWalkModal({ open, onClose, initialFlow = false }: PreWalkModalProps) {
+export default function PreWalkModal({
+  open,
+  onClose,
+  initialFlow = false,
+  initialPanelTab = "map",
+  skipDesignIntent = false,
+}: PreWalkModalProps) {
   const {
     state,
     setLevel,
     setPreWalkMapping,
+    setPreWalkSpaceTypeExists,
     updatePreWalkNotes,
     removePreWalkMapping,
     clearPreWalkMappingsForSurvey,
@@ -63,10 +77,15 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
   const [mobilePickerExpanded, setMobilePickerExpanded] = useState(false)
   const [showDesignIntentPopup, setShowDesignIntentPopup] = useState(false)
   const [roomUseMap, setRoomUseMap] = useState<RoomUseMap>(new Map())
+  const [leftPanelTab, setLeftPanelTab] = useState<"map" | "questions">(initialPanelTab)
 
   useEffect(() => {
-    if (open) setShowDesignIntentPopup(true)
-  }, [open])
+    if (open) setLeftPanelTab(initialPanelTab)
+  }, [open, initialPanelTab])
+
+  useEffect(() => {
+    if (open && !skipDesignIntent) setShowDesignIntentPopup(true)
+  }, [open, skipDesignIntent])
 
   // Keep shared room assignments fresh while the pre-walk map is open.
   useEffect(() => {
@@ -112,6 +131,31 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
     () => countMappingsBySpaceType(state.preWalk.mappings, selectedSurveyType),
     [state.preWalk.mappings, selectedSurveyType],
   )
+
+  const questionSpaceTypes = useMemo(
+    () => spaceTypesWithPreWalkQuestions(selectedSurveyType, spaceTypeOptions),
+    [selectedSurveyType, spaceTypeOptions],
+  )
+
+  const surveyDraftSession = useMemo(() => {
+    if (!state.school) return null
+    if (state.surveyType === selectedSurveyType) return state.session
+    return loadDraft(state.school.id, selectedSurveyType)?.session ?? null
+  }, [
+    state.school,
+    selectedSurveyType,
+    state.surveyType,
+    state.session,
+    state.lastSavedAt,
+    state.preWalk.spaceTypeExists,
+  ])
+
+  const existsForType = (spaceType: string): boolean | null => {
+    const fromPreWalk = readPreWalkSpaceTypeExists(state.preWalk, selectedSurveyType, spaceType)
+    if (fromPreWalk !== null) return fromPreWalk
+    if ((mappingCounts.get(spaceType) ?? 0) > 0) return true
+    return readSpaceTypeExistsAtSchool(surveyDraftSession, spaceType)
+  }
 
   const mappedCountForSurvey = preWalkMappingList(state.preWalk.mappings, selectedSurveyType).length
   const totalMappedCount = preWalkMappingList(state.preWalk.mappings).length
@@ -167,7 +211,7 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
   const handleRoomTap = (roomId: string) => {
     setSelectedRoomId(roomId)
     setMobilePickerExpanded(false)
-    if (activeSpaceType) {
+    if (activeSpaceType && existsForType(activeSpaceType) !== false) {
       setPreWalkMapping(selectedSurveyType, roomId, activeSpaceType)
     }
   }
@@ -204,6 +248,21 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
     setSelectedRoomId(null)
   }
 
+  const handleExistsChange = (spaceType: string, exists: boolean) => {
+    const mapped = mappingCounts.get(spaceType) ?? 0
+    if (!exists && mapped > 0) {
+      if (
+        !window.confirm(
+          `${spaceType} has ${mapped} mapped room${mapped === 1 ? "" : "s"}. Mark as not in the building and remove those assignments?`,
+        )
+      ) {
+        return
+      }
+    }
+    setPreWalkSpaceTypeExists(selectedSurveyType, spaceType, exists)
+    if (!exists && activeSpaceType === spaceType) setActiveSpaceType(null)
+  }
+
   const handleStartSurvey = () => {
     void (async () => {
       setSaving(true)
@@ -238,6 +297,45 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
 
   const spaceTypeNoun =
     selectedSurveyType === "studios" ? "studio type" : "space type"
+
+  const unansweredQuestionCount = questionSpaceTypes.filter((type) => existsForType(type) === null).length
+
+  const renderPanelTabs = () => (
+    <div className="mt-2.5 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-0.5">
+      <button
+        type="button"
+        onClick={() => {
+          setLeftPanelTab("map")
+        }}
+        className={cn(
+          "flex items-center justify-center gap-1.5 rounded-[10px] px-2 py-1.5 text-[11px] font-semibold",
+          leftPanelTab === "map" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600",
+        )}
+      >
+        <MapIcon className="h-3.5 w-3.5" aria-hidden />
+        Map
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setLeftPanelTab("questions")
+          setMobilePickerExpanded(true)
+        }}
+        className={cn(
+          "flex items-center justify-center gap-1.5 rounded-[10px] px-2 py-1.5 text-[11px] font-semibold",
+          leftPanelTab === "questions" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600",
+        )}
+      >
+        <ListChecks className="h-3.5 w-3.5" aria-hidden />
+        Pre-answer
+        {unansweredQuestionCount > 0 && leftPanelTab !== "questions" && (
+          <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">
+            {unansweredQuestionCount}
+          </span>
+        )}
+      </button>
+    </div>
+  )
 
   const activeSpaceTypeColor = activeSpaceType
     ? preWalkSpaceTypeColor(activeSpaceType, spaceTypeOptions)
@@ -375,7 +473,7 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
             typesPanelOpen ? "translate-x-0" : "-translate-x-[calc(100%-2.5rem)]",
           )}
         >
-          <aside className="pointer-events-auto flex max-h-[calc(100%-0.5rem)] w-[min(17rem,calc(100vw-3rem))] flex-col overflow-hidden rounded-r-2xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-sm">
+          <aside className="pointer-events-auto flex max-h-[calc(100%-0.5rem)] w-[min(20rem,calc(100vw-3rem))] flex-col overflow-hidden rounded-r-2xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-sm">
             <div className="shrink-0 border-b border-slate-100 px-3 py-2.5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">
                 Survey
@@ -400,38 +498,55 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
                   aria-hidden
                 />
               </div>
-              <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">
-                {spaceTypeNoun}s
-              </p>
-              <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
-                Pick a type, then tap rooms on the map.
-              </p>
-              <p className="mt-1 text-[10px] text-slate-400">
-                {mappedCountForSurvey} mapped in this survey
-              </p>
-              {mappedCountForSurvey > 0 && (
-                <button
-                  type="button"
-                  onClick={handleClearAllMappings}
-                  className="mt-2 w-full rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-[11px] font-semibold text-red-700 active:bg-red-100"
-                >
-                  Clear all assignments
-                </button>
+              {renderPanelTabs()}
+              {leftPanelTab === "map" && (
+                <>
+                  <p className="mt-2.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">
+                    {spaceTypeNoun}s
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
+                    Pick a type, then tap rooms on the map.
+                  </p>
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    {mappedCountForSurvey} mapped in this survey
+                  </p>
+                  {mappedCountForSurvey > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearAllMappings}
+                      className="mt-2 w-full rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-[11px] font-semibold text-red-700 active:bg-red-100"
+                    >
+                      Clear all assignments
+                    </button>
+                  )}
+                  <div className="mt-2.5 rounded-xl border border-amber-200/80 bg-amber-50 px-2.5 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                      Assessor note
+                    </p>
+                    <p className="mt-0.5 text-[11px] leading-snug text-amber-950">
+                      {PREWALK_DESIGN_INTENT_SHORT}
+                    </p>
+                  </div>
+                </>
               )}
-              <div className="mt-2.5 rounded-xl border border-amber-200/80 bg-amber-50 px-2.5 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-800">
-                  Assessor note
-                </p>
-                <p className="mt-0.5 text-[11px] leading-snug text-amber-950">
-                  {PREWALK_DESIGN_INTENT_SHORT}
-                </p>
-              </div>
             </div>
+            {leftPanelTab === "questions" ? (
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <PreWalkQuestionsPanel
+                  surveyType={selectedSurveyType}
+                  spaceTypes={spaceTypeOptions}
+                  mappingCounts={mappingCounts}
+                  existsForType={existsForType}
+                  onExistsChange={handleExistsChange}
+                />
+              </div>
+            ) : (
             <ul className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
               {spaceTypeOptions.map((type) => {
                 const count = mappingCounts.get(type) ?? 0
                 const active = activeSpaceType === type
                 const color = preWalkSpaceTypeColor(type, spaceTypeOptions)
+                const exists = existsForType(type)
                 return (
                   <li key={type}>
                     <button
@@ -441,7 +556,9 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
                         "mb-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors",
                         active
                           ? "bg-slate-900 text-white shadow-sm"
-                          : "text-slate-800 active:bg-slate-50",
+                          : exists === false
+                            ? "text-slate-500 active:bg-slate-50"
+                            : "text-slate-800 active:bg-slate-50",
                       )}
                     >
                       <span
@@ -450,19 +567,31 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
                         aria-hidden
                       />
                       <span className="min-w-0 flex-1 truncate font-medium">{type}</span>
-                      <span
-                        className={cn(
-                          "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                          active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600",
-                        )}
-                      >
-                        {count}
-                      </span>
+                      {exists === false ? (
+                        <span
+                          className={cn(
+                            "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                            active ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600",
+                          )}
+                        >
+                          Skip
+                        </span>
+                      ) : (
+                        <span
+                          className={cn(
+                            "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                            active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600",
+                          )}
+                        >
+                          {count}
+                        </span>
+                      )}
                     </button>
                   </li>
                 )
               })}
             </ul>
+            )}
           </aside>
           <button
             type="button"
@@ -527,6 +656,9 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
                     <p className="mt-0.5 text-sm font-medium text-slate-900">
                       {selectedRoomUse.id}
                     </p>
+                    {selectedRoomUse.building ? (
+                      <p className="mt-0.5 text-xs text-slate-600">Bldg {selectedRoomUse.building}</p>
+                    ) : null}
                     {selectedRoomUse.useName &&
                       selectedRoomUse.useName.toUpperCase() !==
                         selectedRoomUse.id.toUpperCase() && (
@@ -632,7 +764,7 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
             <div
               className={cn(
                 "pointer-events-auto relative flex flex-col overflow-hidden rounded-t-2xl border border-b-0 border-slate-200/80 bg-white shadow-2xl transition-[max-height] duration-200",
-                mobilePickerExpanded ? "max-h-[min(58vh,28rem)]" : "max-h-[3.75rem]",
+                mobilePickerExpanded ? "max-h-[min(72vh,36rem)]" : "max-h-[3.75rem]",
               )}
             >
               <button
@@ -652,11 +784,15 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
                 )}
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-slate-900">
-                    {activeSpaceType ?? `Choose ${spaceTypeNoun}`}
+                    {leftPanelTab === "questions"
+                      ? "Pre-answer questions"
+                      : (activeSpaceType ?? `Choose ${spaceTypeNoun}`)}
                   </span>
                   <span className="block truncate text-[10px] text-slate-500">
                     {surveyTypeLabel(selectedSurveyType)} · {displayLevel?.label ?? "Floor"} ·{" "}
-                    {mappedCountForSurvey} mapped
+                    {leftPanelTab === "questions"
+                      ? `${unansweredQuestionCount} unanswered`
+                      : `${mappedCountForSurvey} mapped`}
                   </span>
                 </span>
                 {mobilePickerExpanded ? (
@@ -711,11 +847,24 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
                       </div>
                     )}
                   </div>
+                  <div className="shrink-0 px-3 pb-2">{renderPanelTabs()}</div>
+                  {leftPanelTab === "questions" ? (
+                    <div className="min-h-0 flex-1 overflow-y-auto">
+                      <PreWalkQuestionsPanel
+                        surveyType={selectedSurveyType}
+                        spaceTypes={spaceTypeOptions}
+                        mappingCounts={mappingCounts}
+                        existsForType={existsForType}
+                        onExistsChange={handleExistsChange}
+                      />
+                    </div>
+                  ) : (
                   <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
                     {spaceTypeOptions.map((type) => {
                       const count = mappingCounts.get(type) ?? 0
                       const active = activeSpaceType === type
                       const color = preWalkSpaceTypeColor(type, spaceTypeOptions)
+                      const exists = existsForType(type)
                       return (
                         <li key={type}>
                           <button
@@ -725,7 +874,9 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
                               "mb-1 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-colors",
                               active
                                 ? "bg-slate-900 text-white shadow-sm"
-                                : "text-slate-800 active:bg-slate-50",
+                                : exists === false
+                                  ? "text-slate-500 active:bg-slate-50"
+                                  : "text-slate-800 active:bg-slate-50",
                             )}
                           >
                             <span
@@ -734,19 +885,31 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
                               aria-hidden
                             />
                             <span className="min-w-0 flex-1 truncate font-medium">{type}</span>
-                            <span
-                              className={cn(
-                                "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                                active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600",
-                              )}
-                            >
-                              {count}
-                            </span>
+                            {exists === false ? (
+                              <span
+                                className={cn(
+                                  "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                  active ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600",
+                                )}
+                              >
+                                Skip
+                              </span>
+                            ) : (
+                              <span
+                                className={cn(
+                                  "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                  active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600",
+                                )}
+                              >
+                                {count}
+                              </span>
+                            )}
                           </button>
                         </li>
                       )
                     })}
                   </ul>
+                  )}
                 </div>
               )}
             </div>
@@ -789,6 +952,9 @@ export default function PreWalkModal({ open, onClose, initialFlow = false }: Pre
                       <p className="mt-0.5 text-sm font-medium text-slate-900">
                         {selectedRoomUse.id}
                       </p>
+                      {selectedRoomUse.building ? (
+                        <p className="mt-0.5 text-xs text-slate-600">Bldg {selectedRoomUse.building}</p>
+                      ) : null}
                       {selectedRoomUse.useName &&
                         selectedRoomUse.useName.toUpperCase() !==
                           selectedRoomUse.id.toUpperCase() && (

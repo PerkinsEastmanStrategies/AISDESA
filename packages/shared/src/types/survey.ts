@@ -173,6 +173,11 @@ export interface PreWalkState {
   mappings: Record<string, PreWalkRoomMapping>
   /** General overview photo per survey space type (Supabase URL or local data URL). */
   spaceTypePhotos?: Record<string, string>
+  /**
+   * Pre-answered “does this space type exist?” keyed by `surveyType::spaceType`.
+   * false = not in the building; the matching survey can skip that space type.
+   */
+  spaceTypeExists?: Record<string, boolean>
   completedAt?: string | null
   skippedAt?: string | null
 }

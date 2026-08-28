@@ -42,6 +42,25 @@ export function preWalkSpaceTypePhotoKey(surveyType: SurveyType, spaceType: stri
   return `${surveyType}::${spaceType}`
 }
 
+export function preWalkSpaceTypeExistsKey(surveyType: SurveyType, spaceType: string): string {
+  return `${surveyType}::${spaceType}`
+}
+
+export function readPreWalkSpaceTypeExists(
+  preWalk: PreWalkState,
+  surveyType: SurveyType,
+  spaceType: string,
+): boolean | null {
+  const value = preWalk.spaceTypeExists?.[preWalkSpaceTypeExistsKey(surveyType, spaceType)]
+  if (value === true || value === false) return value
+  return null
+}
+
+/** Neighborhoods and outdoor skip the school-level existence pre-answer. */
+export function preWalkSurveyAllowsSpaceTypeExists(surveyType: SurveyType): boolean {
+  return surveyType !== "neighborhoods" && surveyType !== "outdoor" && surveyType !== "closeout"
+}
+
 export function preWalkRoomSpaceTypePhotoKey(
   surveyType: SurveyType,
   roomId: string,
@@ -420,7 +439,12 @@ export function preWalkHasAssignments(preWalk?: PreWalkState | null): boolean {
 }
 
 export function preWalkHasCloudState(preWalk?: PreWalkState | null): boolean {
-  return preWalkHasAssignments(preWalk) || !!preWalk?.completedAt || !!preWalk?.skippedAt
+  return (
+    preWalkHasAssignments(preWalk) ||
+    !!preWalk?.completedAt ||
+    !!preWalk?.skippedAt ||
+    Object.keys(preWalk?.spaceTypeExists ?? {}).length > 0
+  )
 }
 
 export type PreWalkMappingRef = { surveyType: SurveyType; roomId: string }
@@ -452,6 +476,10 @@ export function mergePreWalkStates(
     spaceTypePhotos: {
       ...(left.spaceTypePhotos ?? {}),
       ...(right.spaceTypePhotos ?? {}),
+    },
+    spaceTypeExists: {
+      ...(left.spaceTypeExists ?? {}),
+      ...(right.spaceTypeExists ?? {}),
     },
     completedAt: left.completedAt ?? right.completedAt ?? null,
     skippedAt: left.skippedAt ?? right.skippedAt ?? null,

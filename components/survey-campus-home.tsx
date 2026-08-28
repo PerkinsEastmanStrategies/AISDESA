@@ -109,6 +109,9 @@ export default function SurveyCampusHome() {
         <h2 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400">
           Survey modules
         </h2>
+        <p className="mt-1 text-xs text-slate-500">
+          You can reopen any module to change an answer, including space types marked as not present.
+        </p>
         <ul className="mt-3 grid gap-2 sm:grid-cols-2">
           {modules.map(({ type, label, status }) => (
             <li key={type}>

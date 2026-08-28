@@ -1,4 +1,4 @@
-import type { GradeType, SurveySession, SurveyType } from "../types/survey"
+import type { GradeType, RoomSurveySession, SurveySession, SurveyType } from "../types/survey"
 import {
   SCORING_FOCUS_AREAS_FROM_TABLE,
   SURVEY_MODULE_ORDER,
@@ -1317,6 +1317,73 @@ export function absentSpaceTypeRoomDisplayName(
   return nh
     ? `${spaceType} — not present (Neighborhood ${nh})`
     : `${spaceType} — not present`
+}
+
+/** Write the existence answer onto a session, including the synthetic absent room when marked No. */
+export function applySpaceTypeExistsToSession(
+  session: SurveySession,
+  spaceType: string,
+  exists: boolean,
+  neighborhood?: string | null,
+): SurveySession {
+  const type = spaceType.trim()
+  if (!type) return session
+
+  const existenceKey = spaceTypeExistenceKey(type, neighborhood)
+  const absentRoomId = absentSpaceTypeRoomId(type, neighborhood)
+  const spaceTypeExistsAtSchool = {
+    ...(session.spaceTypeExistsAtSchool ?? {}),
+    [existenceKey]: exists,
+  }
+
+  let rooms = { ...session.rooms }
+  if (!exists) {
+    const existing = rooms[absentRoomId]
+    const label = absentSpaceTypeRoomDisplayName(type, neighborhood)
+    const nextRoom: RoomSurveySession = {
+      ...(existing ?? {}),
+      roomId: absentRoomId,
+      roomNumber: label,
+      roomType: type,
+      gradeType: existing?.gradeType ?? "",
+      neighborhood: neighborhood?.trim() || existing?.neighborhood || "",
+      preWalkNote1: existing?.preWalkNote1 ?? "",
+      preWalkNote2: existing?.preWalkNote2 ?? "",
+      levelId: existing?.levelId || "campus",
+      responses: [],
+      spaceTypeMarkedAbsent: true,
+    }
+    rooms[absentRoomId] = nextRoom
+  } else if (rooms[absentRoomId]) {
+    const { [absentRoomId]: _removed, ...rest } = rooms
+    rooms = rest
+  }
+
+  return {
+    ...session,
+    spaceTypeExistsAtSchool,
+    rooms,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+/** Apply pre-walk existence answers for one survey module onto a session. */
+export function applyPreWalkSpaceTypeExistsToSession(
+  session: SurveySession,
+  spaceTypeExists: Record<string, boolean> | undefined,
+  surveyType: SurveyType,
+): SurveySession {
+  if (!spaceTypeExists) return session
+  const prefix = `${surveyType}::`
+  let next = session
+  for (const [key, exists] of Object.entries(spaceTypeExists)) {
+    if (!key.startsWith(prefix)) continue
+    const spaceType = key.slice(prefix.length).trim()
+    if (!spaceType || spaceType.includes("::")) continue
+    if (!spaceTypeRequiresExistenceGate(spaceType)) continue
+    next = applySpaceTypeExistsToSession(next, spaceType, exists)
+  }
+  return next
 }
 
 /** Synthetic session keys for campus-wide Outdoor Elements scoring (not floor-plan rooms). */

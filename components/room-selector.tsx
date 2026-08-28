@@ -1023,7 +1023,9 @@ export default function RoomSelector({
                 const isTraditional = spaceTypeCompletionRule(type, state.school?.schoolClass).kind === "perNeighborhood"
                 const itemClass = active
                   ? "bg-blue-50 text-[var(--color-primary)]"
-                  : typeComplete
+                  : absent
+                    ? "bg-slate-50 text-slate-800"
+                    : typeComplete
                     ? "bg-emerald-50 text-emerald-900"
                     : inProgress
                       ? "bg-amber-50 text-amber-950"
@@ -1057,8 +1059,13 @@ export default function RoomSelector({
                             </span>
                           ) : null
                         ) : typeComplete ? (
-                          <span className="mt-0.5 block text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                            {absent ? "Not at school" : "Complete"}
+                          <span
+                            className={cn(
+                              "mt-0.5 block text-xs font-semibold uppercase tracking-wide",
+                              absent ? "text-slate-500" : "text-emerald-700",
+                            )}
+                          >
+                            {absent ? "Not at school · tap to edit" : "Complete"}
                           </span>
                         ) : hasSaved ? (
                           <span className="mt-0.5 block text-xs font-normal text-amber-800">
@@ -1068,7 +1075,7 @@ export default function RoomSelector({
                           </span>
                         ) : null}
                       </span>
-                      {typeComplete ? (
+                      {typeComplete && !absent ? (
                         <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
                       ) : active ? (
                         <Check className="h-4 w-4 shrink-0" aria-hidden />

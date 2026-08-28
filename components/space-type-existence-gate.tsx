@@ -29,13 +29,13 @@ export default function SpaceTypeExistenceGate({
       <p className="mt-1 text-xs leading-relaxed text-slate-500">
         {scopedToNeighborhood ? (
           <>
-            {spaceType} · Neighborhood {neighborhoodLabel} — if not, you can skip room selection
-            and survey questions for this space type in this neighborhood.
+            {spaceType} · Neighborhood {neighborhoodLabel} — if not, you can skip this space type
+            in this neighborhood for now. You can still come back and change the answer.
           </>
         ) : (
           <>
-            {spaceType} — if not, you can skip room selection and survey questions for this space
-            type.
+            {spaceType} — if not, you can skip room selection for now. You can still come back to
+            this space type later and change the answer.
           </>
         )}
       </p>
@@ -68,10 +68,10 @@ export default function SpaceTypeExistenceGate({
         })}
       </div>
       {value === false && (
-        <p className="mt-3 text-xs font-medium text-emerald-800">
+        <p className="mt-3 text-xs font-medium text-slate-700">
           {scopedToNeighborhood
-            ? `Marked as not present — this will score 0 for ${spaceType} in Neighborhood ${neighborhoodLabel}. Use Save and Complete Another Survey to record it.`
-            : `Marked as not present — this will score 0 for ${spaceType}. Use Save and Complete Another Survey to record it.`}
+            ? `Marked as not present — this scores 0 for ${spaceType} in Neighborhood ${neighborhoodLabel}. Tap Yes if you find it, or use Save and Complete Another Survey to keep this answer.`
+            : `Marked as not present — this scores 0 for ${spaceType}. Tap Yes if you find it, or use Save and Complete Another Survey to keep this answer.`}
         </p>
       )}
     </div>

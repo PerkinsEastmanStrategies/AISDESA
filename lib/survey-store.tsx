@@ -48,6 +48,9 @@ import {
   parseAbsentSpaceTypeRoomId,
   spaceTypeExistenceKey,
   readSpaceTypeExistsAtSchool,
+  applySpaceTypeExistsToSession,
+  applyPreWalkSpaceTypeExistsToSession,
+  spaceTypeRequiresExistenceGate,
   isNeighborhoodOnlySpaceType,
   neighborhoodSurveyRoomId,
   spaceTypeFromNeighborhoodSurveyRoomId,
@@ -76,6 +79,7 @@ import {
   mergeDraftsForScoring,
   mergePulledDraftWithLocal,
   propagatePreWalkToSchoolDrafts,
+  persistPreWalkSpaceTypeExistsToSchoolDrafts,
   saveAssessors,
   saveDraft,
   markActiveVisit,
@@ -127,7 +131,7 @@ import {
   withPendingUpdatedForResponse,
 } from "@/lib/closeout"
 import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
-import { EMPTY_PREWALK, getPreWalkMappingForSurveyModule, mergePreWalkStates, migratePreWalkState, preWalkHasAssignments, preWalkHasCloudState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypeForRoom, preWalkSpaceTypePhotoKey } from "@/lib/prewalk"
+import { EMPTY_PREWALK, getPreWalkMappingForSurveyModule, mergePreWalkStates, migratePreWalkState, preWalkHasAssignments, preWalkHasCloudState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypeExistsKey, preWalkSpaceTypeForRoom, preWalkSpaceTypePhotoKey, preWalkSurveyAllowsSpaceTypeExists } from "@/lib/prewalk"
 import { applyTraditionalStudioCopyToRoom, getTraditionalStudioCopyOffer } from "@/lib/traditional-studio-copy"
 import { scoreRoomSessionWithMetadata, scoreAbsentSpaceTypeRoom } from "@/lib/traditional-studio-room-score"
 import {
@@ -140,6 +144,7 @@ import {
   pushPrewalkClient,
   pullPrewalkClient,
   getPendingSyncCount,
+  queueSurveySync,
 } from "@/lib/survey-remote-sync"
 import type { RemoteSurveyStatus } from "@/lib/survey-remote-types"
 import {
@@ -211,6 +216,7 @@ type Action =
   | { type: "SET_SCHOOL_ROOM_NUMBER"; roomId: string; schoolRoomNumber: string }
   | { type: "SET_PREWALK_SPACE_TYPE_PHOTO"; surveyType: SurveyType; spaceType: string; roomId?: string; photo?: string }
   | { type: "SET_PREWALK_MAPPING"; surveyType: SurveyType; roomId: string; spaceType: string }
+  | { type: "SET_PREWALK_SPACE_TYPE_EXISTS"; surveyType: SurveyType; spaceType: string; exists: boolean }
   | { type: "UPDATE_PREWALK_NOTES"; surveyType: SurveyType; roomId: string; note1: string; note2: string }
   | { type: "REMOVE_PREWALK_MAPPING"; surveyType: SurveyType; roomId: string }
   | { type: "CLEAR_PREWALK_MAPPINGS_FOR_SURVEY"; surveyType: SurveyType }
@@ -252,6 +258,15 @@ type Action =
     }
   | { type: "SET_FINAL_COMMENT"; comment: string }
   | { type: "SUBMIT_CAMPUS"; allowIncomplete?: boolean }
+
+function sessionWithPreWalkExistence(
+  session: SurveySession,
+  preWalk: PreWalkState,
+  surveyType: SurveyType,
+): SurveySession {
+  if (!preWalkSurveyAllowsSpaceTypeExists(surveyType)) return session
+  return applyPreWalkSpaceTypeExistsToSession(session, preWalk.spaceTypeExists, surveyType)
+}
 
 function newSession(
   school: AisdSchoolOption,
@@ -755,10 +770,11 @@ function stateFromDraft(
     existingRooms.find((r) => r.id === selectedRoomId)?.levelId ??
     existingRooms[0]?.levelId ??
     null
+  const preWalk = migratePreWalkState(draft.preWalk, school.schoolClass)
   const base: SurveyState = {
     surveyType: draft.surveyType,
     school,
-    session: stamped.session,
+    session: sessionWithPreWalkExistence(stamped.session, preWalk, draft.surveyType),
     selectedRoomId,
     selectedLevelId: resolvedLevelId,
     floorPlan: existingFloorPlan,
@@ -775,7 +791,7 @@ function stateFromDraft(
     submitValidation: null,
     pendingStudioType: draft.pendingStudioType ?? null,
     pendingNeighborhood: draft.pendingNeighborhood ?? null,
-    preWalk: migratePreWalkState(draft.preWalk, school.schoolClass),
+    preWalk,
     preWalkPromptPending: false,
     preWalkRequested: false,
     ...emptyScoreState(),
@@ -1068,8 +1084,12 @@ function reducer(state: SurveyState, action: Action): SurveyState {
           state.allRooms,
           state.floorPlan,
         )
+        const session = restored.session
+          ? sessionWithPreWalkExistence(restored.session, state.preWalk, action.surveyType)
+          : restored.session
         return bootstrapCampusScopedSurvey({
           ...restored,
+          session,
           surveyType: action.surveyType,
           pendingStudioType:
             action.pendingStudioType !== undefined
@@ -1078,7 +1098,11 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         })
       }
       const assessor = resolveCampusAssessor(state.assessorByType, action.surveyType)
-      const session = newSession(state.school, action.surveyType, assessor)
+      const session = sessionWithPreWalkExistence(
+        newSession(state.school, action.surveyType, assessor),
+        state.preWalk,
+        action.surveyType,
+      )
       const stamped = withCampusAssessorOnSession(session, state.assessorByType, action.surveyType)
       return bootstrapCampusScopedSurvey({
         ...state,
@@ -1483,6 +1507,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
           const { [absentRoomId]: _removed, ...restRooms } = session.rooms
           session = { ...session, rooms: restRooms }
         }
+        if (selectedRoomId === absentRoomId) selectedRoomId = null
 
         const activeSpaceType = action.spaceType || state.pendingStudioType
 
@@ -1505,11 +1530,24 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         }
       }
 
+      let preWalk = state.preWalk
+      if (preWalkSurveyAllowsSpaceTypeExists(state.surveyType)) {
+        preWalk = {
+          ...state.preWalk,
+          spaceTypeExists: {
+            ...(state.preWalk.spaceTypeExists ?? {}),
+            [preWalkSpaceTypeExistsKey(state.surveyType, action.spaceType)]: action.exists,
+          },
+        }
+      }
+
       return reducer(
         {
           ...state,
           selectedRoomId,
+          pendingStudioType: action.spaceType || state.pendingStudioType,
           session,
+          preWalk,
         },
         { type: "RECALC_SCORES" },
       )
@@ -1640,6 +1678,66 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         },
       }
     }
+    case "SET_PREWALK_SPACE_TYPE_EXISTS": {
+      if (!preWalkSurveyAllowsSpaceTypeExists(action.surveyType)) return state
+      if (!spaceTypeRequiresExistenceGate(action.spaceType)) return state
+
+      const existsKey = preWalkSpaceTypeExistsKey(action.surveyType, action.spaceType)
+      let mappings = state.preWalk.mappings
+      let session = state.session
+      let selectedRoomId = state.selectedRoomId
+
+      if (!action.exists) {
+        const nextMappings = { ...mappings }
+        const rooms = session && action.surveyType === state.surveyType ? { ...session.rooms } : null
+        for (const [mappingKey, mapping] of Object.entries(nextMappings)) {
+          if (mapping.surveyType !== action.surveyType || mapping.spaceType !== action.spaceType) {
+            continue
+          }
+          delete nextMappings[mappingKey]
+          if (!rooms) continue
+          const existing = rooms[mapping.roomId]
+          if (!existing) continue
+          const canRemove =
+            existing.responses.length === 0 && !existing.gradeType && !existing.deferredToCloseOut
+          if (canRemove) {
+            delete rooms[mapping.roomId]
+            if (selectedRoomId === mapping.roomId) selectedRoomId = null
+          }
+        }
+        mappings = nextMappings
+        if (session && rooms) {
+          session = { ...session, rooms, updatedAt: new Date().toISOString() }
+        }
+      }
+
+      const preWalk: PreWalkState = {
+        ...state.preWalk,
+        mappings,
+        spaceTypeExists: {
+          ...(state.preWalk.spaceTypeExists ?? {}),
+          [existsKey]: action.exists,
+        },
+      }
+
+      if (session && action.surveyType === state.surveyType) {
+        session = applySpaceTypeExistsToSession(session, action.spaceType, action.exists)
+        if (action.exists && selectedRoomId && isAbsentSpaceTypeRoomId(selectedRoomId)) {
+          selectedRoomId = null
+        }
+        return reducer(
+          {
+            ...state,
+            preWalk,
+            selectedRoomId,
+            session,
+          },
+          { type: "RECALC_SCORES" },
+        )
+      }
+
+      return { ...state, preWalk }
+    }
     case "SET_PREWALK_MAPPING": {
       const mappingKey = preWalkMappingKey(action.surveyType, action.roomId)
       const prev = state.preWalk.mappings[mappingKey]
@@ -1654,21 +1752,38 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       const preWalk = {
         ...state.preWalk,
         mappings: { ...state.preWalk.mappings, [mappingKey]: mapping },
+        spaceTypeExists:
+          preWalkSurveyAllowsSpaceTypeExists(action.surveyType) &&
+          spaceTypeRequiresExistenceGate(action.spaceType)
+            ? {
+                ...(state.preWalk.spaceTypeExists ?? {}),
+                [preWalkSpaceTypeExistsKey(action.surveyType, action.spaceType)]: true,
+              }
+            : state.preWalk.spaceTypeExists,
       }
       const nextState = { ...state, preWalk }
       if (!state.session || action.surveyType !== state.surveyType) {
         return { ...nextState, submitValidation: null }
       }
       const existing = state.session.rooms[action.roomId]
-      const ensured = ensureRoomSession(nextState, action.roomId, existing)
+      const sessionBase =
+        preWalkSurveyAllowsSpaceTypeExists(action.surveyType) &&
+        spaceTypeRequiresExistenceGate(action.spaceType)
+          ? applySpaceTypeExistsToSession(state.session, action.spaceType, true)
+          : state.session
+      const ensured = ensureRoomSession(
+        { ...nextState, session: sessionBase },
+        action.roomId,
+        sessionBase.rooms[action.roomId] ?? existing,
+      )
       return {
         ...nextState,
         submitValidation: null,
         session: {
-          ...state.session,
+          ...sessionBase,
           updatedAt: new Date().toISOString(),
           rooms: {
-            ...state.session.rooms,
+            ...sessionBase.rooms,
             [action.roomId]: {
               ...ensured,
               roomType: action.spaceType,
@@ -1824,6 +1939,8 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         JSON.stringify(preWalk.mappings) === JSON.stringify(state.preWalk.mappings) &&
         JSON.stringify(preWalk.spaceTypePhotos ?? {}) ===
           JSON.stringify(state.preWalk.spaceTypePhotos ?? {}) &&
+        JSON.stringify(preWalk.spaceTypeExists ?? {}) ===
+          JSON.stringify(state.preWalk.spaceTypeExists ?? {}) &&
         (preWalk.completedAt ?? null) === (state.preWalk.completedAt ?? null) &&
         (preWalk.skippedAt ?? null) === (state.preWalk.skippedAt ?? null)
       if (unchanged) {
@@ -2222,6 +2339,7 @@ interface SurveyContextValue {
     roomId?: string,
   ) => void
   setPreWalkMapping: (surveyType: SurveyType, roomId: string, spaceType: string) => void
+  setPreWalkSpaceTypeExists: (surveyType: SurveyType, spaceType: string, exists: boolean) => void
   updatePreWalkNotes: (surveyType: SurveyType, roomId: string, note1: string, note2: string) => void
   removePreWalkMapping: (surveyType: SurveyType, roomId: string) => void
   clearPreWalkMappingsForSurvey: (surveyType: SurveyType) => void
@@ -2415,6 +2533,16 @@ function persistDraftFromState(state: SurveyState): string | null {
   })
   if (preWalkHasCloudState(state.preWalk)) {
     propagatePreWalkToSchoolDrafts(state.school.id, state.preWalk)
+  }
+
+  const siblingTypes = persistPreWalkSpaceTypeExistsToSchoolDrafts({
+    school: state.school,
+    preWalk: state.preWalk,
+    skipSurveyType: state.surveyType,
+    assessor: assessorFromSession(state.session),
+  })
+  for (const surveyType of siblingTypes) {
+    queueSurveySync(state.school.id, surveyType, savedAt)
   }
 
   if (state.surveyType === "closeout") {
@@ -2782,6 +2910,8 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       const draft = loadDraft(school.id, surveyType)
       if (!draft) return
 
+      void flushSurveySyncQueue({ schools, loadDraft })
+
       const writeSnapshot =
         !!draft.lastSubmission &&
         draft.lastSubmission.submittedAt !== lastSyncedSubmissionRef.current
@@ -2856,6 +2986,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     state.submission,
     state.assessorByType,
     refreshRemoteSchoolDrafts,
+    schools,
   ])
 
   useEffect(() => {
@@ -3533,6 +3664,11 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     },
     [],
   )
+  const setPreWalkSpaceTypeExists = useCallback(
+    (surveyType: SurveyType, spaceType: string, exists: boolean) =>
+      dispatch({ type: "SET_PREWALK_SPACE_TYPE_EXISTS", surveyType, spaceType, exists }),
+    [],
+  )
   const updatePreWalkNotes = useCallback(
     (surveyType: SurveyType, roomId: string, note1: string, note2: string) =>
       dispatch({ type: "UPDATE_PREWALK_NOTES", surveyType, roomId, note1, note2 }),
@@ -3734,6 +3870,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         setNeighborhood,
         setSchoolRoomNumber,
         setPreWalkMapping,
+        setPreWalkSpaceTypeExists,
         setPreWalkSpaceTypePhoto,
         updatePreWalkNotes,
         removePreWalkMapping,
