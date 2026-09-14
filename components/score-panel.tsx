@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import { ChevronDown, ChevronUp } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
 import WeightTunerPanel from "@/components/weight-tuner-panel"
+import { isObservationalCategory } from "@aisd/shared"
 import { cn, scoreColor, scoreTextColor } from "@/lib/utils"
 
 const CATEGORY_ORDER = ["Function", "Infrastructure", "Occupant Experience", "Amenities"]
@@ -14,7 +15,9 @@ export default function ScorePanel() {
 
   const sortedCategories = useMemo(() => {
     if (!currentRoomScore) return []
-    return [...currentRoomScore.categoryScores].sort((a, b) => {
+    return [...currentRoomScore.categoryScores]
+      .filter((c) => c.weight > 0 && !isObservationalCategory(c.category))
+      .sort((a, b) => {
       const ai = CATEGORY_ORDER.indexOf(a.category)
       const bi = CATEGORY_ORDER.indexOf(b.category)
       if (ai === -1 && bi === -1) return a.category.localeCompare(b.category)

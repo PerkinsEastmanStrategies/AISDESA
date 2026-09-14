@@ -38,7 +38,7 @@ export function isQuestionAnswered(
   if (isMultiSelectQuestionType(question.questionType)) {
     return asMultiSelectValues(value).length > 0
   }
-  return typeof value === "string" && value.length > 0
+  return typeof value === "string" && value.trim().length > 0
 }
 
 /** Answered, including a required note when Not/Unable to assess is selected. */

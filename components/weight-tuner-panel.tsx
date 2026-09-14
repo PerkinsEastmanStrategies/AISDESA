@@ -6,6 +6,7 @@ import { useSurvey } from "@/lib/survey-store"
 import { cn, scoreTextColor } from "@/lib/utils"
 import {
   getRoomSurveyRubric,
+  isObservationalCategory,
   subcategoryOverrideKey,
   type EsaQuestion,
   type QuestionScore,
@@ -161,7 +162,9 @@ export default function WeightTunerPanel() {
     setExpandedCategories((prev) => ({ ...prev, [category]: !prev[category] }))
   }
 
-  const categories = rubric.categories.filter((c) => c.assessmentArea === rubric.assessmentArea)
+  const categories = rubric.categories.filter(
+    (c) => c.assessmentArea === rubric.assessmentArea && !isObservationalCategory(c.category),
+  )
 
   return (
     <div className="border-t border-[var(--color-border)] bg-slate-50/80">

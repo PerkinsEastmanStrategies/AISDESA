@@ -165,6 +165,19 @@ function normalizeSpaceTypeKey(value: string): string {
 function guidanceLookupKeys(spaceType: string): string[] {
   const keys = new Set<string>()
   keys.add(normalizeSpaceTypeKey(spaceType))
+  const aliases: Record<string, string[]> = {
+    sensorymotorlab: ["sensorylab"],
+    lifeskillsstudio: ["lifeskillsroom"],
+    musicstudio: ["music"],
+    spedflexstudio: ["spedflexstudio"],
+    entryexperience: ["mainentryreception", "mainoffice"],
+    esgymnasium: ["gym"],
+    adminoffice: ["adminoffices"],
+    communitypartnersuite: ["communitypartnerssuite"],
+  }
+  for (const alias of aliases[normalizeSpaceTypeKey(spaceType)] ?? []) {
+    keys.add(alias)
+  }
   for (const entry of TABLE_OF_SURVEY_ENTRIES) {
     if (entry.spaceType === spaceType || entry.spaceTypeRaw === spaceType) {
       keys.add(normalizeSpaceTypeKey(entry.spaceType))

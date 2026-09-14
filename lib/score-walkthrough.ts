@@ -14,6 +14,7 @@ import {
   EMPTY_WEIGHT_OVERRIDES,
   getRoomSurveyRubric,
   isNotAbleToAssessOption,
+  isObservationalCategory,
   responseRequiresUnableToAssessNote,
 } from "@aisd/shared"
 import { scoreRoomSessionWithMetadata } from "@/lib/traditional-studio-room-score"
@@ -136,6 +137,7 @@ function responseForUnit(
 
 export function buildCampusCategoryRows(campus: CampusScoreSummary): WalkthroughCategoryRow[] {
   return [...campus.categoryScores]
+    .filter((c) => c.weight > 0 && !isObservationalCategory(c.category))
     .map((c) => ({ category: c.category, score: c.score, weight: c.weight }))
     .sort((a, b) => a.category.localeCompare(b.category))
 }

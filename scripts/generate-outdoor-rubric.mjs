@@ -93,6 +93,10 @@ function normalizeQuestionType(raw) {
   if (raw === "MultiSelect") return "MultiSelect"
   if (raw === "SingleSelect") return "SingleSelect"
   if (String(raw).startsWith("MultiSelect")) return "MultiSelect"
+  const t = String(raw ?? "").trim()
+  if (t === "Text" || t === "OpenText" || t === "FreeText" || t === "OpenEnded" || t === "LongText") {
+    return "Text"
+  }
   return raw
 }
 

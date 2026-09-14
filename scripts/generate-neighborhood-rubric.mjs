@@ -40,6 +40,14 @@ const PACKAGES = [
     prefix: "OPEN_COLLAB",
     label: "Open Collaboration",
   },
+  {
+    spaceTypeId: "SPT-EARLY-CHILDHOOD-NEIGHBORH-A22ECD",
+    assessmentArea: "Neighborhoods",
+    versionConst: "EARLY_CHILDHOOD_NEIGHBORHOOD_RUBRIC_VERSION",
+    version: 1,
+    prefix: "EARLY_CHILDHOOD_NEIGHBORHOOD",
+    label: "Early Childhood Neighborhood",
+  },
 ]
 
 function readTable(name) {

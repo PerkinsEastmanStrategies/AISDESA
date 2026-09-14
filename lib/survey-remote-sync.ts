@@ -257,7 +257,11 @@ export async function flushSurveySyncQueue(input: {
       const school = input.schools.find((s) => s.id === entry.schoolId)
       if (!draft || !school) continue
 
-      const result = await pushSurveyDraftClient({ school, draft })
+      const result = await pushSurveyDraftClient({
+        school,
+        draft,
+        writeSnapshot: !!draft.lastSubmission,
+      })
       if (result === "skipped_remote_newer") {
         input.onRemoteNewer?.(entry)
       }

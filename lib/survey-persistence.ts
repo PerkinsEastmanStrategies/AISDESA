@@ -19,6 +19,7 @@ import {
   LIFE_SKILLS_RUBRIC_VERSION,
   MUSIC_RUBRIC_VERSION,
   SCIENCE_RUBRIC_VERSION,
+  SCIENCE_PREP_RUBRIC_VERSION,
   SENSORY_LAB_RUBRIC_VERSION,
   SPED_FLEX_RUBRIC_VERSION,
   TRADITIONAL_STUDIOS_RUBRIC_VERSION,
@@ -76,6 +77,10 @@ export interface PersistedSurveyDraft {
    * Stamped after Science rooms are cleared for the Science package.
    */
   scienceRubricVersion?: number
+  /**
+   * Stamped after Science Prep Room rooms are cleared for that package.
+   */
+  sciencePrepRubricVersion?: number
   /**
    * Stamped after Art rooms are cleared for the Art package.
    */
@@ -306,6 +311,14 @@ function migratePackageStudioDrafts(draft: PersistedSurveyDraft): PersistedSurve
     changed = true
   }
 
+  if (next.sciencePrepRubricVersion !== SCIENCE_PREP_RUBRIC_VERSION) {
+    next = {
+      ...stripStudioTypeFromDraft(next, "Science Prep Room"),
+      sciencePrepRubricVersion: SCIENCE_PREP_RUBRIC_VERSION,
+    }
+    changed = true
+  }
+
   if (next.artRubricVersion !== ART_RUBRIC_VERSION) {
     next = {
       ...stripStudioTypeFromDraft(next, "Art"),
@@ -375,6 +388,7 @@ export function saveDraft(
       lifeSkillsRubricVersion: draft.lifeSkillsRubricVersion ?? LIFE_SKILLS_RUBRIC_VERSION,
       spedFlexRubricVersion: draft.spedFlexRubricVersion ?? SPED_FLEX_RUBRIC_VERSION,
       scienceRubricVersion: draft.scienceRubricVersion ?? SCIENCE_RUBRIC_VERSION,
+      sciencePrepRubricVersion: draft.sciencePrepRubricVersion ?? SCIENCE_PREP_RUBRIC_VERSION,
       artRubricVersion: draft.artRubricVersion ?? ART_RUBRIC_VERSION,
       musicRubricVersion: draft.musicRubricVersion ?? MUSIC_RUBRIC_VERSION,
       earlyChildhoodRubricVersion:
@@ -455,24 +469,61 @@ function submittedRoomCount(draft: PersistedSurveyDraft | null | undefined): num
   return draft?.lastSubmission?.campus?.rooms?.length ?? 0
 }
 
+function sessionResponseCount(session: SurveySession | null | undefined): number {
+  if (!session) return 0
+  let count = 0
+  for (const room of Object.values(session.rooms)) {
+    count += room.responses?.length ?? 0
+  }
+  return count
+}
+
+function submissionAnsweredCount(draft: PersistedSurveyDraft | null | undefined): number {
+  if (!draft?.lastSubmission?.campus?.rooms) return 0
+  return draft.lastSubmission.campus.rooms.reduce(
+    (sum, room) => sum + (room.answeredCount ?? 0),
+    0,
+  )
+}
+
 /**
- * Keep a local submission snapshot when the cloud draft has answers but no
- * snapshot yet (common on a new sandbox campus after the first Save).
+ * Prefer cloud when it is the richer copy, but keep local when this device just
+ * saved (including Close Out score updates) and the pull is still stale.
  */
 export function mergePulledDraftWithLocal(
   remote: PersistedSurveyDraft,
   local: PersistedSurveyDraft | null,
 ): PersistedSurveyDraft {
   if (!local) return remote
-  if (submittedRoomCount(remote) > 0) return remote
-  if (submittedRoomCount(local) === 0) return remote
+
+  const localResponses = sessionResponseCount(local.session)
+  const remoteResponses = sessionResponseCount(remote.session)
+  const localAnswered = submissionAnsweredCount(local)
+  const remoteAnswered = submissionAnsweredCount(remote)
+  const localNewer = (local.savedAt || "") > (remote.savedAt || "")
+
+  const keepLocalSession =
+    localResponses > remoteResponses ||
+    (localNewer && localResponses >= remoteResponses && localResponses > 0)
+  const keepLocalSnapshot =
+    localAnswered > remoteAnswered ||
+    (submittedRoomCount(local) > 0 && submittedRoomCount(remote) === 0) ||
+    (localNewer && localAnswered >= remoteAnswered && submittedRoomCount(local) > 0)
+
+  if (!keepLocalSession && !keepLocalSnapshot) return remote
+
   return {
     ...remote,
-    lastSubmission: local.lastSubmission,
-    session: {
-      ...remote.session,
-      submittedAt: remote.session.submittedAt ?? local.session.submittedAt,
-    },
+    session: keepLocalSession
+      ? local.session
+      : {
+          ...remote.session,
+          submittedAt: remote.session.submittedAt ?? local.session.submittedAt,
+        },
+    lastSubmission: keepLocalSnapshot
+      ? (local.lastSubmission ?? remote.lastSubmission)
+      : (remote.lastSubmission ?? local.lastSubmission),
+    savedAt: localNewer ? local.savedAt : remote.savedAt,
   }
 }
 

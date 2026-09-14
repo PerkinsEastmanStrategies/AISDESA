@@ -17,13 +17,12 @@ type SelectOptions = {
 }
 
 /**
- * Room selection that prompts when the target room was already submitted,
- * or when it is complete in the current module.
+ * Room selection that prompts only when the target room was already saved/scored
+ * in this survey module.
  */
 export function useSelectRoomWithConfirm() {
   const {
     selectRoom,
-    surveyedRooms,
     findSubmittedRoomAssessment,
     openResults,
     state,
@@ -72,11 +71,6 @@ export function useSelectRoomWithConfirm() {
       document.removeEventListener("keydown", onKey)
     }
   }, [pendingRoomId, clearPending])
-
-  const isRoomCompleteById = useCallback(
-    (roomId: string) => surveyedRooms.some((r) => r.roomId === roomId && r.complete),
-    [surveyedRooms],
-  )
 
   const requestSelectRoom = useCallback(
     (roomId: string | null, options?: SelectOptions) => {
@@ -140,22 +134,13 @@ export function useSelectRoomWithConfirm() {
         const parsed = state.allRooms.find((r) => r.id === roomId)
         setPendingRoomName(parsed?.name ?? roomId)
         setPendingSubmitted(submitted)
+        setPendingCloseOut(null)
         setPendingRoomId(roomId)
         afterConfirmRef.current = options?.afterSelect ?? null
         onChooseDifferentRef.current = options?.onChooseDifferent ?? null
         return "confirm" as const
       }
 
-      if (isRoomCompleteById(roomId)) {
-        const entry = surveyedRooms.find((r) => r.roomId === roomId)
-        const parsed = state.allRooms.find((r) => r.id === roomId)
-        setPendingRoomName(entry?.roomName ?? parsed?.name ?? roomId)
-        setPendingSubmitted(null)
-        setPendingRoomId(roomId)
-        afterConfirmRef.current = options?.afterSelect ?? null
-        onChooseDifferentRef.current = options?.onChooseDifferent ?? null
-        return "confirm" as const
-      }
       selectRoom(roomId)
       options?.afterSelect?.()
       return "selected" as const
@@ -170,8 +155,6 @@ export function useSelectRoomWithConfirm() {
       state.allRooms,
       state.school?.schoolClass,
       findSubmittedRoomAssessment,
-      isRoomCompleteById,
-      surveyedRooms,
     ],
   )
 

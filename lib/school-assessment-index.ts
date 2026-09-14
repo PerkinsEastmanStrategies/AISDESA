@@ -32,27 +32,19 @@ export function roomHasAssessmentProgress(
     !!roomSession.deferredToCloseOut
   )
 }
+
 function roomInSubmittedDraft(
   draft: PersistedSurveyDraft,
   roomId: string,
 ): SubmittedRoomAssessment | null {
-  if (!draftWasSubmitted(draft)) return null
-
   const sub = draft.lastSubmission
-  const submittedAt =
-    sub?.submittedAt ?? draft.session.submittedAt ?? draft.savedAt
-
   const campusEntry = sub?.campus?.rooms?.find((r) => r.roomId === roomId)
-  const sessionRoom = sub?.session.rooms[roomId] ?? draft.session.rooms[roomId]
+  if (!campusEntry || !isSubmittedCampusRoom(campusEntry)) return null
 
-  if (!campusEntry && !sessionRoom) return null
-
-  if (campusEntry && !isSubmittedCampusRoom(campusEntry)) return null
-  if (!campusEntry && !roomHasAssessmentProgress(sessionRoom)) return null
-
+  const sessionRoom = sub.session.rooms[roomId] ?? draft.session.rooms[roomId]
   const spaceType =
     sessionRoom?.roomType?.trim() ||
-    draft.lastSubmission?.session.rooms[roomId]?.roomType?.trim() ||
+    campusEntry.roomName ||
     "Assessed space"
 
   return {
@@ -60,7 +52,7 @@ function roomInSubmittedDraft(
     surveyType: draft.surveyType,
     spaceType,
     surveyLabel: surveyTypeLabel(draft.surveyType),
-    submittedAt,
+    submittedAt: sub.submittedAt ?? draft.session.submittedAt ?? draft.savedAt,
   }
 }
 

@@ -60,6 +60,11 @@ import {
   SCIENCE_QUESTIONS,
   SCIENCE_RUBRIC_VERSION,
   SCIENCE_SUBCATEGORIES,
+  SCIENCE_PREP_CATEGORIES,
+  SCIENCE_PREP_QUESTION_OPTIONS,
+  SCIENCE_PREP_QUESTIONS,
+  SCIENCE_PREP_RUBRIC_VERSION,
+  SCIENCE_PREP_SUBCATEGORIES,
   ART_CATEGORIES,
   ART_QUESTION_OPTIONS,
   ART_QUESTIONS,
@@ -80,6 +85,26 @@ import {
   EARLY_CHILDHOOD_SPED_QUESTIONS,
   EARLY_CHILDHOOD_SPED_RUBRIC_VERSION,
   EARLY_CHILDHOOD_SPED_SUBCATEGORIES,
+  SPECIAL_EDUCATION_SUITE_CATEGORIES,
+  SPECIAL_EDUCATION_SUITE_QUESTION_OPTIONS,
+  SPECIAL_EDUCATION_SUITE_QUESTIONS,
+  SPECIAL_EDUCATION_SUITE_RUBRIC_VERSION,
+  SPECIAL_EDUCATION_SUITE_SUBCATEGORIES,
+  ART_2D_CATEGORIES,
+  ART_2D_QUESTION_OPTIONS,
+  ART_2D_QUESTIONS,
+  ART_2D_RUBRIC_VERSION,
+  ART_2D_SUBCATEGORIES,
+  ART_3D_CATEGORIES,
+  ART_3D_QUESTION_OPTIONS,
+  ART_3D_QUESTIONS,
+  ART_3D_RUBRIC_VERSION,
+  ART_3D_SUBCATEGORIES,
+  DIGITAL_ART_CATEGORIES,
+  DIGITAL_ART_QUESTION_OPTIONS,
+  DIGITAL_ART_QUESTIONS,
+  DIGITAL_ART_RUBRIC_VERSION,
+  DIGITAL_ART_SUBCATEGORIES,
 } from "../data/traditional-studio-rubric"
 import {
   ADMIN_OFFICE_CATEGORIES,
@@ -114,6 +139,11 @@ import {
   MAIN_OFFICE_QUESTIONS,
   MAIN_OFFICE_RUBRIC_VERSION,
   MAIN_OFFICE_SUBCATEGORIES,
+  CAMPUS_CATEGORIES,
+  CAMPUS_QUESTION_OPTIONS,
+  CAMPUS_QUESTIONS,
+  CAMPUS_RUBRIC_VERSION,
+  CAMPUS_SUBCATEGORIES,
 } from "../data/arrival-admin-rubric"
 import {
   GROUP_ROOM_CATEGORIES,
@@ -131,6 +161,11 @@ import {
   OPEN_COLLAB_QUESTIONS,
   OPEN_COLLAB_RUBRIC_VERSION,
   OPEN_COLLAB_SUBCATEGORIES,
+  EARLY_CHILDHOOD_NEIGHBORHOOD_CATEGORIES,
+  EARLY_CHILDHOOD_NEIGHBORHOOD_QUESTION_OPTIONS,
+  EARLY_CHILDHOOD_NEIGHBORHOOD_QUESTIONS,
+  EARLY_CHILDHOOD_NEIGHBORHOOD_RUBRIC_VERSION,
+  EARLY_CHILDHOOD_NEIGHBORHOOD_SUBCATEGORIES,
 } from "../data/neighborhood-rubric"
 import {
   OUTDOOR_SPACES_CATEGORIES,
@@ -283,19 +318,26 @@ export {
   LIFE_SKILLS_RUBRIC_VERSION,
   SPED_FLEX_RUBRIC_VERSION,
   SCIENCE_RUBRIC_VERSION,
+  SCIENCE_PREP_RUBRIC_VERSION,
   ART_RUBRIC_VERSION,
   MUSIC_RUBRIC_VERSION,
   EARLY_CHILDHOOD_RUBRIC_VERSION,
   EARLY_CHILDHOOD_SPED_RUBRIC_VERSION,
+  SPECIAL_EDUCATION_SUITE_RUBRIC_VERSION,
+  ART_2D_RUBRIC_VERSION,
+  ART_3D_RUBRIC_VERSION,
+  DIGITAL_ART_RUBRIC_VERSION,
   ADMIN_OFFICE_RUBRIC_VERSION,
   COUNSELING_SUITE_RUBRIC_VERSION,
   MAIN_OFFICE_RUBRIC_VERSION,
+  CAMPUS_RUBRIC_VERSION,
   MAIN_ADMIN_SUITE_RUBRIC_VERSION,
   COMMUNITY_PARTNER_RUBRIC_VERSION,
   PLC_RUBRIC_VERSION,
   NEIGHBORHOOD_SPACE_RUBRIC_VERSION,
   GROUP_ROOM_RUBRIC_VERSION,
   OPEN_COLLAB_RUBRIC_VERSION,
+  EARLY_CHILDHOOD_NEIGHBORHOOD_RUBRIC_VERSION,
   LIBRARY_MEDIA_CENTER_RUBRIC_VERSION,
   DINING_COMMONS_RUBRIC_VERSION,
   KITCHEN_RUBRIC_VERSION,
@@ -395,6 +437,14 @@ const SCIENCE_RUBRIC: SurveyRubric = {
   options: SCIENCE_QUESTION_OPTIONS as SurveyRubric["options"],
 }
 
+const SCIENCE_PREP_RUBRIC: SurveyRubric = {
+  assessmentArea: "Studios",
+  categories: SCIENCE_PREP_CATEGORIES,
+  subcategories: SCIENCE_PREP_SUBCATEGORIES,
+  questions: SCIENCE_PREP_QUESTIONS as SurveyRubric["questions"],
+  options: SCIENCE_PREP_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
 const ART_RUBRIC: SurveyRubric = {
   assessmentArea: "Studios",
   categories: ART_CATEGORIES,
@@ -425,6 +475,38 @@ const EARLY_CHILDHOOD_SPED_RUBRIC: SurveyRubric = {
   subcategories: EARLY_CHILDHOOD_SPED_SUBCATEGORIES,
   questions: EARLY_CHILDHOOD_SPED_QUESTIONS as SurveyRubric["questions"],
   options: EARLY_CHILDHOOD_SPED_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const SPECIAL_EDUCATION_SUITE_RUBRIC: SurveyRubric = {
+  assessmentArea: "Special Education",
+  categories: SPECIAL_EDUCATION_SUITE_CATEGORIES,
+  subcategories: SPECIAL_EDUCATION_SUITE_SUBCATEGORIES,
+  questions: SPECIAL_EDUCATION_SUITE_QUESTIONS as SurveyRubric["questions"],
+  options: SPECIAL_EDUCATION_SUITE_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const ART_2D_RUBRIC: SurveyRubric = {
+  assessmentArea: "Studios",
+  categories: ART_2D_CATEGORIES,
+  subcategories: ART_2D_SUBCATEGORIES,
+  questions: ART_2D_QUESTIONS as SurveyRubric["questions"],
+  options: ART_2D_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const ART_3D_RUBRIC: SurveyRubric = {
+  assessmentArea: "Studios",
+  categories: ART_3D_CATEGORIES,
+  subcategories: ART_3D_SUBCATEGORIES,
+  questions: ART_3D_QUESTIONS as SurveyRubric["questions"],
+  options: ART_3D_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const DIGITAL_ART_RUBRIC: SurveyRubric = {
+  assessmentArea: "Studios",
+  categories: DIGITAL_ART_CATEGORIES,
+  subcategories: DIGITAL_ART_SUBCATEGORIES,
+  questions: DIGITAL_ART_QUESTIONS as SurveyRubric["questions"],
+  options: DIGITAL_ART_QUESTION_OPTIONS as SurveyRubric["options"],
 }
 
 const OUTDOOR_SPACES_RUBRIC: SurveyRubric = {
@@ -467,6 +549,14 @@ const MAIN_OFFICE_RUBRIC: SurveyRubric = {
   options: MAIN_OFFICE_QUESTION_OPTIONS as SurveyRubric["options"],
 }
 
+const CAMPUS_RUBRIC: SurveyRubric = {
+  assessmentArea: "Arrival/Main Office",
+  categories: CAMPUS_CATEGORIES,
+  subcategories: CAMPUS_SUBCATEGORIES,
+  questions: CAMPUS_QUESTIONS as SurveyRubric["questions"],
+  options: CAMPUS_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
 const MAIN_ADMIN_SUITE_RUBRIC: SurveyRubric = {
   assessmentArea: "Arrival/Main Office",
   categories: MAIN_ADMIN_SUITE_CATEGORIES,
@@ -505,6 +595,14 @@ const OPEN_COLLAB_RUBRIC: SurveyRubric = {
   subcategories: OPEN_COLLAB_SUBCATEGORIES,
   questions: OPEN_COLLAB_QUESTIONS as SurveyRubric["questions"],
   options: OPEN_COLLAB_QUESTION_OPTIONS as SurveyRubric["options"],
+}
+
+const EARLY_CHILDHOOD_NEIGHBORHOOD_RUBRIC: SurveyRubric = {
+  assessmentArea: "Neighborhoods",
+  categories: EARLY_CHILDHOOD_NEIGHBORHOOD_CATEGORIES,
+  subcategories: EARLY_CHILDHOOD_NEIGHBORHOOD_SUBCATEGORIES,
+  questions: EARLY_CHILDHOOD_NEIGHBORHOOD_QUESTIONS as SurveyRubric["questions"],
+  options: EARLY_CHILDHOOD_NEIGHBORHOOD_QUESTION_OPTIONS as SurveyRubric["options"],
 }
 
 const LIBRARY_MEDIA_CENTER_RUBRIC: SurveyRubric = {
@@ -922,23 +1020,35 @@ export function getRoomSurveyRubric(
     let base: SurveyRubric | null = null
     const normalizedRoomType = normalizeNeighborhoodSpaceType(roomType ?? "")
     if (normalizedRoomType === "Neighborhood") base = NEIGHBORHOOD_SPACE_RUBRIC
+    else if (normalizedRoomType === "Early Childhood Neighborhood")
+      base = EARLY_CHILDHOOD_NEIGHBORHOOD_RUBRIC
     else if (normalizedRoomType === "Group Room" || normalizedRoomType === "Large Group Room")
       base = GROUP_ROOM_RUBRIC
     else if (normalizedRoomType === "Open Collaboration Space") base = OPEN_COLLAB_RUBRIC
+    else if (normalizedRoomType === "Professional Learning Center") base = PLC_RUBRIC
     if (!base) return null
     const neighborhoodGrade =
       gradeType ||
       (schoolClass === "ELEM" ? "K" : schoolClass === "MID" ? "MS" : schoolClass === "HIGH" ? "HS" : null)
     rubric = filterNeighborhoodRubricByGrade(base, neighborhoodGrade)
   } else if (effectiveType === "arrival") {
-    if (roomType === "Main Office" || roomType === "Main Entry/Reception") rubric = MAIN_OFFICE_RUBRIC
-    else if (roomType === "Main Admin Suite") rubric = MAIN_ADMIN_SUITE_RUBRIC
-    else if (roomType === "Community Partner Suite") rubric = COMMUNITY_PARTNER_RUBRIC
-    else return null
+    if (
+      roomType === "Main Office" ||
+      roomType === "Main Entry/Reception" ||
+      roomType === "Entry Experience"
+    ) {
+      rubric = MAIN_OFFICE_RUBRIC
+    } else if (roomType === "Campus") {
+      rubric = CAMPUS_RUBRIC
+    } else {
+      return null
+    }
   } else if (effectiveType === "administration") {
     if (roomType === "Counseling Suite") rubric = COUNSELING_SUITE_RUBRIC
     else if (roomType === "Admin Office") rubric = ADMIN_OFFICE_RUBRIC
     else if (roomType === "Professional Learning Center") rubric = PLC_RUBRIC
+    else if (roomType === "Main Admin Suite") rubric = MAIN_ADMIN_SUITE_RUBRIC
+    else if (roomType === "Community Partner Suite") rubric = COMMUNITY_PARTNER_RUBRIC
     else return null
   } else if (effectiveType === "outdoor") {
     if (roomType === "Outdoor Spaces") {
@@ -997,26 +1107,36 @@ export function getRoomSurveyRubric(
     rubric = RUBRICS[effectiveType]
   } else if (roomType === "Traditional studio") {
     rubric = filterRubricBySchoolLevel(TRADITIONAL_STUDIOS_RUBRIC, schoolClass)
-  } else if (roomType === "Sensory Lab") {
+  } else if (roomType === "Sensory Lab" || roomType === "Sensory Motor Lab") {
     rubric = filterRubricBySchoolLevel(SENSORY_LAB_RUBRIC, schoolClass)
   } else if (roomType === "Vocational Lab" || roomType === "Vocational lab") {
     rubric = filterRubricBySchoolLevel(VOCATIONAL_LAB_RUBRIC, schoolClass)
-  } else if (roomType === "Life Skills Room") {
+  } else if (roomType === "Life Skills Room" || roomType === "Life Skills Studio") {
     rubric = filterRubricBySchoolLevel(LIFE_SKILLS_RUBRIC, schoolClass)
-  } else if (roomType === "Sped flex studio") {
+  } else if (roomType === "Sped flex studio" || roomType === "SPED Flex Studio") {
     rubric = filterRubricBySchoolLevel(SPED_FLEX_RUBRIC, schoolClass)
   } else if (roomType === "Maker space") {
     rubric = filterRubricBySchoolLevel(MAKER_SPACE_RUBRIC, schoolClass)
   } else if (roomType === "Science") {
     rubric = filterRubricBySchoolLevel(SCIENCE_RUBRIC, schoolClass)
+  } else if (roomType === "Science Prep Room") {
+    rubric = filterRubricBySchoolLevel(SCIENCE_PREP_RUBRIC, schoolClass)
   } else if (roomType === "Art") {
     rubric = filterRubricBySchoolLevel(ART_RUBRIC, schoolClass)
-  } else if (roomType === "Music") {
+  } else if (roomType === "2D Art Studio") {
+    rubric = filterRubricBySchoolLevel(ART_2D_RUBRIC, schoolClass)
+  } else if (roomType === "3D Art Studio") {
+    rubric = filterRubricBySchoolLevel(ART_3D_RUBRIC, schoolClass)
+  } else if (roomType === "Digital Art Studio") {
+    rubric = filterRubricBySchoolLevel(DIGITAL_ART_RUBRIC, schoolClass)
+  } else if (roomType === "Music" || roomType === "Music Studio") {
     rubric = filterRubricBySchoolLevel(MUSIC_RUBRIC, schoolClass)
   } else if (roomType === "Early childhood studio") {
     rubric = filterRubricBySchoolLevel(EARLY_CHILDHOOD_RUBRIC, schoolClass)
   } else if (roomType === "Early childhood special education studio") {
     rubric = filterRubricBySchoolLevel(EARLY_CHILDHOOD_SPED_RUBRIC, schoolClass)
+  } else if (roomType === "Special Education Suite") {
+    rubric = filterRubricBySchoolLevel(SPECIAL_EDUCATION_SUITE_RUBRIC, schoolClass)
   } else {
     rubric = STUDIOS_RUBRIC
   }
@@ -1034,13 +1154,13 @@ export function surveyTypeLabel(type: SurveyType): string {
     case "studios":
       return "Studios"
     case "outdoor":
-      return "Outdoor Elements"
+      return "Outdoor"
     case "neighborhoods":
       return "Neighborhoods"
     case "arrival":
-      return "Arrival/Administration"
+      return "Arrival Experience and Campus Organization"
     case "administration":
-      return "Arrival/Administration"
+      return "Administration"
     case "athletics":
       return "Athletics and Wellness"
     case "performing_arts":
@@ -1166,16 +1286,21 @@ export function isSpaceTypeForSurveyModule(
 
 export const STUDIO_TYPE_OPTIONS = [
   "Traditional studio",
-  "Sensory Lab",
-  "Life Skills Room",
+  "Sensory Motor Lab",
+  "Life Skills Studio",
   "Early childhood studio",
   "Early childhood special education studio",
   "Science",
-  "Sped flex studio",
+  "Science Prep Room",
+  "SPED Flex Studio",
   "Vocational Lab",
   "Maker space",
   "Art",
-  "Music",
+  "2D Art Studio",
+  "3D Art Studio",
+  "Digital Art Studio",
+  "Music Studio",
+  "Special Education Suite",
 ] as const
 
 export type StudioType = (typeof STUDIO_TYPE_OPTIONS)[number]
@@ -1187,7 +1312,8 @@ export function isStudioType(value: string): value is StudioType {
 export const ADMIN_SPACE_TYPE_OPTIONS = [
   "Admin Office",
   "Counseling Suite",
-  "Professional Learning Center",
+  "Main Admin Suite",
+  "Community Partner Suite",
 ] as const
 
 export type AdminSpaceType = (typeof ADMIN_SPACE_TYPE_OPTIONS)[number]
@@ -1197,10 +1323,10 @@ export function isAdminSpaceType(value: string): value is AdminSpaceType {
 }
 
 export const ARRIVAL_SPACE_TYPE_OPTIONS = [
+  "Entry Experience",
+  "Campus",
   "Main Entry/Reception",
   "Main Office",
-  "Main Admin Suite",
-  "Community Partner Suite",
 ] as const
 
 export type ArrivalSpaceType = (typeof ARRIVAL_SPACE_TYPE_OPTIONS)[number]
@@ -1211,9 +1337,11 @@ export function isArrivalSpaceType(value: string): value is ArrivalSpaceType {
 
 export const NEIGHBORHOOD_SPACE_TYPE_OPTIONS = [
   "Neighborhood",
+  "Early Childhood Neighborhood",
   "Group Room",
   "Large Group Room",
   "Open Collaboration Space",
+  "Professional Learning Center",
 ] as const
 
 export type NeighborhoodSpaceType = (typeof NEIGHBORHOOD_SPACE_TYPE_OPTIONS)[number]
@@ -1497,7 +1625,7 @@ export function isNeighborhoodOnlySpaceType(
 ): boolean {
   if (surveyType !== "neighborhoods" || !spaceType?.trim()) return false
   const normalized = normalizeNeighborhoodSpaceType(spaceType)
-  return normalized === "Neighborhood" || normalized === "Open Collaboration Space"
+  return normalized === "Neighborhood" || normalized === "Early Childhood Neighborhood" || normalized === "Open Collaboration Space"
 }
 
 /** Survey types scored once per campus rather than per room. */
@@ -1511,15 +1639,24 @@ export function usesPackageStudioRubric(roomType: string | null | undefined): bo
     roomType === "Traditional studio" ||
     roomType === "Maker space" ||
     roomType === "Sensory Lab" ||
+    roomType === "Sensory Motor Lab" ||
     roomType === "Vocational Lab" ||
     roomType === "Vocational lab" ||
     roomType === "Life Skills Room" ||
+    roomType === "Life Skills Studio" ||
     roomType === "Sped flex studio" ||
+    roomType === "SPED Flex Studio" ||
     roomType === "Science" ||
+    roomType === "Science Prep Room" ||
     roomType === "Art" ||
+    roomType === "2D Art Studio" ||
+    roomType === "3D Art Studio" ||
+    roomType === "Digital Art Studio" ||
     roomType === "Music" ||
+    roomType === "Music Studio" ||
     roomType === "Early childhood studio" ||
-    roomType === "Early childhood special education studio"
+    roomType === "Early childhood special education studio" ||
+    roomType === "Special Education Suite"
   )
 }
 
@@ -1528,7 +1665,9 @@ export function usesPackageAdminRubric(roomType: string | null | undefined): boo
   return (
     roomType === "Admin Office" ||
     roomType === "Counseling Suite" ||
-    roomType === "Professional Learning Center"
+    roomType === "Professional Learning Center" ||
+    roomType === "Main Admin Suite" ||
+    roomType === "Community Partner Suite"
   )
 }
 
@@ -1537,8 +1676,8 @@ export function usesPackageArrivalRubric(roomType: string | null | undefined): b
   return (
     roomType === "Main Entry/Reception" ||
     roomType === "Main Office" ||
-    roomType === "Main Admin Suite" ||
-    roomType === "Community Partner Suite"
+    roomType === "Entry Experience" ||
+    roomType === "Campus"
   )
 }
 
@@ -1548,9 +1687,11 @@ export function usesPackageNeighborhoodRubric(roomType: string | null | undefine
   const normalized = normalizeNeighborhoodSpaceType(roomType)
   return (
     normalized === "Neighborhood" ||
+    normalized === "Early Childhood Neighborhood" ||
     normalized === "Group Room" ||
     normalized === "Large Group Room" ||
-    normalized === "Open Collaboration Space"
+    normalized === "Open Collaboration Space" ||
+    normalized === "Professional Learning Center"
   )
 }
 

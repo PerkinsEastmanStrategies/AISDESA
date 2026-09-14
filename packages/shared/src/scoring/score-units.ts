@@ -1,4 +1,4 @@
-import type { EsaQuestion, EsaQuestionOption } from "../types/survey"
+import { isTextQuestionType, type EsaQuestion, type EsaQuestionOption } from "../types/survey"
 import {
   asMultiSelectValues,
   isNotAbleToAssessOption,
@@ -10,9 +10,31 @@ export function isInventoryScoreId(scoreId: string): boolean {
   return scoreId.endsWith("i")
 }
 
+function scoringModeValue(value: string | null | undefined): string {
+  return String(value ?? "").trim()
+}
+
+/** Observational / recorded-only / inventory modes store answers but do not score. */
+export function isNonScoringMode(value: string | null | undefined): boolean {
+  const mode = scoringModeValue(value)
+  return mode === "Inventory" || mode === "RecordedOnly" || mode === "Observational"
+}
+
+export function isObservationalCategory(category: string | null | undefined): boolean {
+  return /(^|\s)observational$/i.test(String(category ?? "").trim())
+}
+
+/** True when a question is captured for tracking only and must not affect room %. */
+export function isNonScoringQuestion(
+  question: Pick<EsaQuestion, "category" | "questionType">,
+): boolean {
+  if (isTextQuestionType(question.questionType)) return true
+  return isObservationalCategory(question.category)
+}
+
 /** v3 ItemScoringMode Inventory (or legacy scoreId suffix) — excluded from scoring. */
 export function isInventoryOption(opt: EsaQuestionOption): boolean {
-  if (opt.itemScoringMode === "Inventory") return true
+  if (isNonScoringMode(opt.itemScoringMode)) return true
   if (opt.isExclusionOption && (opt.normalizedScore === null || opt.normalizedScore === undefined)) {
     // Exclusion alone is not inventory; scored via null normalizedScore in scoreForScoreId
   }
@@ -28,10 +50,11 @@ export function isYesNoQuestionType(questionType: string): boolean {
 }
 
 /** Normalize CSV question types to app question types. */
-export function normalizeQuestionType(raw: string): "YesNoNA" | "SingleSelect" | "MultiSelect" {
+export function normalizeQuestionType(raw: string): "YesNoNA" | "SingleSelect" | "MultiSelect" | "Text" {
   if (raw === "YesNo") return "YesNoNA"
   if (raw.startsWith("MultiSelect")) return "MultiSelect"
-  return raw as "YesNoNA" | "SingleSelect" | "MultiSelect"
+  if (isTextQuestionType(raw)) return "Text"
+  return raw as "YesNoNA" | "SingleSelect" | "MultiSelect" | "Text"
 }
 
 export function optionsForQuestion(
@@ -80,6 +103,7 @@ export function totalScorableUnits(
         : new Set(skipQuestionIds)
   return questions.reduce((sum, q) => {
     if (skip?.has(q.questionId)) return sum
+    if (isNonScoringQuestion(q)) return sum
     return sum + scorableScoreIdsForQuestion(q.questionId, options).length
   }, 0)
 }
@@ -95,6 +119,7 @@ export function scoreForScoreId(
   response: { value: string | string[] } | undefined,
   options: EsaQuestionOption[],
 ): number | null {
+  if (isNonScoringQuestion(question)) return null
   if (isInventoryScoreId(scoreId)) return null
 
   const groupOpts = optionsForQuestion(question.questionId, options).filter(

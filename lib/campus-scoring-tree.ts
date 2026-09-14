@@ -4,6 +4,7 @@ import type {
   RoomSurveySession,
   ScoredRoomEntry,
   SurveySession,
+  SurveySubmission,
   SurveyType,
 } from "@aisd/shared"
 import {
@@ -23,6 +24,7 @@ import {
   SCORING_FOCUS_AREAS,
   spaceTypesForScoringFocusArea,
   surveyTypeForScoringFocusArea,
+  isObservationalCategory,
   type ScoringFocusAreaId,
 } from "@aisd/shared"
 import {
@@ -33,13 +35,16 @@ import {
 } from "@aisd/shared"
 import { scoreRoomSessionWithMetadata, scoreAbsentSpaceTypeRoom } from "@/lib/traditional-studio-room-score"
 import { loadDraftsForSchool, type PersistedSurveyDraft } from "@/lib/survey-persistence"
+import { syncCloseOutProgressToSource } from "@/lib/closeout"
 
-/** True when a campus room entry counts as a finished submission (excludes in-progress partials). */
+/** True when a campus room should appear on Results (saved, scored, or deferred). */
 export function isSubmittedCampusRoom(entry: {
   complete?: boolean
   answeredCount?: number
   totalCount?: number
+  overallScore?: number | null
 }): boolean {
+  if ((entry.answeredCount ?? 0) > 0 || entry.overallScore != null) return true
   if (entry.complete === false) return false
   if (entry.complete === true) return true
   return (entry.totalCount ?? 0) > 0 && (entry.answeredCount ?? 0) >= (entry.totalCount ?? 0)
@@ -95,6 +100,7 @@ function averageCategoryScores(rooms: Pick<ScoredRoomEntry, "categoryScores" | "
   for (const room of rooms) {
     if (room.overallScore === null) continue
     for (const cat of room.categoryScores) {
+      if (cat.weight <= 0 || isObservationalCategory(cat.category)) continue
       const entry = byCat.get(cat.category) ?? { scores: [], weight: cat.weight }
       entry.scores.push(cat.score)
       byCat.set(cat.category, entry)
@@ -138,8 +144,6 @@ function scoreSessionRooms(
   const next: Record<string, RoomScoreResult> = { ...(existingDetails ?? {}) }
 
   for (const [roomId, roomSession] of Object.entries(session.rooms)) {
-    if (next[roomId]?.subcategoryScores?.length) continue
-
     if (roomSession.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(roomId)) {
       next[roomId] = scoreAbsentSpaceTypeRoom(roomId)
       continue
@@ -160,6 +164,79 @@ function scoreSessionRooms(
   }
 
   return next
+}
+
+function preferFresherRoomScore(
+  live: RoomScoreResult | undefined,
+  snapshot: RoomScoreResult,
+): RoomScoreResult {
+  if (!live) return snapshot
+  if ((live.answeredCount ?? 0) >= (snapshot.answeredCount ?? 0)) {
+    return {
+      ...live,
+      overallScore: live.overallScore ?? snapshot.overallScore,
+      categoryScores: live.categoryScores.length ? live.categoryScores : snapshot.categoryScores,
+    }
+  }
+  return {
+    ...snapshot,
+    subcategoryScores: live.subcategoryScores?.length ? live.subcategoryScores : snapshot.subcategoryScores,
+    questionScores: live.questionScores?.length ? live.questionScores : snapshot.questionScores,
+  }
+}
+
+/** Rebuild campus room scores from the current session (Close Out answers included). */
+export function patchSubmissionWithSessionScores(
+  submission: SurveySubmission | null | undefined,
+  session: SurveySession,
+  surveyType: SurveyType,
+  schoolClass?: string | null,
+  school?: { schoolId: string; schoolName: string; campusId: string },
+): SurveySubmission | null {
+  const details = scoreSessionRooms(session, surveyType, schoolClass)
+  const byId = new Map((submission?.campus.rooms ?? []).map((room) => [room.roomId, room]))
+
+  for (const [roomId, room] of Object.entries(session.rooms)) {
+    const detail = details[roomId]
+    if (!detail) continue
+    const hasScore = detail.overallScore != null || detail.answeredCount > 0
+    if (!hasScore && !room.deferredToCloseOut && !room.spaceTypeMarkedAbsent) continue
+
+    const prior = byId.get(roomId)
+    byId.set(roomId, {
+      roomId,
+      roomName: prior?.roomName || room.roomNumber || roomId,
+      schoolRoomNumber: room.schoolRoomNumber?.trim() || prior?.schoolRoomNumber,
+      building: room.building ?? prior?.building,
+      neighborhood: room.neighborhood || prior?.neighborhood,
+      levelId: room.levelId || prior?.levelId || "campus",
+      gradeType: room.gradeType || prior?.gradeType || "",
+      overallScore: detail.overallScore,
+      categoryScores: detail.categoryScores,
+      answeredCount: detail.answeredCount,
+      totalCount: detail.totalCount,
+      complete:
+        !!prior?.complete ||
+        room.deferredToCloseOut ||
+        room.spaceTypeMarkedAbsent ||
+        (detail.totalCount > 0 && detail.answeredCount >= detail.totalCount),
+    })
+  }
+
+  const rooms = [...byId.values()]
+  const schoolId = submission?.campus.schoolId ?? school?.schoolId
+  if (!schoolId || rooms.length === 0) return submission ?? null
+
+  return {
+    session,
+    submittedAt: new Date().toISOString(),
+    campus: aggregateCampusScores(rooms, {
+      schoolId,
+      schoolName: submission?.campus.schoolName ?? school?.schoolName ?? schoolId,
+      campusId: submission?.campus.campusId ?? school?.campusId ?? "",
+    }),
+    floorPlanRooms: submission?.floorPlanRooms ?? [],
+  }
 }
 
 /** Prefer the room copy that still has answers (live rows can lag behind submission snapshots). */
@@ -293,6 +370,21 @@ function buildAssessedRoom(
   }
 }
 
+/** Drop “not present” placeholders when that space type was actually surveyed. */
+export function omitAbsentPlaceholdersWhenSpaceTypeWasAssessed(
+  rooms: AssessedRoomRecord[],
+): AssessedRoomRecord[] {
+  const assessedTypes = new Set(
+    rooms
+      .filter((room) => !isAbsentSpaceTypeRoomId(room.roomId))
+      .map((room) => `${room.surveyType}::${room.spaceType}`),
+  )
+  return rooms.filter((room) => {
+    if (!isAbsentSpaceTypeRoomId(room.roomId)) return true
+    return !assessedTypes.has(`${room.surveyType}::${room.spaceType}`)
+  })
+}
+
 function groupSpaceTypes(
   rooms: AssessedRoomRecord[],
   focusAreaId: ScoringFocusAreaId,
@@ -377,6 +469,20 @@ export function buildCampusScoringSnapshot(input: {
     )
   }
 
+  const closeOutDraft = drafts.find((draft) => draft.surveyType === "closeout")
+  if (closeOutDraft?.session) {
+    for (const [surveyType, session] of Object.entries(sessionsBySurveyType) as [
+      SurveyType,
+      SurveySession,
+    ][]) {
+      sessionsBySurveyType[surveyType] = syncCloseOutProgressToSource(
+        closeOutDraft.session,
+        session,
+        input.schoolClass,
+      )
+    }
+  }
+
   for (const [surveyType, session] of Object.entries(sessionsBySurveyType) as [
     SurveyType,
     SurveySession,
@@ -418,7 +524,7 @@ export function buildCampusScoringSnapshot(input: {
         }
       }
 
-      details[entry.roomId] = {
+      details[entry.roomId] = preferFresherRoomScore(existing, {
         roomId: entry.roomId,
         overallScore: entry.overallScore,
         categoryScores: entry.categoryScores,
@@ -426,7 +532,7 @@ export function buildCampusScoringSnapshot(input: {
         questionScores: existing?.questionScores ?? [],
         answeredCount: entry.answeredCount,
         totalCount: entry.totalCount,
-      }
+      })
     }
 
     roomScoreDetailsBySurveyType[surveyType] = details
@@ -480,43 +586,53 @@ export function buildCampusScoringSnapshot(input: {
     }
   }
 
-  // Just-finished rooms on this device (e.g. first save on a sandbox campus)
-  // are not always in a cloud submission snapshot yet.
-  if (input.liveSession && input.liveSurveyType && input.liveSurveyType !== "closeout") {
-    const surveyType = input.liveSurveyType
-    const session = input.liveSession
+  // Rooms saved incomplete (or finished later in Close Out) may live on the
+  // session before they appear in a submission snapshot.
+  const seen = new Set(allRooms.map((room) => room.roomId))
+  for (const [surveyType, session] of Object.entries(sessionsBySurveyType) as [
+    SurveyType,
+    SurveySession,
+  ][]) {
     let details = roomScoreDetailsBySurveyType[surveyType]
     if (!details) {
       details = scoreSessionRooms(session, surveyType, input.schoolClass)
       roomScoreDetailsBySurveyType[surveyType] = details
     }
-    const seen = new Set(allRooms.map((room) => room.roomId))
     for (const [roomId, roomSession] of Object.entries(session.rooms)) {
       if (seen.has(roomId)) continue
       const detail = details[roomId]
-      const complete =
+      const assessable =
         roomSession.spaceTypeMarkedAbsent ||
         isAbsentSpaceTypeRoomId(roomId) ||
+        roomSession.deferredToCloseOut ||
+        roomHasAssessment(detail, { allowScoreWithoutAnswers: true }) ||
         (detail
           ? isRoomComplete(detail, roomSession.gradeType, roomSession.roomType, input.schoolClass)
           : false)
-      if (!complete) continue
+      if (!assessable) continue
       const record = buildAssessedRoom(
         roomId,
         roomSession,
         surveyType,
         detail,
         input.schoolClass,
-        input.liveNeighborhoodResolver?.(roomId, roomSession) ?? roomSession.neighborhood,
+        surveyType === input.liveSurveyType
+          ? (input.liveNeighborhoodResolver?.(roomId, roomSession) ?? roomSession.neighborhood)
+          : roomSession.neighborhood,
         { allowScoreWithoutAnswers: true },
       )
-      if (record) allRooms.push(record)
+      if (record) {
+        allRooms.push(record)
+        seen.add(roomId)
+      }
     }
   }
 
-  allRooms.sort((a, b) => a.roomName.localeCompare(b.roomName))
+  const scoredRooms = omitAbsentPlaceholdersWhenSpaceTypeWasAssessed(allRooms).sort((a, b) =>
+    a.roomName.localeCompare(b.roomName),
+  )
 
-  const campusAgg = aggregateCampusScores(allRooms, {
+  const campusAgg = aggregateCampusScores(scoredRooms, {
     schoolId: input.schoolId,
     schoolName: input.schoolName,
     campusId: input.campusId,
@@ -531,7 +647,7 @@ export function buildCampusScoringSnapshot(input: {
   })
 
   const focusAreas: FocusAreaGroup[] = focusAreaDefs.map((def) => {
-    const areaRooms = allRooms.filter((r) => r.focusAreaId === def.id)
+    const areaRooms = scoredRooms.filter((r) => r.focusAreaId === def.id)
     const scored = areaRooms.filter((r) => r.overallScore !== null)
     return {
       id: def.id,
@@ -550,9 +666,9 @@ export function buildCampusScoringSnapshot(input: {
     schoolName: input.schoolName,
     campusId: input.campusId,
     focusAreas,
-    allRooms,
+    allRooms: scoredRooms,
     neighborhoods: campusAgg.neighborhoods,
-    campusOverallScore: computeWeightedCampusScore(allRooms, input.schoolClass),
+    campusOverallScore: computeWeightedCampusScore(scoredRooms, input.schoolClass),
     sessionsBySurveyType,
     roomScoreDetailsBySurveyType,
   }

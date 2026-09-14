@@ -1,4 +1,4 @@
-import type { EsaQuestionOption, RoomQuestionResponse } from "../types/survey"
+import { isTextQuestionType, type EsaQuestionOption, type RoomQuestionResponse } from "../types/survey"
 
 /** Canonical label for the unable / not-able-to-assess exclusion choice. */
 export const NOT_ABLE_TO_ASSESS_OPTION = "Not Able to Assess"
@@ -84,7 +84,7 @@ export function isOptionValueSelected(
  * and inject the option when a question is missing one.
  */
 export function ensureNotAbleToAssessOptions<
-  T extends { questions: { questionId: string }[]; options: EsaQuestionOption[] },
+  T extends { questions: { questionId: string; questionType?: string }[]; options: EsaQuestionOption[] },
 >(rubric: T): T {
   const renamed = rubric.options.map((o) =>
     isNotAbleToAssessOption(o.option)
@@ -111,6 +111,7 @@ export function ensureNotAbleToAssessOptions<
 
   const additions: EsaQuestionOption[] = []
   for (const q of rubric.questions) {
+    if (isTextQuestionType(q.questionType)) continue
     if (deduped.some((o) => o.questionId === q.questionId && isNotAbleToAssessOption(o.option))) {
       continue
     }

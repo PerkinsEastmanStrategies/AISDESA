@@ -14,6 +14,8 @@ import {
   isOptionValueSelected,
   isSpaceTypeForSurveyModule,
   surveyModuleUsesSpaceTypePicker,
+  isNonScoringQuestion,
+  isTextQuestionType,
   type EsaQuestion,
   type EsaQuestionOption,
   type RoomQuestionResponse,
@@ -71,6 +73,8 @@ function categoryAccent(category: string): string {
       return "border-l-rose-500"
     case "Amenities":
       return "border-l-orange-500"
+    case "Observational":
+      return "border-l-slate-400"
     default:
       return "border-l-slate-400"
   }
@@ -92,6 +96,8 @@ function categoryChip(category: string): string {
       return "bg-rose-50 text-rose-700"
     case "Amenities":
       return "bg-orange-50 text-orange-800"
+    case "Observational":
+      return "bg-slate-100 text-slate-600"
     default:
       return "bg-slate-100 text-slate-600"
   }
@@ -299,7 +305,7 @@ export default function QuestionForm() {
                   : state.surveyType === "neighborhoods"
                     ? "Neighborhoods Questions"
                     : state.surveyType === "outdoor"
-                      ? "Outdoor Elements Questions"
+                      ? "Outdoor Questions"
                       : "Studios Questions"}
           </h2>
           {hasAnyContext && (
@@ -510,6 +516,7 @@ function QuestionField({
   const answered = isQuestionFullyAnswered(question, { value: value ?? "", comment })
   const noteRequired = responseRequiresUnableToAssessNote(value)
   const multiSelect = isMultiSelectQuestionType(question.questionType)
+  const textEntry = isTextQuestionType(question.questionType)
   const [collapsed, setCollapsed] = useState(() => answered && !highlighted && !noteRequired && !autoAnswered)
   const [userExpanded, setUserExpanded] = useState(false)
   const wasAnsweredRef = useRef(answered)
@@ -541,11 +548,11 @@ function QuestionField({
       setUserExpanded(false)
       return
     }
-    if (!justAnswered || highlighted || userExpanded || multiSelect) return
+    if (!justAnswered || highlighted || userExpanded || multiSelect || textEntry) return
 
     const timer = window.setTimeout(() => setCollapsed(true), 400)
     return () => window.clearTimeout(timer)
-  }, [answered, highlighted, userExpanded, multiSelect, value, autoAnswered])
+  }, [answered, highlighted, userExpanded, multiSelect, textEntry, value, autoAnswered])
 
   // When a question is manually collapsed, keep following content inside the scroll window.
   useEffect(() => {
@@ -720,9 +727,19 @@ function QuestionField({
               >
                 {question.category}
               </span>
+              {isNonScoringQuestion(question) && (
+                <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                  Not scored
+                </span>
+              )}
               {multiSelect && (
                 <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
                   Select all that apply
+                </span>
+              )}
+              {textEntry && (
+                <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                  Open response
                 </span>
               )}
             </div>
@@ -749,7 +766,17 @@ function QuestionField({
       </div>
 
       <div className="bg-slate-50/80 px-3.5 py-3.5">
-        {multiSelect ? (
+        {textEntry ? (
+          <textarea
+            id={`${question.questionId}-text`}
+            rows={4}
+            value={typeof value === "string" ? value : ""}
+            disabled={disabled}
+            placeholder="Optional. Leave blank if there is nothing to note."
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm leading-relaxed text-slate-800 shadow-sm outline-none placeholder:text-slate-400 focus:border-sky-300 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50"
+          />
+        ) : multiSelect ? (
           <div className={cn("items-stretch", optionGridClass(options))}>
             {options.map((opt) => {
               const selected = isOptionValueSelected(opt.option, value)

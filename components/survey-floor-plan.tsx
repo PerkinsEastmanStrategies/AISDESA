@@ -636,14 +636,14 @@ export default function SurveyFloorPlan({
   const resolveRoomNeighborhood = useCallback(
     (room: ParsedPlanRoom): string | undefined =>
       room.neighborhood ??
-      neighborhoodForRoom(neighborhoodMap, room.id, room.levelId, room.name),
+      neighborhoodForRoom(neighborhoodMap, room.id, room.levelId, room.name, room.building),
     [neighborhoodMap],
   )
 
   const hasRoomUseColors = useMemo(
     () =>
       levelRooms.some((room) => {
-        const entry = roomUseForRoom(roomUseMap, room.id, room.name)
+        const entry = roomUseForRoom(roomUseMap, room.id, room.name, room.building)
         return Boolean(entry?.programType)
       }),
     [levelRooms, roomUseMap],
@@ -653,7 +653,7 @@ export default function SurveyFloorPlan({
     () =>
       roomUseMap.size > 0 ||
       levelRooms.some((room) => {
-        const entry = roomUseForRoom(roomUseMap, room.id, room.name)
+        const entry = roomUseForRoom(roomUseMap, room.id, room.name, room.building)
         return Boolean(entry?.useName || entry?.id)
       }),
     [levelRooms, roomUseMap],
@@ -670,7 +670,7 @@ export default function SurveyFloorPlan({
     () =>
       sizeDeviationMap.size > 0 ||
       levelRooms.some((room) =>
-        Boolean(sizeDeviationForRoom(sizeDeviationMap, room.id, room.name)),
+        Boolean(sizeDeviationForRoom(sizeDeviationMap, room.id, room.name, room.building)),
       ),
     [levelRooms, sizeDeviationMap],
   )
@@ -729,7 +729,7 @@ export default function SurveyFloorPlan({
   )
   const programTypeLegend = programTypeLegendColors(
     levelRooms
-      .map((room) => roomUseForRoom(roomUseMap, room.id, room.name)?.programType)
+      .map((room) => roomUseForRoom(roomUseMap, room.id, room.name, room.building)?.programType)
       .filter((t): t is string => Boolean(t)),
   )
 
@@ -790,10 +790,10 @@ export default function SurveyFloorPlan({
       showInlinePhotoMarker: !photoGalleryMode,
       showNeighborhood: showNeighborhoods && !photoGalleryMode,
       showSizeDeviation: showSizeDeviation && !photoGalleryMode,
-      sizeDeviation: sizeDeviationForRoom(sizeDeviationMap, room.id, room.name),
+      sizeDeviation: sizeDeviationForRoom(sizeDeviationMap, room.id, room.name, room.building),
       showRoomUse: showRoomUse && !photoGalleryMode,
       showRoomTags: showRoomTags && !photoGalleryMode,
-      roomUse: roomUseForRoom(roomUseMap, room.id, room.name),
+      roomUse: roomUseForRoom(roomUseMap, room.id, room.name, room.building),
       zoom,
       meetScale,
       viewBoxWidth: vb.w,

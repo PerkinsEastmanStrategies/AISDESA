@@ -1,5 +1,9 @@
-import type { AisdSchoolOption, CategoryScore } from "@aisd/shared"
-import { aggregateCampusScores } from "@aisd/shared"
+import {
+  aggregateCampusScores,
+  isObservationalCategory,
+  type AisdSchoolOption,
+  type CategoryScore,
+} from "@aisd/shared"
 import {
   buildCampusScoringSnapshot,
   type CampusScoringSnapshot,
@@ -54,6 +58,7 @@ function averageCategoryScores(
   for (const row of rows) {
     if (row.overallScore === null) continue
     for (const cat of row.categoryScores) {
+      if (cat.weight <= 0 || isObservationalCategory(cat.category)) continue
       const entry = byCat.get(cat.category) ?? { scores: [], weight: cat.weight }
       entry.scores.push(cat.score)
       byCat.set(cat.category, entry)

@@ -65,6 +65,7 @@ export function schoolIdFromName(name: string): string {
 /**
  * Sandbox campuses that reuse another school's floor plans, rooms, and
  * questions, but store survey results under a separate school/campus id.
+ * Includes LBJ TEST and Pilot #2 copies of field campuses.
  */
 export interface TestCampusClone {
   id: string
@@ -83,6 +84,38 @@ export const TEST_CAMPUS_CLONES: readonly TestCampusClone[] = [
     sourceName: "LBJ",
     sourceCampusId: "014",
     campusId: "014-TEST",
+  },
+  {
+    id: "lbj-pilot-2",
+    name: "LBJ (Pilot #2)",
+    displayName: "LBJ ECHS (Pilot #2)",
+    sourceName: "LBJ",
+    sourceCampusId: "014",
+    campusId: "014-PILOT-2",
+  },
+  {
+    id: "eastside-echs-pilot-2",
+    name: "EASTSIDE ECHS (Pilot #2)",
+    displayName: "Eastside ECHS (Pilot #2)",
+    sourceName: "EASTSIDE ECHS",
+    sourceCampusId: "142",
+    campusId: "142-PILOT-2",
+  },
+  {
+    id: "casis-pilot-2",
+    name: "CASIS (Pilot #2)",
+    displayName: "Casis Elementary (Pilot #2)",
+    sourceName: "CASIS",
+    sourceCampusId: "112",
+    campusId: "112-PILOT-2",
+  },
+  {
+    id: "ortega-pilot-2",
+    name: "ORTEGA (Pilot #2)",
+    displayName: "Ortega Elementary (Pilot #2)",
+    sourceName: "ORTEGA",
+    sourceCampusId: "126",
+    campusId: "126-PILOT-2",
   },
 ]
 

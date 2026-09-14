@@ -10,7 +10,18 @@ export type SurveyType =
   | "shared_spaces"
   | "closeout"
 
-export type QuestionType = "YesNoNA" | "SingleSelect" | "MultiSelect"
+export type QuestionType = "YesNoNA" | "SingleSelect" | "MultiSelect" | "Text"
+
+export function isTextQuestionType(questionType: string | null | undefined): boolean {
+  const t = String(questionType ?? "").trim()
+  return (
+    t === "Text" ||
+    t === "OpenText" ||
+    t === "FreeText" ||
+    t === "OpenEnded" ||
+    t === "LongText"
+  )
+}
 
 export interface EsaCategory {
   assessmentArea: string

@@ -130,12 +130,11 @@ import {
   withPendingUpdatedForGrade,
   withPendingUpdatedForResponse,
 } from "@/lib/closeout"
-import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
+import { buildCampusScoringSnapshot, patchSubmissionWithSessionScores } from "@/lib/campus-scoring-tree"
 import { EMPTY_PREWALK, getPreWalkMappingForSurveyModule, mergePreWalkStates, migratePreWalkState, preWalkHasAssignments, preWalkHasCloudState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypeExistsKey, preWalkSpaceTypeForRoom, preWalkSpaceTypePhotoKey, preWalkSurveyAllowsSpaceTypeExists } from "@/lib/prewalk"
 import { applyTraditionalStudioCopyToRoom, getTraditionalStudioCopyOffer } from "@/lib/traditional-studio-copy"
 import { scoreRoomSessionWithMetadata, scoreAbsentSpaceTypeRoom } from "@/lib/traditional-studio-room-score"
 import {
-  fetchRemoteSurveyStatusClient,
   flushSurveySyncQueue,
   isBrowserOnline,
   pullRemoteDraftClient,
@@ -876,8 +875,14 @@ function buildSubmission(state: SurveyState): SurveySubmission | null {
 
   const newlyComplete: ScoredRoomEntry[] = []
   for (const [roomId, roomSession] of Object.entries(state.session.rooms)) {
-    if (!roomSurveyComplete(state, roomId, roomSession)) continue
+    const complete = roomSurveyComplete(state, roomId, roomSession)
     const detail = state.roomScoreDetails[roomId]
+    const hasPartialScore =
+      detail?.overallScore != null ||
+      (detail?.answeredCount ?? 0) > 0 ||
+      !!roomSession.deferredToCloseOut ||
+      !!roomSession.spaceTypeMarkedAbsent
+    if (!complete && !hasPartialScore) continue
     newlyComplete.push({
       roomId,
       roomName: roomDisplayName(state, roomId),
@@ -892,20 +897,23 @@ function buildSubmission(state: SurveyState): SurveySubmission | null {
       categoryScores: detail?.categoryScores ?? [],
       answeredCount: detail?.answeredCount ?? 0,
       totalCount: detail?.totalCount ?? 0,
-      complete: true,
+      complete,
     })
   }
 
   const priorRooms = state.submission?.campus?.rooms ?? []
   const merged = new Map<string, ScoredRoomEntry>()
   for (const room of priorRooms) {
-    if (room.complete !== false) merged.set(room.roomId, room)
+    merged.set(room.roomId, room)
   }
   for (const room of newlyComplete) {
     merged.set(room.roomId, room)
   }
 
-  const mergedRooms = [...merged.values()]
+  const mergedRooms = omitAbsentCampusRoomsWhenSpaceTypePresent(
+    [...merged.values()],
+    state.session.rooms,
+  )
   if (mergedRooms.length === 0) return null
 
   const campus = aggregateCampusScores(mergedRooms, {
@@ -921,6 +929,23 @@ function buildSubmission(state: SurveyState): SurveySubmission | null {
     campus,
     floorPlanRooms: Object.values(state.floorPlanRooms),
   }
+}
+
+function omitAbsentCampusRoomsWhenSpaceTypePresent(
+  rooms: ScoredRoomEntry[],
+  sessionRooms: Record<string, RoomSurveySession>,
+): ScoredRoomEntry[] {
+  const assessedTypes = new Set<string>()
+  for (const room of rooms) {
+    if (isAbsentSpaceTypeRoomId(room.roomId)) continue
+    const spaceType = sessionRooms[room.roomId]?.roomType?.trim()
+    if (spaceType) assessedTypes.add(spaceType)
+  }
+  return rooms.filter((room) => {
+    const parsed = parseAbsentSpaceTypeRoomId(room.roomId)
+    if (!parsed) return true
+    return !assessedTypes.has(parsed.spaceType)
+  })
 }
 
 function reducer(state: SurveyState, action: Action): SurveyState {
@@ -2365,7 +2390,7 @@ interface SurveyContextValue {
   setFinalComment: (comment: string) => void
   peekSubmitValidation: () => SubmitValidationResult | null
   setView: (view: SurveyView) => void
-  /** Enter a survey module from campus home (loads that module and enables conflict checks). */
+  /** Enter a survey module from campus home. */
   enterSurveyModule: (t: SurveyType, options?: { pendingStudioType?: string | null }) => void
   continueSurvey: () => void
   resetSurvey: () => void
@@ -2565,15 +2590,29 @@ function persistDraftFromState(state: SurveyState): string | null {
         sourceDraft.session,
         state.school.schoolClass,
       )
+      const lastSubmission = patchSubmissionWithSessionScores(
+        sourceDraft.lastSubmission,
+        synced,
+        sourceType,
+        state.school.schoolClass,
+        {
+          schoolId: state.school.id,
+          schoolName: state.school.displayName,
+          campusId: state.school.campusId,
+        },
+      )
       saveDraft(
         {
           ...sourceDraft,
           session: synced,
+          lastSubmission,
           savedAt,
         },
         { setActive: false },
       )
+      queueSurveySync(state.school.id, sourceType, savedAt)
     }
+    queueSurveySync(state.school.id, "closeout", savedAt)
   } else {
     const closeDraft = loadDraft(state.school.id, "closeout")
     if (closeDraft?.session) {
@@ -2742,24 +2781,6 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     state.manualRooms,
     state.submission,
   ])
-
-  // Alert when another assessor has started/submitted this survey module online.
-  // Only check after the user intentionally enters a module (not on campus home / login).
-  useEffect(() => {
-    if (!state.hydrated || !state.school || state.view !== "survey") return
-
-    const assessor = resolveCampusAssessor(state.assessorByType, state.surveyType)
-    void fetchRemoteSurveyStatusClient({
-      schoolId: state.school.id,
-      surveyType: state.surveyType,
-      assessorEmail: assessor?.email,
-    }).then((status) => {
-      if (status?.configured && status.conflict && status.hasRemote) {
-        setRemoteConflict(status)
-        setRemoteConflictOpen(true)
-      }
-    })
-  }, [state.hydrated, state.school?.id, state.surveyType, state.assessorByType, state.view])
 
   const refreshRemoteSchoolDrafts = useCallback(async () => {
     if (!state.school || !isBrowserOnline()) {
@@ -3233,10 +3254,13 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
   const scoringDrafts = useMemo(() => {
     if (!state.school) return undefined
-    return mergeDraftsForScoring({
+    const local = [...loadDraftsForSchool(state.school.id)]
+    const closeout = loadDraft(state.school.id, "closeout")
+    if (closeout) local.push(closeout)
+    const merged = mergeDraftsForScoring({
       remote: remoteSchoolDrafts,
       remoteConfigured: remoteDraftsConfigured,
-      local: loadDraftsForSchool(state.school.id),
+      local,
       live:
         state.session && state.submission
           ? {
@@ -3247,6 +3271,16 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
             }
           : undefined,
     })
+    if (!merged) return undefined
+    if (state.surveyType !== "closeout" || !state.session) return merged
+    const hasCloseout = merged.some((draft) => draft.surveyType === "closeout")
+    if (hasCloseout) {
+      return merged.map((draft) =>
+        draft.surveyType === "closeout" ? { ...draft, session: state.session! } : draft,
+      )
+    }
+    if (!closeout) return merged
+    return [...merged, { ...closeout, session: state.session }]
   }, [
     remoteDraftsConfigured,
     remoteSchoolDrafts,
@@ -3764,8 +3798,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         })
       }
       dispatch({ type: "SET_VIEW", view: "survey" })
+      void refreshRemoteSchoolDrafts()
     },
-    [state],
+    [state, refreshRemoteSchoolDrafts],
   )
   const openResults = useCallback(
     (tab: "campus" | "room" | "neighborhood" | "compare" | "photos" = "campus") => {

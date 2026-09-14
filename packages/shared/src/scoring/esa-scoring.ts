@@ -15,6 +15,8 @@ import {
   scoreForScoreId,
   scorableScoreIdsForQuestion,
   totalScorableUnits,
+  isNonScoringQuestion,
+  isObservationalCategory,
 } from "./score-units"
 
 function weightedAverage(items: { score: number; weight: number }[]): number | null {
@@ -48,6 +50,7 @@ export function scoreRoom(
 
   for (const q of areaQuestions) {
     if (skip?.has(q.questionId)) continue
+    if (isNonScoringQuestion(q)) continue
     const response = responseMap.get(q.questionId)
     const scoreIds = scorableScoreIdsForQuestion(q.questionId, options)
     if (!scoreIds.length) continue
@@ -88,9 +91,11 @@ export function scoreRoom(
         : { category: sub.category, subcategory: sub.subcategory, score, weight: sub.subcategoryWeight }
     })
     .filter((s): s is SubcategoryScore => s !== null)
+    .filter((s) => !isObservationalCategory(s.category))
 
   const categoryScores: CategoryScore[] = categories
     .filter((c) => c.assessmentArea === assessmentArea)
+    .filter((c) => c.categoryWeight > 0 && !isObservationalCategory(c.category))
     .map((cat) => {
       const subs = subcategoryScores.filter((s) => s.category === cat.category)
       const items = subs.map((s) => ({ score: s.score / 100, weight: s.weight }))

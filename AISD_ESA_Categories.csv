@@ -1,59 +1,60 @@
 Focus Area,Space Type,School Level,Required,Focus Area (Scoring),Space Type Weight,Focus Area Weight,Score Code
-On Survey tool: Category to navigate to surveys,Survey taken,,Is this survey required at the given school level?,Back end scoring: The focus area the survey rolls into,Back end scoring: Weighting of each space type within the focus area,Back end scoring: Weighting of each focus areas within the Site Score,
-Arrival/Administration,Main Entry/Reception,ES,Y,Arrival/Administration,12,6,ME
-Arrival/Administration,Main Admin Suite,ES,Y,Arrival/Administration,12,6,MA
-Arrival/Administration,Community Partners Suite,ES,Y,Arrival/Administration,6,6,CP
-Arrival/Administration,Admin Offices,ES,Y,Arrival/Administration,9,6,AD
-Arrival/Administration,Professional Learning Center,ES,Y,Arrival/Administration,9,6,PL
-Arrival/Administration,Mental Wellness and Counseling Suite,ES,Y,Arrival/Administration,12,6,CO
+Arrival Experience and Campus Organization,Entry Experience,ES,Y,Arrival Experience and Campus Organization,12,6,ME
+Arrival Experience and Campus Organization,Campus,ES,Y,Arrival Experience and Campus Organization,12,6,CA
+Administration,Admin Offices,ES,Y,Administration,9,6,AD
+Administration,Community Partners Suite,ES,Y,Administration,6,6,CP
+Administration,Mental Wellness and Counseling Suite,ES,Y,Administration,12,6,CO
+Neighborhoods,Professional Learning Center,ES,Y,Administration,9,6,PL
 Studios,Early childhood studio,ES,Y,Studios,12,12,PK
 Studios,Early childhood special education studio,ES,Y,Special Education,12,12,PS
 Studios,Tranditional Studio,ES,Y,Studios,12,12,ST
-Studios,Sped Flex Studio,ES,Y,Special education,12,12,SP
-Studios,Sensory Lab,ES,Y,Special education,9,12,SN
-Studios,Life Skills Room,ES,N,Special education,3,12,LS
+Studios,SPED Flex Studio,ES,Y,Special education,12,12,SP
+Special Education,Special Education Suite,ES,Y,Special Education,12,12,SU
+Special Education,Sensory Motor Lab,ES,Y,Special education,9,12,SN
+Special Education,Life Skills Studio,ES,N,Special education,3,12,LS
 Studios,Art,ES,Y,Studios,12,12,AR
-Studios,Music,ES,Y,Studios,12,12,MU
+Studios,Music Studio,ES,Y,Studios,12,12,MU
 Studios,Maker Space,ES,Y,Studios,9,12,MS
 Studios,Science,ES,N,Studios,3,12,SC
 Neighborhoods,Open Collaboration,ES,Y,Neighborhoods,12,9,OC
-Neighborhoods,Small Group Room,ES,Y,Neighborhoods,9,9,SG
+Neighborhoods,Group Room,ES,Y,Neighborhoods,9,9,SG
 Neighborhoods,Neighborhood,ES,Y,Neighborhoods,12,9,NE
-Shared Spaces,Gym,ES,Y,Shared Spaces,12,9,GY
+Neighborhoods,Early Childhood Neighborhood,ES,Y,Neighborhoods,12,9,EN
+Shared Spaces,ES Gymnasium,ES,Y,Shared Spaces,12,9,GY
 Shared Spaces,Library Media Center,ES,Y,Shared Spaces,12,9,MC
 Shared Spaces,Dining Commons,ES,Y,Shared Spaces,12,9,FS
 Shared Spaces,Kitchen,ES,Y,Shared Spaces,6,9,KI
-Shared Spaces,Empower Center,ES,N,Shared Spaces,3,9,EC
-Outdoor Elements,Outdoor Spaces,ES,Y,Outdoor Elements,12,9,OS
-Arrival/Administration,Main Entry/Reception,MS,Y,Arrival/Administration,12,6,ME
-Arrival/Administration,Main Admin Suite,MS,Y,Arrival/Administration,12,6,MA
-Arrival/Administration,Community Partners Suite,MS,Y,Arrival/Administration,6,6,CP
-Arrival/Administration,Admin Offices,MS,Y,Arrival/Administration,9,6,AD
-Arrival/Administration,Professional Learning Center,MS,Y,Arrival/Administration,9,6,PL
-Arrival/Administration,Mental Wellness and Counseling Suite,MS,Y,Arrival/Administration,12,6,CO
+Outdoor,Outdoor Spaces,ES,Y,Outdoor,12,9,OS
+Arrival Experience and Campus Organization,Entry Experience,MS,Y,Arrival Experience and Campus Organization,12,6,ME
+Arrival Experience and Campus Organization,Campus,MS,Y,Arrival Experience and Campus Organization,12,6,CA
+Administration,Main Admin Suite,MS,Y,Administration,12,6,MA
+Administration,Admin Offices,MS,Y,Administration,9,6,AD
+Administration,Community Partners Suite,MS,Y,Administration,6,6,CP
+Administration,Mental Wellness and Counseling Suite,MS,Y,Administration,12,6,CO
+Neighborhoods,Professional Learning Center,MS,Y,Administration,9,6,PL
 Studios,Tranditional Studio,MS,Y,Studios,12,12,ST
-Studios,Sped Flex Studio,MS,Y,Special Education,12,12,SP
-Studios,Sensory Lab,MS,Y,Special Education,9,12,SN
-Studios,Vocational Lab,MS,Y,Special education,12,12,VO
-Studios,Life Skills Room,MS,Y,Special education,12,12,LS
+Studios,SPED Flex Studio,MS,Y,Special Education,12,12,SP
+Special Education,Special Education Suite,MS,Y,Special Education,12,12,SU
+Special Education,Sensory Motor Lab,MS,Y,Special Education,9,12,SN
+Special Education,Vocational Lab,MS,Y,Special education,12,12,VO
 Studios,Science,MS,Y,Studios,12,12,SC
-Studios,Art,MS,Y,Studios,12,12,AR
-Studios,Music,MS,N,Studios,6,12,MU
+Studios,Science Prep Room,MS,Y,Studios,6,12,PR
+Visual Arts,2D Art Studio,MS,Y,Visual Arts,12,9,A2
+Visual Arts,3D Art Studio,MS,Y,Visual Arts,12,9,A3
+Visual Arts,Digital Art Studio,MS,Y,Visual Arts,12,9,DI
+Studios,Music Studio,MS,N,Studios,6,12,MU
 Studios,Maker Space,MS,Y,Studios,12,12,MS
 CTE,CTE Studio,MS,Y,CTE,12,9,CT
 CTE,Low Intensity Lab,MS,Y,CTE,9,9,CL
 CTE,Medium Intensity Lab,MS,Y,CTE,9,9,CM
-CTE,High Intensity Lab,MS,Y,CTE,9,9,CH
 Performing Arts,Theater Arts Studio,MS,Y,Performing Arts,12,9,TA
-Performing Arts,Theater Arts Suite,MS,N,Performing Arts,3,9,TS
 Performing Arts,Rehersal Hall,MS,Y,Performing Arts,12,9,RH
+Performing Arts,Music Suite,MS,N,Performing Arts,3,9,MT
 Performing Arts,Black Box,MS,N,Performing Arts,3,9,BB
 Performing Arts,Auditorium,MS,N,Performing Arts,3,9,AU
 Performing Arts,Dance,MS,N,Performing Arts,3,9,DA
-Performing Arts,Music Suite,MS,N,Performing Arts,3,9,MU
 Neighborhoods,Open Collaboration,MS,Y,Neighborhoods,12,9,OC
-Neighborhoods,Small Group Room,MS,Y,Neighborhoods,9,9,SG
-Neighborhoods,Large Group Room,MS,N,Neighborhoods,3,9,LG
+Neighborhoods,Group Room,MS,Y,Neighborhoods,9,9,SG
 Neighborhoods,Neighborhood,MS,Y,Neighborhoods,12,9,NE
 Athletics and Wellness,Multi-Purpose Gym,MS,Y,Athletics and Wellness,12,9,MG
 Athletics and Wellness,Practice Gym,MS,Y,Athletics and Wellness,3,9,PG
@@ -66,36 +67,39 @@ Shared Spaces,Library Media Center,MS,Y,Shared Spaces,12,9,MC
 Shared Spaces,Dining Commons,MS,Y,Shared Spaces,12,9,FS
 Shared Spaces,Kitchen,MS,Y,Shared Spaces,6,9,KI
 Shared Spaces,Empower Center,MS,Y,Shared Spaces,9,9,EC
-Outdoor Elements,Outdoor Spaces,MS,Y,Outdoor Elements,12,9,OS
-Outdoor Elements,Outdoor Athletics,MS,Y,Athletics and Wellness,12,9,OA
-Arrival/Administration,Main Entry/Reception,HS,Y,Arrival/Administration,12,6,ME
-Arrival/Administration,Main Admin Suite,HS,Y,Arrival/Administration,12,6,MA
-Arrival/Administration,Community Partners Suite,HS,Y,Arrival/Administration,6,6,CP
-Arrival/Administration,Admin Offices,HS,Y,Arrival/Administration,9,6,AD
-Arrival/Administration,Professional Learning Center,HS,Y,Arrival/Administration,9,6,PL
-Arrival/Administration,Mental Wellness and Counseling Suite,HS,Y,Arrival/Administration,12,6,CO
+Outdoor,Outdoor Spaces,MS,Y,Outdoor,12,9,OS
+Outdoor,Outdoor Athletics,MS,Y,Athletics and Wellness,12,9,OA
+Arrival Experience and Campus Organization,Entry Experience,HS,Y,Arrival Experience and Campus Organization,12,6,ME
+Arrival Experience and Campus Organization,Campus,HS,Y,Arrival Experience and Campus Organization,12,6,CA
+Administration,Main Admin Suite,HS,Y,Administration,12,6,MA
+Administration,Admin Offices,HS,Y,Administration,9,6,AD
+Administration,Community Partners Suite,HS,Y,Administration,6,6,CP
+Administration,Mental Wellness and Counseling Suite,HS,Y,Administration,12,6,CO
+Neighborhoods,Professional Learning Center,HS,Y,Administration,9,6,PL
 Studios,Tranditional Studio,HS,Y,Studios,12,12,ST
-Studios,Sped Flex Studio,HS,Y,Special Education,12,12,SP
-Studios,Sensory Lab,HS,Y,Special Education,9,12,SN
-Studios,Vocational Lab,HS,Y,Special education,12,12,VO
-Studios,Life Skills Room,HS,Y,Special education,12,12,LS
+Studios,SPED Flex Studio,HS,Y,Special Education,12,12,SP
+Special Education,Special Education Suite,HS,Y,Special Education,12,12,SU
+Special Education,Sensory Motor Lab,HS,Y,Special Education,9,12,SN
+Special Education,Vocational Lab,HS,Y,Special education,12,12,VO
 Studios,Science,HS,Y,Studios,12,12,SC
+Studios,Science Prep Room,HS,Y,Studios,6,12,PR
 Studios,Maker Space,HS,Y,Studios,12,12,MS
-Studios,Art,HS,Y,Studios,12,12,AR
+Visual Arts,2D Art Studio,HS,Y,Visual Arts,12,9,A2
+Visual Arts,3D Art Studio,HS,Y,Visual Arts,12,9,A3
+Visual Arts,Digital Art Studio,HS,Y,Visual Arts,12,9,DI
 CTE,CTE Studio,HS,Y,CTE,12,9,CT
 CTE,Low Intensity Lab,HS,Y,CTE,9,9,CL
 CTE,Medium Intensity Lab,HS,Y,CTE,9,9,CM
 CTE,High Intensity Lab,HS,Y,CTE,9,9,CH
 Performing Arts,Rehersal Hall,HS,Y,Performing Arts,12,9,RH
+Performing Arts,Music Suite,HS,Y,Performing Arts,3,9,MT
 Performing Arts,Theater Arts Studio,HS,Y,Performing Arts,12,9,TA
-Performing Arts,Theater Arts Suite,HS,Y,Performing Arts,3,9,TS
 Performing Arts,Black Box,HS,Y,Performing Arts,3,9,BB
 Performing Arts,Auditorium,HS,Y,Performing Arts,3,9,AU
 Performing Arts,Dance,HS,Y,Performing Arts,3,9,DA
-Performing Arts,Music Suite,HS,Y,Performing Arts,3,9,MU
+Performing Arts,Theater Arts Suite,HS,Y,Performing Arts,3,9,TS
 Neighborhoods,Open Collaboration,HS,Y,Neighborhoods,12,9,OC
-Neighborhoods,Small Group Room,HS,Y,Neighborhoods,9,9,SG
-Neighborhoods,Large Group Room,HS,Y,Neighborhoods,9,9,LG
+Neighborhoods,Group Room,HS,Y,Neighborhoods,9,9,SG
 Neighborhoods,Neighborhood,HS,Y,Neighborhoods,12,9,NE
 Athletics and Wellness,Multi-Purpose Gym,HS,Y,Athletics and Wellness,12,9,MG
 Athletics and Wellness,Competition Gym,HS,Y,Athletics and Wellness,9,9,CG
@@ -108,5 +112,5 @@ Shared Spaces,Library Media Center,HS,Y,Shared Spaces,12,9,MC
 Shared Spaces,Dining Commons,HS,Y,Shared Spaces,12,9,FS
 Shared Spaces,Kitchen,HS,Y,Shared Spaces,6,9,KI
 Shared Spaces,Empower Center,HS,Y,Shared Spaces,9,9,EC
-Outdoor,Outdoor Spaces,HS,Y,Outdoor Elements,12,9,OS
+Outdoor,Outdoor Spaces,HS,Y,Outdoor,12,9,OS
 Outdoor,Outdoor Athletics,HS,Y,Athletics and Wellness,12,9,OA

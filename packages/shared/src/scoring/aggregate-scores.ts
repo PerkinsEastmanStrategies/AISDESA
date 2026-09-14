@@ -1,6 +1,7 @@
 import type { CategoryScore, RoomScoreResult, SurveySession } from "../types/survey"
 import type { FloorPlanRoom } from "../types/floor-plan-room"
 import { isOutdoorSurveyRoomId, studioTypeRequiresGrade } from "../data/survey-config"
+import { isObservationalCategory } from "./score-units"
 
 export const UNASSIGNED_NEIGHBORHOOD_ID = "__unassigned__" as const
 export const OUTDOOR_NEIGHBORHOOD_ID = "Outdoor" as const
@@ -62,6 +63,7 @@ function averageCategoryScores(rooms: ScoredRoomEntry[]): CategoryScore[] {
   for (const room of rooms) {
     if (room.overallScore === null) continue
     for (const cat of room.categoryScores) {
+      if (cat.weight <= 0 || isObservationalCategory(cat.category)) continue
       const entry = byCat.get(cat.category) ?? { scores: [], weight: cat.weight }
       entry.scores.push(cat.score)
       byCat.set(cat.category, entry)

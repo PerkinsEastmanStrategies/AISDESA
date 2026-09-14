@@ -545,10 +545,16 @@ async function withRoomSheetData(
   ])
   if (neighborhoodMap.size === 0 && areaMap.size === 0 && useMap.size === 0) return rooms
   return rooms.map((room) => {
-    const neighborhood = neighborhoodForRoom(neighborhoodMap, room.id, room.levelId, room.name)
-    const areaSqft = roomAreaForRoom(areaMap, room.id, room.name)
+    const neighborhood = neighborhoodForRoom(
+      neighborhoodMap,
+      room.id,
+      room.levelId,
+      room.name,
+      room.building,
+    )
+    const areaSqft = roomAreaForRoom(areaMap, room.id, room.name, room.building)
     const name = resolveRoomDisplayName(room, useMap)
-    const building = buildingForRoom(useMap, room.id, room.name) || room.building
+    const building = buildingForRoom(useMap, room.id, room.name, room.building) || room.building
     if (
       name === room.name &&
       !neighborhood &&

@@ -58,6 +58,8 @@ const ARRIVAL_ADMIN_ARRIVAL_RAW = new Set([
   "Main Entry/Reception",
   "Main Admin Suite",
   "Community Partners Suite",
+  "Entry Experience",
+  "Campus",
 ])
 
 const ARRIVAL_ADMIN_ADMIN_RAW = new Set([
@@ -74,7 +76,13 @@ function surveyModuleFromFocusArea(focusArea, spaceTypeRaw) {
   }
 
   switch (focusArea) {
+    case "Arrival Experience and Campus Organization":
+      return "arrival"
+    case "Administration":
+      return "administration"
     case "Studios":
+    case "Special Education":
+    case "Visual Arts":
       return "studios"
     case "Neighborhoods":
       return "neighborhoods"
@@ -99,10 +107,16 @@ function scoringFocusAreaIdFromLabel(label) {
   switch (normalized) {
     case "arrival/administration":
       return "arrival_administration"
+    case "arrival experience and campus organization":
+      return "arrival_experience"
+    case "administration":
+      return "administration"
     case "studios":
       return "studios"
     case "special education":
       return "special_education"
+    case "visual arts":
+      return "visual_arts"
     case "neighborhoods":
       return "neighborhoods"
     case "athletics and wellness":
@@ -110,6 +124,7 @@ function scoringFocusAreaIdFromLabel(label) {
     case "shared spaces":
       return "shared_spaces"
     case "outdoor elements":
+    case "outdoor":
       return "outdoor_elements"
     case "cte":
       return "cte"
@@ -123,24 +138,41 @@ function scoringFocusAreaIdFromLabel(label) {
 function canonicalSpaceType(name) {
   const map = {
     "Tranditional Studio": "Traditional studio",
-    "Main Entry/Reception": "Main Entry/Reception",
-    "Main Office": "Main Entry/Reception",
+    "Main Entry/Reception": "Entry Experience",
+    "Main Office": "Entry Experience",
+    "Entry Experience": "Entry Experience",
+    Campus: "Campus",
     "Main Admin Suite": "Main Admin Suite",
     "Community Partners Suite": "Community Partner Suite",
     "Admin Offices": "Admin Office",
     "Mental Wellness and Counseling Suite": "Counseling Suite",
-    "Sped Flex Studio": "Sped flex studio",
+    "Sped Flex Studio": "SPED Flex Studio",
+    "SPED Flex Studio": "SPED Flex Studio",
+    "Sensory Lab": "Sensory Motor Lab",
+    "Sensory Motor Lab": "Sensory Motor Lab",
+    "Life Skills Room": "Life Skills Studio",
+    "Life Skills Studio": "Life Skills Studio",
+    "Special Education Suite": "Special Education Suite",
+    Music: "Music Studio",
+    "Music Studio": "Music Studio",
     "Maker Space": "Maker space",
     "Open Collaboration": "Open Collaboration Space",
     "Small Group Room": "Group Room",
+    "Group Room": "Group Room",
     "Large Group Room": "Large Group Room",
+    "Early Childhood Neighborhood": "Early Childhood Neighborhood",
+    "Science Prep Room": "Science Prep Room",
+    "2D Art Studio": "2D Art Studio",
+    "3D Art Studio": "3D Art Studio",
+    "Digital Art Studio": "Digital Art Studio",
+    "Digital Arts Studio": "Digital Art Studio",
     "Rehersal Hall": "Rehearsal Hall",
     "Theater Arts": "Theater Arts Studio",
     "Theater Arts Studio": "Theater Arts Studio",
     "Theater Arts Suite": "Theater Arts Suite",
     "Black Box": "Black Box",
-    "Auditorium": "Auditorium",
-    "Dance": "Dance",
+    Auditorium: "Auditorium",
+    Dance: "Dance",
     "Music Suite": "Music Suite",
     "Media Center": "Library Media Center",
     "Library Media Center": "Library Media Center",
@@ -148,8 +180,8 @@ function canonicalSpaceType(name) {
     "Dining Commons": "Dining Commons",
     Kitchen: "Kitchen",
     "Outdoor Athletics": "Outdoor Athletics",
-    Gym: "Gym",
-    "ES Gymnasium": "Gym",
+    Gym: "ES Gymnasium",
+    "ES Gymnasium": "ES Gymnasium",
     "Multi-Purpose Gym": "Multi-Purpose Gym",
     "Multipurpose Gym": "Multi-Purpose Gym",
     "Practice Gym": "Practice Gym",
@@ -169,6 +201,7 @@ function canonicalSpaceType(name) {
 function normalizeScoreCode(spaceTypeRaw, scoreCode) {
   const code = scoreCode.trim()
   if (spaceTypeRaw === "Neighborhood" && code === "MG") return "NE"
+  if (spaceTypeRaw === "Music Suite" && code === "MU") return "MT"
   return code
 }
 
@@ -230,9 +263,11 @@ for (const entry of entries) {
 }
 
 const focusAreaOrder = [
-  "arrival_administration",
+  "arrival_experience",
+  "administration",
   "studios",
   "special_education",
+  "visual_arts",
   "neighborhoods",
   "athletics_wellness",
   "shared_spaces",
@@ -380,9 +415,16 @@ export function spaceTypesForSurveyModule(
 }
 
 const SPACE_TYPE_ALIASES = {
-  Gym: "Multi-Purpose Gym",
-  "Competition Gym": "Multi-Purpose Gym",
-  "Main Office": "Main Entry/Reception",
+  Gym: "ES Gymnasium",
+  "Main Office": "Entry Experience",
+  "Main Entry/Reception": "Entry Experience",
+  "Sped flex studio": "SPED Flex Studio",
+  "Sensory Lab": "Sensory Motor Lab",
+  "Life Skills Room": "Life Skills Studio",
+  Music: "Music Studio",
+  "Small Group Room": "Group Room",
+  "Digital Arts Studio": "Digital Art Studio",
+  "Open Collaboration": "Open Collaboration Space",
 } as const
 
 export function lookupTableEntry(

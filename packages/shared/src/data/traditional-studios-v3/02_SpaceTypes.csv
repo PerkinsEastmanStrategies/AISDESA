@@ -1,6 +1,62 @@
-SpaceTypeID,SurveyID,ParentSpaceTypeID,SpaceTypeName,DisplayOrder,IsActive,Description
-SPT-TRAD-STU,SRV-TRAD-STU,,Traditional Studio,10,True,Traditional general instructional studio/classroom.
-SPT-SENSORY-LAB,SRV-SENSORY-LAB,,Sensory Lab,10,True,Special education sensory lab assessment space.
-SPT-VOC-LAB,SRV-VOC-LAB,,Vocational Lab,10,True,Special education vocational lab assessment space.
-SPT-LIFE-SKILLS,SRV-LIFE-SKILLS,,Life Skills Room,10,True,Special education life skills room assessment space.
-SPT-SPED-FLEX,SRV-SPED-FLEX,,SPED Flex Studio,10,True,Special education sped flex studio assessment space.
+﻿SpaceTypeID,SurveyID,SurveyFocusArea,ScoreFocusArea,SpaceTypeName,DisplayOrder,IsActive
+SPT-TRADITIONAL-STUDIO-78A63C,SRV-STUDIOS,Studios,Studios,Traditional Studio,10,True
+SPT-OUTDOOR-SPACES-F4EC64,SRV-OUTDOOR,Outdoor,Outdoor,Outdoor Spaces,20,True
+SPT-ADMIN-OFFICES-E04986,SRV-ADMINISTRATION,Administration,Administration,Admin Offices,30,True
+SPT-COMMUNITY-PARTNERS-SUITE-2B1B6F,SRV-ADMINISTRATION,Administration,Administration,Community Partners Suite,40,True
+SPT-MW-AND-COUNSELING-SUITE-3ACB29,SRV-ADMINISTRATION,Administration,Administration,MW and Counseling Suite,50,True
+SPT-PROFESSIONAL-LEARNING-CEN-0ADBC4,SRV-NEIGHBORHOODS,Neighborhoods,Administration,Professional Learning Center,60,True
+SPT-PROFESSIONAL-LEARNING-CEN-76C438,SRV-NEIGHBORHOODS,Neighborhoods,Administration,Professional Learning Center,70,True
+SPT-ENTRY-EXPERIENCE-38315E,SRV-ENTRY-EXPERIENCE,Entry Experience,Entry Experience,Entry Experience,80,True
+SPT-SCIENCE-2593B2,SRV-STUDIOS,Studios,Studios,Science,90,True
+SPT-SCIENCE-LAB-0CF368,SRV-OBSERVATIONAL,Observational,Studios,Science Lab,100,True
+SPT-SCIENCE-PREP-ROOM-C6879C,SRV-STUDIOS,Studios,Studios,Science Prep Room,110,True
+SPT-MAIN-ADMIN-SUITE-7A49F7,SRV-ADMINISTRATION,Administration,Administration,Main Admin Suite,120,True
+SPT-EARLY-CHILDHOOD-STUDIO-49159F,SRV-STUDIOS,Studios,Studios,Early childhood studio,130,True
+SPT-EARLY-CHILDHOOD-SPECIAL-E-0E3811,SRV-STUDIOS,Studios,Special Education,Early Childhood Special Education studio,140,True
+SPT-EARLY-CHILDHOOD-SPECIAL-E-77C06E,SRV-SPECIAL-EDUCATION,Special Education,Special Education,Early Childhood Special Education studio,150,True
+SPT-MAKER-SPACE-57653D,SRV-STUDIOS,Studios,Studios,Maker Space,160,True
+SPT-SPECIAL-EDUCATION-SUITE-87FB39,SRV-SPECIAL-EDUCATION,Special Education,Special Education,Special Education Suite,170,True
+SPT-SENSORY-MOTOR-LAB-3CE0F0,SRV-SPECIAL-EDUCATION,Special Education,Special Education,Sensory Motor Lab,180,True
+SPT-SENSORY-MOTOR-LAB-EB0A18,SRV-SPECIAL-EDUCATION,Special Education,Special Education,Sensory Motor Lab,190,True
+SPT-LIFE-SKILLS-STUDIO-923127,SRV-SPECIAL-EDUCATION,Special Education,Special Education,Life Skills Studio,200,True
+SPT-VOCATIONAL-LAB-534CA6,SRV-SPECIAL-EDUCATION,Special Education,Special Education,Vocational Lab,210,True
+SPT-VOCATIONAL-LAB-66AA8F,SRV-SPECIAL-EDUCATION,Special Education,Special Education,Vocational Lab,220,True
+SPT-SPED-FLEX-STUDIO-8EBAD0,SRV-STUDIOS,Studios,Special Education,SPED Flex Studio,230,True
+SPT-SPED-FLEX-B08CC4,SRV-STUDIOS,Studios,Special Education,SPED Flex,240,True
+SPT-LIBRARY-MEDIA-CENTER-951EE9,SRV-SHARED-SPACES,Shared Spaces,Shared Spaces,Library Media Center,250,True
+SPT-COMPETITION-GYM-D05D49,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Competition Gym,260,True
+SPT-MULTIPURPOSE-GYM-99D091,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Multipurpose Gym,270,True
+SPT-PRACTICE-GYM-8CB861,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Practice Gym,280,True
+SPT-ES-GYMNASIUM-BE0D5E,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Shared Spaces,ES Gymnasium,290,True
+SPT-WEIGHT-ROOM-9E9F80,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Weight Room,300,True
+SPT-WRESTLING-A78FB6,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Wrestling,310,True
+SPT-LOCKER-ROOMS-5ED7DB,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Locker rooms,320,True
+SPT-PE-FITNESS-ROOM-F9EFD1,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,PE Fitness Room,330,True
+SPT-ATHLETICS-WING-31743B,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Athletics Wing,340,True
+SPT-OUTDOOR-ATHLETICS-DEC8BC,SRV-ATHLETICS-AND-WELLNESS,Athletics and Wellness,Athletics and Wellness,Outdoor Athletics,350,True
+SPT-DINING-COMMONS-B2FE05,SRV-SHARED-SPACES,Shared Spaces,Shared Spaces,Dining Commons,360,True
+SPT-KITCHEN-B9C465,SRV-SHARED-SPACES,Shared Spaces,Shared Spaces,Kitchen,370,True
+SPT-EMPOWER-CENTER-B88577,SRV-EMPOWER-CENTER,Empower Center,Empower Center,Empower Center,380,True
+SPT-NEIGHBORHOOD-D091AE,SRV-NEIGHBORHOODS,Neighborhoods,Neighborhoods,Neighborhood,390,True
+SPT-EARLY-CHILDHOOD-NEIGHBORH-A22ECD,SRV-NEIGHBORHOODS,Neighborhoods,Neighborhoods,Early Childhood Neighborhood,400,True
+SPT-GROUP-ROOM-4362E2,SRV-NEIGHBORHOODS,Neighborhoods,Neighborhoods,Group Room,410,True
+SPT-OPEN-COLLABORATION-0308C2,SRV-NEIGHBORHOODS,Neighborhoods,Neighborhoods,Open Collaboration,420,True
+SPT-CTE-STUDIO-143933,SRV-CTE,CTE,CTE,CTE Studio,430,True
+SPT-LOW-INTENSITY-LAB-05F8AF,SRV-CTE,CTE,CTE,Low Intensity Lab,440,True
+SPT-MEDIUM-INTENSITY-LAB-C658FD,SRV-CTE,CTE,CTE,Medium Intensity Lab,450,True
+SPT-HIGH-INTENSITY-LAB-BF5D1A,SRV-CTE,CTE,CTE,High Intensity Lab,460,True
+SPT-ART-STUDIO-B083D5,SRV-STUDIOS,Studios,Studios,Art Studio,470,True
+SPT-2D-ART-STUDIO-4FF189,SRV-STUDIOS,Studios,Studios,2D Art Studio,480,True
+SPT-3D-ART-STUDIO-41C678,SRV-STUDIOS,Studios,Studios,3D Art Studio,490,True
+SPT-DIGITAL-ARTS-STUDIO-9AC3E8,SRV-STUDIOS,Studios,Studios,Digital Arts Studio,500,True
+SPT-THEATER-ARTS-STUDIO-66AF54,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Theater Arts Studio,510,True
+SPT-THEATER-ARTS-SUITE-E7A662,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Theater Arts Suite,520,True
+SPT-AUDITORIUM-A69CC4,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Auditorium,530,True
+SPT-BLACK-BOX-AFA947,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Black Box,540,True
+SPT-DANCE-9926FD,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Dance,550,True
+SPT-MUSIC-STUDIO-7170B4,SRV-STUDIOS,Studios,Studios,Music Studio,560,True
+SPT-MUSIC-SUITE-96730D,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Music Suite,570,True
+SPT-REHEARSAL-HALL-4608D6,SRV-PERFORMING-ARTS,Performing Arts,Performing Arts,Rehearsal Hall,580,True
+SPT-CAMPUS-827B2F,SRV-GENERAL,General,General,Campus,590,True
+SPT-GENERAL-83D639,SRV-GENERAL,General,General,General,600,True
+SPT-CAMPUS-8C248A,SRV-CLOSEOUT,Closeout,Closeout,Campus,610,True

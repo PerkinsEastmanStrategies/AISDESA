@@ -5,7 +5,7 @@ import { NEIGHBORHOOD_OPTIONS, testCampusCloneForSchool } from "@aisd/shared"
 
 export type RoomNeighborhoodMap = Map<string, string>
 
-/** Room program / use from the live sheet, keyed by CAFM id. */
+/** Room program / use from the live sheet, keyed by CAFM id (and building when CAFM collides). */
 export interface RoomUseEntry {
   id: string
   useName: string
@@ -33,6 +33,8 @@ interface SchoolNeighborhoodData {
   byRoomArea: RoomAreaMap
   byRoomSizeDeviation: RoomSizeDeviationMap
   neighborhoods: Set<string>
+  /** Plain CAFM key → building; colliding CAFMs across buildings drop the unscoped key. */
+  plainKeyOwner: Map<string, string>
 }
 
 let csvLoadPromise: Promise<Map<string, SchoolNeighborhoodData>> | null = null
@@ -130,16 +132,78 @@ function roomLookupKeys(rawId: string): string[] {
   return [...keys]
 }
 
-function setNeighborhood(map: RoomNeighborhoodMap, rawId: string, neighborhood: string) {
+const COMPOSITE_KEY_PREFIX = "\u0001b:"
+const AMBIGUOUS_BUILDING = "\u0000"
+
+function normalizeBuildingKey(building: string | null | undefined): string {
+  return (building ?? "").trim().replace(/\s+/g, " ").toUpperCase()
+}
+
+function compositeRoomKey(buildingKey: string, roomKey: string): string {
+  return `${COMPOSITE_KEY_PREFIX}${buildingKey}\u0001${roomKey}`
+}
+
+function registerPlainKeys(data: SchoolNeighborhoodData, rawId: string, building: string) {
+  const bldg = normalizeBuildingKey(building)
   for (const key of roomLookupKeys(rawId)) {
-    map.set(key, neighborhood)
+    const prev = data.plainKeyOwner.get(key)
+    if (prev === undefined) {
+      data.plainKeyOwner.set(key, bldg)
+      continue
+    }
+    if (prev !== bldg) {
+      data.plainKeyOwner.set(key, AMBIGUOUS_BUILDING)
+      data.byRoomKey.delete(key)
+      data.byRoomUse.delete(key)
+      data.byRoomArea.delete(key)
+      data.byRoomSizeDeviation.delete(key)
+    }
   }
 }
 
-function setRoomUse(map: RoomUseMap, rawId: string, entry: RoomUseEntry) {
+function putByRoomKeys<T>(
+  data: SchoolNeighborhoodData,
+  map: Map<string, T>,
+  rawId: string,
+  building: string,
+  value: T,
+) {
+  registerPlainKeys(data, rawId, building)
+  const bldg = normalizeBuildingKey(building)
   for (const key of roomLookupKeys(rawId)) {
-    map.set(key, entry)
+    map.set(compositeRoomKey(bldg, key), value)
+    if (data.plainKeyOwner.get(key) !== AMBIGUOUS_BUILDING) {
+      map.set(key, value)
+    }
   }
+}
+
+function lookupByRoomKeys<T>(
+  map: Map<string, T>,
+  roomId: string,
+  roomName: string | null | undefined,
+  building: string | null | undefined,
+  ids: (room: { id: string; name?: string | null }) => string[],
+): T | undefined {
+  const keys = ids({ id: roomId, name: roomName })
+  const bldg = normalizeBuildingKey(building)
+  if (bldg) {
+    for (const key of keys) {
+      const hit = map.get(compositeRoomKey(bldg, key))
+      if (hit !== undefined) return hit
+    }
+  }
+  for (const key of keys) {
+    const hit = map.get(key)
+    if (hit !== undefined) return hit
+  }
+  if (!bldg) {
+    for (const key of keys) {
+      const hit = map.get(compositeRoomKey("", key))
+      if (hit !== undefined) return hit
+    }
+  }
+  return undefined
 }
 
 function parseAreaSqft(raw: string | undefined): number | undefined {
@@ -148,22 +212,6 @@ function parseAreaSqft(raw: string | undefined): number | undefined {
   const value = Number.parseFloat(cleaned)
   if (!Number.isFinite(value) || value <= 0) return undefined
   return value
-}
-
-function setRoomArea(map: RoomAreaMap, rawId: string, areaSqft: number) {
-  for (const key of roomLookupKeys(rawId)) {
-    map.set(key, areaSqft)
-  }
-}
-
-function setRoomSizeDeviation(
-  map: RoomSizeDeviationMap,
-  rawId: string,
-  band: SizeDeviationBand,
-) {
-  for (const key of roomLookupKeys(rawId)) {
-    map.set(key, band)
-  }
 }
 
 /** Parse SF Deviation column — sheet uses GREEN / ORANGE / RED or a numeric % of ed spec size. */
@@ -210,6 +258,7 @@ function emptySchoolData(): SchoolNeighborhoodData {
     byRoomArea: new Map(),
     byRoomSizeDeviation: new Map(),
     neighborhoods: new Set(),
+    plainKeyOwner: new Map(),
   }
 }
 
@@ -249,19 +298,14 @@ function ingestRoomRow(data: SchoolNeighborhoodData, row: RoomScheduleSourceRow)
 
   if (neighborhood) {
     data.neighborhoods.add(neighborhood)
-    if (cafmId) setNeighborhood(data.byRoomKey, cafmId, neighborhood)
+    if (cafmId) putByRoomKeys(data, data.byRoomKey, cafmId, building, neighborhood)
   }
 
   const useName = roomName || cafmId
   if (useName || programType || building) {
     const existing =
-      (cafmId
-        ? data.byRoomUse.get(cafmId) ??
-          data.byRoomUse.get(cafmId.toUpperCase())
-        : undefined) ??
-      (roomName
-        ? data.byRoomUse.get(roomName) ?? data.byRoomUse.get(roomName.toUpperCase())
-        : undefined)
+      (cafmId ? lookupByRoomKeys(data.byRoomUse, cafmId, null, building, roomLookupIdsOnly) : undefined) ??
+      (roomName ? lookupByRoomKeys(data.byRoomUse, roomName, null, building, roomLookupIdsOnly) : undefined)
     const entry: RoomUseEntry = {
       id: cafmId || existing?.id || roomName,
       useName: useName || existing?.useName || cafmId,
@@ -270,19 +314,23 @@ function ingestRoomRow(data: SchoolNeighborhoodData, row: RoomScheduleSourceRow)
         : {}),
       ...(building || existing?.building ? { building: building || existing?.building } : {}),
     }
-    if (cafmId) setRoomUse(data.byRoomUse, cafmId, entry)
-    if (roomName) setRoomUse(data.byRoomUse, roomName, entry)
+    if (cafmId) putByRoomKeys(data, data.byRoomUse, cafmId, building, entry)
+    if (roomName) putByRoomKeys(data, data.byRoomUse, roomName, building, entry)
   }
 
   if (areaSqft != null) {
-    if (cafmId) setRoomArea(data.byRoomArea, cafmId, areaSqft)
-    if (roomName) setRoomArea(data.byRoomArea, roomName, areaSqft)
+    if (cafmId) putByRoomKeys(data, data.byRoomArea, cafmId, building, areaSqft)
+    if (roomName) putByRoomKeys(data, data.byRoomArea, roomName, building, areaSqft)
   }
 
   if (sizeDeviation) {
-    if (cafmId) setRoomSizeDeviation(data.byRoomSizeDeviation, cafmId, sizeDeviation)
-    if (roomName) setRoomSizeDeviation(data.byRoomSizeDeviation, roomName, sizeDeviation)
+    if (cafmId) putByRoomKeys(data, data.byRoomSizeDeviation, cafmId, building, sizeDeviation)
+    if (roomName) putByRoomKeys(data, data.byRoomSizeDeviation, roomName, building, sizeDeviation)
   }
+}
+
+function roomLookupIdsOnly(room: { id: string; name?: string | null }): string[] {
+  return roomLookupKeys(room.id)
 }
 
 function buildSchoolIndex(csvText: string): Map<string, SchoolNeighborhoodData> {
@@ -413,6 +461,7 @@ async function loadSchoolIndex(): Promise<Map<string, SchoolNeighborhoodData>> {
 type SchoolLookupInput =
   | string
   | {
+      id?: string | null
       name: string
       displayName?: string | null
       campusId?: string | null
@@ -433,7 +482,7 @@ function findSchoolData(
   const clone =
     school && typeof school === "object"
       ? testCampusCloneForSchool({
-          id: "",
+          id: school.id ?? "",
           name: school.name ?? "",
           campusId: school.campusId ?? "",
         })
@@ -547,11 +596,10 @@ export function roomAreaForRoom(
   map: RoomAreaMap,
   roomId: string,
   roomName?: string | null,
+  building?: string | null,
 ): number | undefined {
-  for (const key of floorPlanRoomLookupIds({ id: roomId, name: roomName })) {
-    const hit = map.get(key)
-    if (hit != null && hit > 0) return hit
-  }
+  const hit = lookupByRoomKeys(map, roomId, roomName, building, floorPlanRoomLookupIds)
+  if (hit != null && hit > 0) return hit
   return undefined
 }
 
@@ -559,12 +607,9 @@ export function sizeDeviationForRoom(
   map: RoomSizeDeviationMap,
   roomId: string,
   roomName?: string | null,
+  building?: string | null,
 ): SizeDeviationBand | undefined {
-  for (const key of floorPlanRoomLookupIds({ id: roomId, name: roomName })) {
-    const hit = map.get(key)
-    if (hit) return hit
-  }
-  return undefined
+  return lookupByRoomKeys(map, roomId, roomName, building, floorPlanRoomLookupIds)
 }
 
 const SIZE_DEVIATION_FILL: Record<SizeDeviationBand, string> = {
@@ -602,37 +647,48 @@ export function roomUseForRoom(
   map: RoomUseMap,
   roomId: string,
   roomName?: string | null,
+  building?: string | null,
 ): RoomUseEntry | undefined {
-  for (const key of floorPlanRoomLookupIds({ id: roomId, name: roomName })) {
-    const hit = map.get(key)
-    if (hit) return hit
-  }
+  const keyed = lookupByRoomKeys(map, roomId, roomName, building, floorPlanRoomLookupIds)
+  if (keyed) return keyed
 
   const target = roomId.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
   if (!target) return undefined
+  const wantBldg = normalizeBuildingKey(building)
+  const matches: RoomUseEntry[] = []
+  const seen = new Set<RoomUseEntry>()
   for (const entry of map.values()) {
+    if (seen.has(entry)) continue
+    seen.add(entry)
+    if (wantBldg && normalizeBuildingKey(entry.building) !== wantBldg) continue
     const nameKey = entry.useName.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
-    if (nameKey && nameKey === target) return entry
+    if (nameKey && nameKey === target) {
+      matches.push(entry)
+      continue
+    }
     const idKey = entry.id.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
-    if (idKey && idKey === target) return entry
+    if (idKey && idKey === target) matches.push(entry)
   }
-  return undefined
+  return matches.length === 1 ? matches[0] : undefined
 }
 
 export function buildingForRoom(
   map: RoomUseMap,
   roomId: string,
   roomName?: string | null,
+  building?: string | null,
 ): string | undefined {
-  return roomUseForRoom(map, roomId, roomName)?.building?.trim() || undefined
+  return roomUseForRoom(map, roomId, roomName, building)?.building?.trim() || undefined
 }
 
 /** Prefer the live sheet room name; otherwise show the floor plan id (not "Classroom …" labels). */
 export function resolveRoomDisplayName(
-  room: { id: string; name: string },
+  room: { id: string; name: string; building?: string },
   useMap?: RoomUseMap,
 ): string {
-  const sheetName = useMap ? roomUseForRoom(useMap, room.id, room.name)?.useName?.trim() : undefined
+  const sheetName = useMap
+    ? roomUseForRoom(useMap, room.id, room.name, room.building)?.useName?.trim()
+    : undefined
   const id = room.id.trim()
   if (sheetName) {
     if (sheetName.toUpperCase().includes(id.toUpperCase())) return sheetName
@@ -679,16 +735,13 @@ export function neighborhoodForRoom(
   roomId: string,
   levelId?: string | null,
   roomName?: string | null,
+  building?: string | null,
 ): string | undefined {
   void levelId
   void roomName
   // Match only on CAFM / floor-plan room id — not the CSV Name column, which reuses
   // generic labels like "HALL" and "CLASSROOM" across many rooms.
-  for (const key of roomLookupKeys(roomId)) {
-    const hit = map.get(key)
-    if (hit) return hit
-  }
-  return undefined
+  return lookupByRoomKeys(map, roomId, null, building, roomLookupIdsOnly)
 }
 
 /** Distinct fills for neighborhood letters A–N and numeric labels from the live sheet. */

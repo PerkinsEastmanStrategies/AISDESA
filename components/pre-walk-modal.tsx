@@ -193,7 +193,7 @@ export default function PreWalkModal({
   }, [open, state.school?.id, state.school?.name])
 
   const selectedRoomUse = selectedRoomId
-    ? roomUseForRoom(roomUseMap, selectedRoomId)
+    ? roomUseForRoom(roomUseMap, selectedRoomId, selectedRoom?.name, selectedRoom?.building)
     : undefined
 
   useEffect(() => {

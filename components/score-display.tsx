@@ -2,7 +2,7 @@
 
 import { cn, scoreTextColor } from "@/lib/utils"
 import { formatWeightShare, sumPositiveWeights } from "@/lib/weight-display"
-import type { CategoryScore } from "@aisd/shared"
+import { isObservationalCategory, type CategoryScore } from "@aisd/shared"
 
 export function ScoreBadge({ score, size = "sm" }: { score: number | null; size?: "sm" | "lg" }) {
   if (score === null) {
@@ -105,13 +105,14 @@ export function WeightLabel({
 }
 
 export function CategoryScoreList({ scores }: { scores: CategoryScore[] }) {
-  if (!scores.length) {
+  const scoring = scores.filter((cat) => cat.weight > 0 && !isObservationalCategory(cat.category))
+  if (!scoring.length) {
     return <p className="text-sm text-slate-500">No category scores yet.</p>
   }
-  const categoryWeightTotal = sumPositiveWeights(scores.map((cat) => cat.weight))
+  const categoryWeightTotal = sumPositiveWeights(scoring.map((cat) => cat.weight))
   return (
     <div className="space-y-3">
-      {scores.map((cat) => (
+      {scoring.map((cat) => (
         <ScoreBar
           key={cat.category}
           score={cat.score}

@@ -30,15 +30,23 @@ const outPath = path.join(
 
 const PACKAGES = [
   {
-    spaceTypeId: "SPT-MAIN-ENTRY-RECEPTION-CC5A87",
+    spaceTypeId: "SPT-ENTRY-EXPERIENCE-38315E",
     assessmentArea: "Arrival/Main Office",
     versionConst: "MAIN_OFFICE_RUBRIC_VERSION",
-    version: 3,
+    version: 4,
     prefix: "MAIN_OFFICE",
-    label: "Main Entry/Reception",
+    label: "Entry Experience",
   },
   {
-    spaceTypeId: "SPT-MAIN-ADMIN-SUITE-6009C0",
+    spaceTypeId: "SPT-CAMPUS-827B2F",
+    assessmentArea: "Arrival/Main Office",
+    versionConst: "CAMPUS_RUBRIC_VERSION",
+    version: 2,
+    prefix: "CAMPUS",
+    label: "Campus",
+  },
+  {
+    spaceTypeId: "SPT-MAIN-ADMIN-SUITE-7A49F7",
     assessmentArea: "Arrival/Main Office",
     versionConst: "MAIN_ADMIN_SUITE_RUBRIC_VERSION",
     version: 2,
@@ -46,7 +54,7 @@ const PACKAGES = [
     label: "Main Admin Suite",
   },
   {
-    spaceTypeId: "SPT-COMMUNITY-PARTNERS-SUITE-8EC0EC",
+    spaceTypeId: "SPT-COMMUNITY-PARTNERS-SUITE-2B1B6F",
     assessmentArea: "Arrival/Main Office",
     versionConst: "COMMUNITY_PARTNER_RUBRIC_VERSION",
     version: 3,
@@ -118,6 +126,10 @@ function normalizeQuestionType(raw) {
   if (raw === "MultiSelect") return "MultiSelect"
   if (raw === "SingleSelect") return "SingleSelect"
   if (String(raw).startsWith("MultiSelect")) return "MultiSelect"
+  const t = String(raw ?? "").trim()
+  if (t === "Text" || t === "OpenText" || t === "FreeText" || t === "OpenEnded" || t === "LongText") {
+    return "Text"
+  }
   return raw
 }
 

@@ -1,5 +1,6 @@
 import type { SurveyRubric } from "../data/survey-config"
 import type { EsaCategory, EsaQuestion, EsaSubcategory } from "../types/survey"
+import { isNonScoringQuestion, isObservationalCategory } from "./score-units"
 
 export interface WeightOverrides {
   categories: Record<string, number>
@@ -30,16 +31,20 @@ export function mergeRubricWeights(
   return {
     categories: rubric.categories.map((c) => ({
       ...c,
-      categoryWeight: o.categories[c.category] ?? c.categoryWeight,
+      categoryWeight: isObservationalCategory(c.category)
+        ? 0
+        : (o.categories[c.category] ?? c.categoryWeight),
     })),
     subcategories: rubric.subcategories.map((s) => ({
       ...s,
-      subcategoryWeight:
-        o.subcategories[subcategoryOverrideKey(s.category, s.subcategory)] ?? s.subcategoryWeight,
+      subcategoryWeight: isObservationalCategory(s.category)
+        ? 0
+        : (o.subcategories[subcategoryOverrideKey(s.category, s.subcategory)] ??
+          s.subcategoryWeight),
     })),
     questions: rubric.questions.map((q) => ({
       ...q,
-      weight: o.questions[q.questionId] ?? q.weight,
+      weight: isNonScoringQuestion(q) ? 0 : (o.questions[q.questionId] ?? q.weight),
     })),
   }
 }

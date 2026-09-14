@@ -56,6 +56,10 @@ export function normalizeQuestionType(raw) {
   if (raw === "MultiSelect") return "MultiSelect"
   if (raw === "SingleSelect") return "SingleSelect"
   if (String(raw).startsWith("MultiSelect")) return "MultiSelect"
+  const t = String(raw ?? "").trim()
+  if (t === "Text" || t === "OpenText" || t === "FreeText" || t === "OpenEnded" || t === "LongText") {
+    return "Text"
+  }
   return raw
 }
 
@@ -89,7 +93,8 @@ export function resolveOptionScore(o, isExclusion) {
   const explicit = numOrNull(o.OptionScore)
   if (isExclusion && explicit === null) return null
   if (explicit !== null) return explicit
-  if (String(o.ItemScoringMode ?? "").trim() === "Inventory") return null
+  const mode = String(o.ItemScoringMode ?? "").trim()
+  if (mode === "Inventory" || mode === "RecordedOnly" || mode === "Observational") return null
   const text = String(o.ResponseOption ?? o.OptionText ?? "").trim().toLowerCase()
   if (text === "yes") return 1
   if (text === "no") return 0
@@ -102,9 +107,15 @@ export function emitV4Package(pkg, bundle) {
   const catById = new Map(allCategories.map((c) => [c.CategoryID, c]))
   const subById = new Map(allSubcategories.map((s) => [s.SubcategoryID, s]))
   const assessmentArea = pkg.assessmentArea ?? "Arrival/Administration"
+  const spaceTypeIds = new Set([pkg.spaceTypeId, ...(pkg.extraSpaceTypeIds ?? [])])
 
   const categories = allCategories
-    .filter((c) => c.SpaceTypeID === pkg.spaceTypeId)
+    .filter((c) => {
+      if (c.SpaceTypeID === pkg.spaceTypeId) return true
+      if (!spaceTypeIds.has(c.SpaceTypeID)) return false
+      // Leftover duplicate IDs also carry an unused Size row — only pull Observational.
+      return String(c.CategoryName ?? "").trim().toLowerCase() === "observational"
+    })
     .sort((a, b) => Number(a.DisplayOrder) - Number(b.DisplayOrder))
 
   const catIds = new Set(categories.map((c) => c.CategoryID))
@@ -118,7 +129,7 @@ export function emitV4Package(pkg, bundle) {
     })
 
   const questions = allQuestions
-    .filter((q) => q.SpaceTypeID === pkg.spaceTypeId && isTrue(q.IsActive))
+    .filter((q) => spaceTypeIds.has(q.SpaceTypeID) && isTrue(q.IsActive))
     .sort((a, b) => Number(a.DisplayOrder) - Number(b.DisplayOrder))
 
   const questionIds = new Set(questions.map((q) => q.QuestionID))

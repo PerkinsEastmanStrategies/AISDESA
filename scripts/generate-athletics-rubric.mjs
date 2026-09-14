@@ -41,7 +41,7 @@ const PACKAGES = [
     label: "Practice Gym",
   },
   {
-    spaceTypeId: "SPT-ES-GYMNASIUM-4911CC",
+    spaceTypeId: "SPT-ES-GYMNASIUM-BE0D5E",
     assessmentArea: "Athletics and Wellness",
     versionConst: "ES_GYMNASIUM_RUBRIC_VERSION",
     version: 1,

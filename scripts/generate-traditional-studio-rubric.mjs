@@ -51,8 +51,9 @@ const PACKAGES = [
   },
   {
     spaceTypeId: "SPT-SENSORY-MOTOR-LAB-3CE0F0",
+    extraSpaceTypeIds: ["SPT-SENSORY-MOTOR-LAB-EB0A18"],
     versionConst: "SENSORY_LAB_RUBRIC_VERSION",
-    version: 4,
+    version: 5,
     prefix: "SENSORY_LAB",
     label: "Sensory Motor Lab",
     assessmentArea: "Special Education",
@@ -61,8 +62,9 @@ const PACKAGES = [
   },
   {
     spaceTypeId: "SPT-VOCATIONAL-LAB-534CA6",
+    extraSpaceTypeIds: ["SPT-VOCATIONAL-LAB-66AA8F"],
     versionConst: "VOCATIONAL_LAB_RUBRIC_VERSION",
-    version: 4,
+    version: 5,
     prefix: "VOCATIONAL_LAB",
     label: "Vocational Lab",
     assessmentArea: "Special Education",
@@ -81,8 +83,9 @@ const PACKAGES = [
   },
   {
     spaceTypeId: "SPT-SPED-FLEX-STUDIO-8EBAD0",
+    extraSpaceTypeIds: ["SPT-SPED-FLEX-B08CC4"],
     versionConst: "SPED_FLEX_RUBRIC_VERSION",
-    version: 4,
+    version: 5,
     prefix: "SPED_FLEX",
     label: "SPED Flex Studio",
     assessmentArea: "Special Education",
@@ -91,12 +94,20 @@ const PACKAGES = [
   },
   {
     spaceTypeId: "SPT-SCIENCE-2593B2",
-    extraSpaceTypeIds: ["SPT-SCIENCE-PREP-ROOM-C6879C"],
-    extraSpaceTypeLabels: { "SPT-SCIENCE-PREP-ROOM-C6879C": "Science Prep Room" },
     versionConst: "SCIENCE_RUBRIC_VERSION",
-    version: 1,
+    version: 2,
     prefix: "SCIENCE",
     label: "Science",
+    assessmentArea: "Studios",
+    csvDir: v4CsvDir,
+    format: "v4",
+  },
+  {
+    spaceTypeId: "SPT-SCIENCE-PREP-ROOM-C6879C",
+    versionConst: "SCIENCE_PREP_RUBRIC_VERSION",
+    version: 1,
+    prefix: "SCIENCE_PREP",
+    label: "Science Prep Room",
     assessmentArea: "Studios",
     csvDir: v4CsvDir,
     format: "v4",
@@ -132,12 +143,53 @@ const PACKAGES = [
     format: "v4",
   },
   {
-    spaceTypeId: "SPT-EARLY-CHILDHOOD-SPECIAL-EDUCAT-0E3811",
+    spaceTypeId: "SPT-EARLY-CHILDHOOD-SPECIAL-E-0E3811",
+    extraSpaceTypeIds: ["SPT-EARLY-CHILDHOOD-SPECIAL-E-77C06E"],
     versionConst: "EARLY_CHILDHOOD_SPED_RUBRIC_VERSION",
-    version: 1,
+    version: 2,
     prefix: "EARLY_CHILDHOOD_SPED",
     label: "Early Childhood Special Education Studio",
     assessmentArea: "Special Education",
+    csvDir: v4CsvDir,
+    format: "v4",
+  },
+  {
+    spaceTypeId: "SPT-SPECIAL-EDUCATION-SUITE-87FB39",
+    versionConst: "SPECIAL_EDUCATION_SUITE_RUBRIC_VERSION",
+    version: 1,
+    prefix: "SPECIAL_EDUCATION_SUITE",
+    label: "Special Education Suite",
+    assessmentArea: "Special Education",
+    csvDir: v4CsvDir,
+    format: "v4",
+  },
+  {
+    spaceTypeId: "SPT-2D-ART-STUDIO-4FF189",
+    versionConst: "ART_2D_RUBRIC_VERSION",
+    version: 1,
+    prefix: "ART_2D",
+    label: "2D Art Studio",
+    assessmentArea: "Studios",
+    csvDir: v4CsvDir,
+    format: "v4",
+  },
+  {
+    spaceTypeId: "SPT-3D-ART-STUDIO-41C678",
+    versionConst: "ART_3D_RUBRIC_VERSION",
+    version: 1,
+    prefix: "ART_3D",
+    label: "3D Art Studio",
+    assessmentArea: "Studios",
+    csvDir: v4CsvDir,
+    format: "v4",
+  },
+  {
+    spaceTypeId: "SPT-DIGITAL-ARTS-STUDIO-9AC3E8",
+    versionConst: "DIGITAL_ART_RUBRIC_VERSION",
+    version: 1,
+    prefix: "DIGITAL_ART",
+    label: "Digital Art Studio",
+    assessmentArea: "Studios",
     csvDir: v4CsvDir,
     format: "v4",
   },
@@ -206,6 +258,10 @@ function normalizeQuestionType(raw) {
   if (raw === "MultiSelect") return "MultiSelect"
   if (raw === "SingleSelect") return "SingleSelect"
   if (String(raw).startsWith("MultiSelect")) return "MultiSelect"
+  const t = String(raw ?? "").trim()
+  if (t === "Text" || t === "OpenText" || t === "FreeText" || t === "OpenEnded" || t === "LongText") {
+    return "Text"
+  }
   return raw
 }
 
@@ -272,7 +328,12 @@ function emitPackage(pkg) {
   }
 
   const categories = bundle.categories
-    .filter((c) => spaceTypeIds.has(c.SpaceTypeID))
+    .filter((c) => {
+      if (c.SpaceTypeID === pkg.spaceTypeId) return true
+      if (!spaceTypeIds.has(c.SpaceTypeID)) return false
+      if (extraLabels[c.SpaceTypeID]) return true
+      return String(c.CategoryName ?? "").trim().toLowerCase() === "observational"
+    })
     .sort((a, b) => Number(a.DisplayOrder) - Number(b.DisplayOrder))
 
   const catIds = new Set(categories.map((c) => c.CategoryID))
