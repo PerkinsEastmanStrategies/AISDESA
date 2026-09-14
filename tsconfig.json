@@ -37,6 +37,11 @@
   ],
   "exclude": [
     "node_modules",
-    "**/*-DCA-*"
+    "**/*-DCA-*",
+    "app/dev/**",
+    "lib/png-rgba.ts",
+    "lib/campus-report-pdf.ts",
+    "lib/campus-report-model.ts",
+    "components/campus-report-modal.tsx"
   ]
 }

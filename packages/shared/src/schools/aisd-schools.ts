@@ -74,6 +74,8 @@ export interface TestCampusClone {
   sourceName: string
   sourceCampusId: string
   campusId: string
+  /** When set, the school picker lists this clone after every live campus (1 = first of that group). */
+  pickerEndOrder?: number
 }
 
 export const TEST_CAMPUS_CLONES: readonly TestCampusClone[] = [
@@ -117,6 +119,33 @@ export const TEST_CAMPUS_CLONES: readonly TestCampusClone[] = [
     sourceCampusId: "126",
     campusId: "126-PILOT-2",
   },
+  {
+    id: "test-es",
+    name: "TEST ES",
+    displayName: "Test ES",
+    sourceName: "CASIS",
+    sourceCampusId: "112",
+    campusId: "112-TEST-ES",
+    pickerEndOrder: 1,
+  },
+  {
+    id: "test-ms",
+    name: "TEST MS",
+    displayName: "Test MS",
+    sourceName: "KEALING",
+    sourceCampusId: "044",
+    campusId: "044-TEST-MS",
+    pickerEndOrder: 2,
+  },
+  {
+    id: "test-hs",
+    name: "TEST HS",
+    displayName: "Test HS",
+    sourceName: "LBJ",
+    sourceCampusId: "014",
+    campusId: "014-TEST-HS",
+    pickerEndOrder: 3,
+  },
 ]
 
 export function testCampusCloneForSchool(
@@ -131,6 +160,14 @@ export function testCampusCloneForSchool(
       clone.name.toUpperCase() === name ||
       clone.campusId === campusId,
   )
+}
+
+/** Live campuses first (A–Z), then pinned sandbox campuses in Test ES / MS / HS order. */
+export function compareSchoolsForPicker(a: AisdSchoolOption, b: AisdSchoolOption): number {
+  const aOrder = testCampusCloneForSchool(a)?.pickerEndOrder ?? 0
+  const bOrder = testCampusCloneForSchool(b)?.pickerEndOrder ?? 0
+  if (aOrder !== bOrder) return aOrder - bOrder
+  return a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" })
 }
 
 /** Attach sandbox campuses after the live AISD list is parsed. */

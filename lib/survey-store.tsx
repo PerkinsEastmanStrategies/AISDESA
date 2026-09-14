@@ -78,8 +78,13 @@ import {
   loadResumableDraft,
   mergeDraftsForScoring,
   mergePulledDraftWithLocal,
+  mergeSurveySessions,
   propagatePreWalkToSchoolDrafts,
   persistPreWalkSpaceTypeExistsToSchoolDrafts,
+  draftRetainsSession,
+  nextDiscardedPinIds,
+  nextDiscardedRoomIds,
+  sessionCoversLocalProgress,
   saveAssessors,
   saveDraft,
   markActiveVisit,
@@ -131,7 +136,7 @@ import {
   withPendingUpdatedForResponse,
 } from "@/lib/closeout"
 import { buildCampusScoringSnapshot, patchSubmissionWithSessionScores } from "@/lib/campus-scoring-tree"
-import { EMPTY_PREWALK, getPreWalkMappingForSurveyModule, mergePreWalkStates, migratePreWalkState, preWalkHasAssignments, preWalkHasCloudState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypeExistsKey, preWalkSpaceTypeForRoom, preWalkSpaceTypePhotoKey, preWalkSurveyAllowsSpaceTypeExists } from "@/lib/prewalk"
+import { EMPTY_PREWALK, getPreWalkMappingForSurveyModule, mergePreWalkStates, migratePreWalkState, preWalkHasCloudState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypeExistsKey, preWalkSpaceTypeForRoom, preWalkSpaceTypePhotoKey, preWalkSurveyAllowsSpaceTypeExists } from "@/lib/prewalk"
 import { applyTraditionalStudioCopyToRoom, getTraditionalStudioCopyOffer } from "@/lib/traditional-studio-copy"
 import { scoreRoomSessionWithMetadata, scoreAbsentSpaceTypeRoom } from "@/lib/traditional-studio-room-score"
 import {
@@ -291,29 +296,16 @@ function emptyScoreState(): Pick<SurveyState, "roomScores" | "roomScoreDetails" 
   return { roomScores: {}, roomScoreDetails: {}, floorPlanRooms: {} }
 }
 
-function countSessionResponses(session: SurveySession | null | undefined): number {
-  if (!session) return 0
-  return Object.values(session.rooms).reduce((total, room) => total + room.responses.length, 0)
-}
-
-/** Keep a just-selected (often still unanswered) room when a remote draft is applied. */
+/** Keep live rooms and "does not exist" answers when a remote draft is applied. */
 function sessionWithLiveSelectedRoom(
   remoteSession: SurveySession | null | undefined,
   live: SurveyState,
 ): SurveySession | null {
   if (!remoteSession) return live.session
-  if (!live.selectedRoomId || !live.session) return remoteSession
-  const liveRoom = live.session.rooms[live.selectedRoomId]
-  if (!liveRoom) return remoteSession
-  const remoteRoom = remoteSession.rooms[live.selectedRoomId]
-  if (remoteRoom && roomHasAssessmentProgress(remoteRoom)) return remoteSession
-  return {
-    ...remoteSession,
-    rooms: {
-      ...remoteSession.rooms,
-      [live.selectedRoomId]: liveRoom,
-    },
-  }
+  if (!live.session) return remoteSession
+  const localNewer =
+    Date.parse(live.session.updatedAt || "") >= Date.parse(remoteSession.updatedAt || "")
+  return mergeSurveySessions(live.session, remoteSession, localNewer)
 }
 
 function lookupNeighborhoodFromPlan(
@@ -1971,12 +1963,18 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       if (unchanged) {
         return state.preWalkPromptPending ? { ...state, preWalkPromptPending: false } : state
       }
-      // Campus home offers pre-walk — do not auto-prompt on school select.
-      return {
+      const nextState: SurveyState = {
         ...state,
         preWalk,
         preWalkPromptPending: false,
+        session: state.session
+          ? sessionWithPreWalkExistence(state.session, preWalk, state.surveyType)
+          : state.session,
       }
+      if (!nextState.session || nextState.session === state.session) {
+        return nextState
+      }
+      return reducer(nextState, { type: "RECALC_SCORES" })
     }
     case "PREWALK_PULL_DONE": {
       return {
@@ -2427,6 +2425,11 @@ interface SurveyContextValue {
   closeRemoteConflict: () => void
   loadRemoteSurveyDraft: () => Promise<boolean>
   pendingSyncCount: number
+  cloudSaveStatus: "local" | "pending" | "synced" | "error"
+  /** Persist this module, push to the database, and confirm the cloud copy still has these answers. */
+  flushCloudSave: () => Promise<"synced" | "error" | "offline">
+  /** Same-room cloud copies that were left unchanged because another device had more answers. */
+  sameRoomCloudConflicts: string[]
   remoteSchoolDrafts: PersistedSurveyDraft[] | null
   remoteDraftsConfigured: boolean
   remoteSchoolDraftsLoading: boolean
@@ -2537,7 +2540,12 @@ function persistDraftFromState(state: SurveyState): string | null {
       ? state.session
       : clearStaleDeferredOnCompleteRooms(state.session, state.school.schoolClass)
 
+  const previous = loadDraft(state.school.id, state.surveyType)
+  const discardedRoomIds = nextDiscardedRoomIds(previous, sessionToSave)
+  const discardedPinIds = nextDiscardedPinIds(previous, sessionToSave)
+
   saveDraft({
+    ...(previous ?? {}),
     schoolId: state.school.id,
     surveyType: state.surveyType,
     session: sessionToSave,
@@ -2555,7 +2563,13 @@ function persistDraftFromState(state: SurveyState): string | null {
     manualRooms: state.manualRooms,
     lastSubmission: state.submission,
     savedAt,
+    discardedRoomIds,
+    discardedPinIds,
+    ownedRoomIds: Object.keys(sessionToSave.rooms),
+    ownedPinIds: (sessionToSave.outdoorElementPins ?? []).map((pin) => pin.id),
   })
+  const persisted = draftRetainsSession(state.school.id, state.surveyType, sessionToSave)
+  if (!persisted) return null
   if (preWalkHasCloudState(state.preWalk)) {
     propagatePreWalkToSchoolDrafts(state.school.id, state.preWalk)
   }
@@ -2644,6 +2658,10 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const [remoteConflictOpen, setRemoteConflictOpen] = useState(false)
   const [remoteConflict, setRemoteConflict] = useState<RemoteSurveyStatus | null>(null)
   const [pendingSyncCount, setPendingSyncCount] = useState(0)
+  const [cloudSaveStatus, setCloudSaveStatus] = useState<"local" | "pending" | "synced" | "error">(
+    "local",
+  )
+  const [sameRoomCloudConflicts, setSameRoomCloudConflicts] = useState<string[]>([])
   const [remoteSchoolDrafts, setRemoteSchoolDrafts] = useState<PersistedSurveyDraft[] | null>(null)
   const [remoteDraftsConfigured, setRemoteDraftsConfigured] = useState(false)
   const [remoteSchoolDraftsLoading, setRemoteSchoolDraftsLoading] = useState(false)
@@ -2654,6 +2672,8 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const [floorPlanDisplayLoading, setFloorPlanDisplayLoading] = useState(false)
   const floorPlanDisplayRequestsRef = useRef(0)
   const lastSyncedSubmissionRef = useRef<string | null>(null)
+  const explicitFlushInFlightRef = useRef(false)
+  const cloudPushGenerationRef = useRef(0)
   const floorPlanLevelInflightRef = useRef(new Map<string, Promise<void>>())
   const roomsLoadAttemptedKeyRef = useRef<string | null>(null)
   const preWalkRef = useRef(EMPTY_PREWALK)
@@ -2688,6 +2708,8 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     preWalkPromptPending: false,
     preWalkRequested: false,
   })
+  const stateRef = useRef(state)
+  stateRef.current = state
   preWalkRef.current = state.preWalk
 
   useEffect(() => {
@@ -2904,7 +2926,10 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!state.hydrated || !state.school) return
     if (preWalkCloudReadySchoolIdRef.current !== state.school.id) return
-    if (!preWalkHasAssignments(state.preWalk) && !state.preWalk.completedAt && preWalkPendingDeletesRef.current.length === 0) {
+    if (
+      !preWalkHasCloudState(state.preWalk) &&
+      preWalkPendingDeletesRef.current.length === 0
+    ) {
       return
     }
 
@@ -2919,82 +2944,136 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     void refreshRemoteSchoolDrafts()
   }, [state.view, state.school?.id, refreshRemoteSchoolDrafts])
 
+  const pushLoadedDraftToCloud = useCallback(async (): Promise<"synced" | "error" | "offline"> => {
+    const latest = stateRef.current
+    const school = latest.school
+    const session = latest.session
+    if (!school || !session) return "error"
+    if (!sessionHasRegisteredAssessor(session)) return "error"
+
+    const surveyType = latest.surveyType
+    const draft = loadDraft(school.id, surveyType)
+    if (!draft) {
+      setCloudSaveStatus("error")
+      return "error"
+    }
+
+    const generation = ++cloudPushGenerationRef.current
+    setCloudSaveStatus("pending")
+    setSameRoomCloudConflicts([])
+    await flushSurveySyncQueue({ schools, loadDraft })
+
+    const writeSnapshot =
+      !!draft.lastSubmission &&
+      draft.lastSubmission.submittedAt !== lastSyncedSubmissionRef.current
+    const currentAssessorEmail = resolveCampusAssessor(latest.assessorByType, surveyType)?.email
+    const result = await pushSurveyDraftClient({
+      school,
+      draft,
+      writeSnapshot,
+    })
+
+    if (generation !== cloudPushGenerationRef.current) return "error"
+
+    const finish = (status: "synced" | "error" | "offline", conflicts = result.sameRoomConflicts) => {
+      setSameRoomCloudConflicts(conflicts)
+      setCloudSaveStatus(status === "synced" ? "synced" : "error")
+      setPendingSyncCount(getPendingSyncCount())
+      return status
+    }
+
+    const sessionToVerify =
+      draft.ownedRoomIds && draft.ownedRoomIds.length > 0
+        ? {
+            ...draft.session,
+            rooms: Object.fromEntries(
+              Object.entries(draft.session.rooms).filter(([roomId]) =>
+                draft.ownedRoomIds!.includes(roomId),
+              ),
+            ),
+          }
+        : draft.session
+
+    if (result.action === "offline") return finish("offline")
+    if (result.action === "error") return finish("error")
+
+    if (result.action === "pushed" && writeSnapshot && draft.lastSubmission) {
+      lastSyncedSubmissionRef.current = draft.lastSubmission.submittedAt
+    }
+
+    if (result.action === "pushed") {
+      const remote = await pullRemoteDraftClient({ schoolId: school.id, surveyType })
+      if (generation !== cloudPushGenerationRef.current) return "error"
+      const covered = remote ? sessionCoversLocalProgress(remote.session, sessionToVerify) : false
+      if (!covered) {
+        const retry = await pushSurveyDraftClient({ school, draft, writeSnapshot: false })
+        const again =
+          retry.action === "pushed"
+            ? await pullRemoteDraftClient({ schoolId: school.id, surveyType })
+            : null
+        if (generation !== cloudPushGenerationRef.current) return "error"
+        await refreshRemoteSchoolDrafts()
+        return finish(
+          again && sessionCoversLocalProgress(again.session, sessionToVerify) ? "synced" : "error",
+          [...result.sameRoomConflicts, ...retry.sameRoomConflicts],
+        )
+      }
+      await refreshRemoteSchoolDrafts()
+      return finish("synced")
+    }
+
+    if (result.action === "skipped_remote_newer") {
+      const remote = await pullRemoteDraftClient({ schoolId: school.id, surveyType })
+      if (generation !== cloudPushGenerationRef.current) return "error"
+      if (!remote) return finish("error")
+      const remoteAuthor = assessorFromSession(remote.session)
+      const sameAuthor = assessorEmailsMatch(currentAssessorEmail, remoteAuthor?.email)
+      const merged = mergePulledDraftWithLocal(remote, draft)
+      saveDraft(merged)
+      if (sameAuthor || (draft.savedAt || "") >= (remote.savedAt || "")) {
+        dispatch({
+          type: "RESTORE",
+          school,
+          draft: merged,
+          showResumeBanner: false,
+          preserveLiveUi: true,
+        })
+      }
+      return finish(sessionCoversLocalProgress(merged.session, sessionToVerify) ? "synced" : "error")
+    }
+
+    return finish("error")
+  }, [refreshRemoteSchoolDrafts, schools])
+
+  const flushCloudSave = useCallback(async (): Promise<"synced" | "error" | "offline"> => {
+    explicitFlushInFlightRef.current = true
+    setCloudSaveStatus("pending")
+    try {
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 0)
+      })
+      const latest = stateRef.current
+      const savedAt = persistDraftFromState(latest)
+      if (!savedAt) {
+        setCloudSaveStatus("error")
+        return "error"
+      }
+      dispatch({ type: "MARK_SAVED", savedAt })
+      return await pushLoadedDraftToCloud()
+    } finally {
+      explicitFlushInFlightRef.current = false
+    }
+  }, [pushLoadedDraftToCloud])
+
   // Debounced cloud sync when online (localStorage remains primary for offline).
   useEffect(() => {
     if (!state.hydrated || !state.school || !state.session || !state.lastSavedAt) return
     if (!sessionHasRegisteredAssessor(state.session)) return
+    if (explicitFlushInFlightRef.current) return
 
-    const school = state.school
-    const surveyType = state.surveyType
-    const currentAssessorEmail = resolveCampusAssessor(state.assessorByType, surveyType)?.email
     const timer = window.setTimeout(() => {
-      const draft = loadDraft(school.id, surveyType)
-      if (!draft) return
-
-      void flushSurveySyncQueue({ schools, loadDraft })
-
-      const writeSnapshot =
-        !!draft.lastSubmission &&
-        draft.lastSubmission.submittedAt !== lastSyncedSubmissionRef.current
-
-      void pushSurveyDraftClient({
-        school,
-        draft,
-        writeSnapshot,
-      }).then(async (result) => {
-        if (result === "pushed" && writeSnapshot && draft.lastSubmission) {
-          lastSyncedSubmissionRef.current = draft.lastSubmission.submittedAt
-        }
-        if (result === "pushed") {
-          await refreshRemoteSchoolDrafts()
-        }
-        if (result === "skipped_remote_newer") {
-          const remote = await pullRemoteDraftClient({ schoolId: school.id, surveyType })
-          if (remote && remote.savedAt > draft.savedAt) {
-            const remoteAuthor = assessorFromSession(remote.session)
-            const sameAuthor = assessorEmailsMatch(currentAssessorEmail, remoteAuthor?.email)
-            if (sameAuthor) {
-              const localAnswers = countSessionResponses(draft.session)
-              const remoteAnswers = countSessionResponses(remote.session)
-              // Equal counts still happen after picking a room with no answers yet —
-              // do not replace the live survey with a remote draft that has no selection.
-              if (remoteAnswers > localAnswers) {
-                const liveRoomId = draft.selectedRoomId
-                const liveRoom = liveRoomId ? draft.session.rooms[liveRoomId] : undefined
-                const remoteHasLiveRoomProgress =
-                  !!liveRoomId &&
-                  !!remote.session.rooms[liveRoomId] &&
-                  roomHasAssessmentProgress(remote.session.rooms[liveRoomId])
-                const merged = {
-                  ...remote,
-                  pendingStudioType: draft.pendingStudioType ?? remote.pendingStudioType,
-                  pendingNeighborhood: draft.pendingNeighborhood ?? remote.pendingNeighborhood,
-                  selectedRoomId: draft.selectedRoomId ?? remote.selectedRoomId,
-                  selectedLevelId: draft.selectedLevelId ?? remote.selectedLevelId,
-                  view:
-                    draft.view === "survey" || draft.view === "results" ? draft.view : remote.view,
-                  session:
-                    liveRoomId && liveRoom && !remoteHasLiveRoomProgress
-                      ? {
-                          ...remote.session,
-                          rooms: { ...remote.session.rooms, [liveRoomId]: liveRoom },
-                        }
-                      : remote.session,
-                }
-                saveDraft(merged)
-                dispatch({
-                  type: "RESTORE",
-                  school,
-                  draft: merged,
-                  showResumeBanner: false,
-                  preserveLiveUi: true,
-                })
-              }
-            }
-          }
-        }
-        setPendingSyncCount(getPendingSyncCount())
-      })
+      if (explicitFlushInFlightRef.current) return
+      void pushLoadedDraftToCloud()
     }, 2500)
 
     return () => window.clearTimeout(timer)
@@ -3006,8 +3085,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     state.lastSavedAt,
     state.submission,
     state.assessorByType,
-    refreshRemoteSchoolDrafts,
-    schools,
+    pushLoadedDraftToCloud,
   ])
 
   useEffect(() => {
@@ -3069,8 +3147,10 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       surveyType: state.surveyType,
     })
     if (!remote) return false
-    saveDraft(remote)
-    dispatch({ type: "RESTORE", school: state.school, draft: remote, showResumeBanner: false })
+    const local = loadDraft(state.school.id, state.surveyType)
+    const merged = mergePulledDraftWithLocal(remote, local)
+    saveDraft(merged)
+    dispatch({ type: "RESTORE", school: state.school, draft: merged, showResumeBanner: false })
     setRemoteConflictOpen(false)
     return true
   }, [state.school, state.surveyType])
@@ -3967,6 +4047,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         closeRemoteConflict,
         loadRemoteSurveyDraft,
         pendingSyncCount,
+        cloudSaveStatus,
+        sameRoomCloudConflicts,
+        flushCloudSave,
         remoteSchoolDrafts,
         remoteDraftsConfigured,
         remoteSchoolDraftsLoading,

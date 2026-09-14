@@ -199,10 +199,13 @@ export async function pushSurveyDraftClient(input: {
   school: AisdSchoolOption
   draft: PersistedSurveyDraft
   writeSnapshot?: boolean
-}): Promise<"pushed" | "skipped_remote_newer" | "offline" | "error"> {
+}): Promise<{
+  action: "pushed" | "skipped_remote_newer" | "offline" | "error"
+  sameRoomConflicts: string[]
+}> {
   if (!isBrowserOnline()) {
     queueSurveySync(input.draft.schoolId, input.draft.surveyType, input.draft.savedAt)
-    return "offline"
+    return { action: "offline", sameRoomConflicts: [] }
   }
 
   try {
@@ -213,11 +216,15 @@ export async function pushSurveyDraftClient(input: {
     })
     if (!response.ok) {
       queueSurveySync(input.draft.schoolId, input.draft.surveyType, input.draft.savedAt)
-      return "error"
+      return { action: "error", sameRoomConflicts: [] }
     }
     const payload = (await response.json()) as {
       action?: "pushed" | "skipped_remote_newer" | "offline"
+      sameRoomConflicts?: string[]
     }
+    const sameRoomConflicts = Array.isArray(payload.sameRoomConflicts)
+      ? payload.sameRoomConflicts.filter((name): name is string => typeof name === "string")
+      : []
     if (payload.action === "pushed") {
       markSurveySynced(input.draft.schoolId, input.draft.surveyType, input.draft.savedAt)
       const queue = readQueue().filter(
@@ -228,15 +235,15 @@ export async function pushSurveyDraftClient(input: {
           ),
       )
       writeQueue(queue)
-      return "pushed"
+      return { action: "pushed", sameRoomConflicts }
     }
     if (payload.action === "skipped_remote_newer") {
-      return "skipped_remote_newer"
+      return { action: "skipped_remote_newer", sameRoomConflicts }
     }
-    return "error"
+    return { action: "error", sameRoomConflicts }
   } catch {
     queueSurveySync(input.draft.schoolId, input.draft.surveyType, input.draft.savedAt)
-    return "offline"
+    return { action: "offline", sameRoomConflicts: [] }
   }
 }
 
@@ -262,7 +269,7 @@ export async function flushSurveySyncQueue(input: {
         draft,
         writeSnapshot: !!draft.lastSubmission,
       })
-      if (result === "skipped_remote_newer") {
+      if (result.action === "skipped_remote_newer") {
         input.onRemoteNewer?.(entry)
       }
     }

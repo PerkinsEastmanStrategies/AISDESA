@@ -1,5 +1,6 @@
 import type { PreWalkRoomMapping, PreWalkState, RoomSurveySession, SurveyType } from "@aisd/shared"
 import {
+  SURVEY_TYPES,
   isSpaceTypeForSurveyModule,
   spaceTypeOptionsForSurvey,
   surveyModuleUsesSpaceTypePicker,
@@ -44,6 +45,19 @@ export function preWalkSpaceTypePhotoKey(surveyType: SurveyType, spaceType: stri
 
 export function preWalkSpaceTypeExistsKey(surveyType: SurveyType, spaceType: string): string {
   return `${surveyType}::${spaceType}`
+}
+
+export function parsePreWalkSpaceTypeExistsKey(
+  key: string,
+): { surveyType: SurveyType; spaceType: string } | null {
+  const sep = key.indexOf("::")
+  if (sep <= 0) return null
+  const surveyType = key.slice(0, sep) as SurveyType
+  const spaceType = key.slice(sep + 2).trim()
+  if (!spaceType || spaceType.includes("::")) return null
+  if (!SURVEY_TYPES.includes(surveyType)) return null
+  if (!preWalkSurveyAllowsSpaceTypeExists(surveyType)) return null
+  return { surveyType, spaceType }
 }
 
 export function readPreWalkSpaceTypeExists(
@@ -477,9 +491,11 @@ export function mergePreWalkStates(
       ...(left.spaceTypePhotos ?? {}),
       ...(right.spaceTypePhotos ?? {}),
     },
+    // First argument wins on the same key so a just-answered Yes/No is not
+    // overwritten by a stale cloud copy. Keys only on the other side are kept.
     spaceTypeExists: {
-      ...(left.spaceTypeExists ?? {}),
       ...(right.spaceTypeExists ?? {}),
+      ...(left.spaceTypeExists ?? {}),
     },
     completedAt: left.completedAt ?? right.completedAt ?? null,
     skippedAt: left.skippedAt ?? right.skippedAt ?? null,

@@ -319,7 +319,7 @@ export default function SurveyHeader() {
 
 /** School / auto-save status — scrolls with main content. Survey tabs are fixed above. */
 export function SurveyHeaderControls() {
-  const { state, lastSavedAt, hasAssessorRegistered } = useSurvey()
+  const { state, lastSavedAt, cloudSaveStatus, hasAssessorRegistered } = useSurvey()
 
   if (state.view !== "survey") return null
   if (!hasAssessorRegistered || !state.school) return null
@@ -338,8 +338,22 @@ export function SurveyHeaderControls() {
         <div className="flex shrink-0 items-center gap-2">
           <PreWalkHeaderButton />
           {state.session && lastSavedAt && (
-            <p className="rounded-lg bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-500 ring-1 ring-slate-200/80">
+            <p
+              className={cn(
+                "rounded-lg px-2.5 py-1 text-[11px] font-medium ring-1",
+                cloudSaveStatus === "error"
+                  ? "bg-amber-50 text-amber-800 ring-amber-200/80"
+                  : "bg-slate-50 text-slate-500 ring-slate-200/80",
+              )}
+            >
               Saved {formatSavedAt(lastSavedAt)}
+              {cloudSaveStatus === "synced"
+                ? " · synced"
+                : cloudSaveStatus === "pending"
+                  ? " · saving…"
+                  : cloudSaveStatus === "error"
+                    ? " · on this device only"
+                    : ""}
             </p>
           )}
         </div>

@@ -214,20 +214,38 @@ fs.copyFileSync(csvPath, publicPath)
 console.log("Copied AISD_ESA_Categories.csv -> public/")
 
 const rows = parseCsv(fs.readFileSync(csvPath, "utf8"))
+const header = (rows[0] ?? []).map((cell) => cell.trim())
+const col = (name, fallbackIndex) => {
+  const index = header.findIndex((cell) => cell.toLowerCase() === name.toLowerCase())
+  return index >= 0 ? index : fallbackIndex
+}
+const iFocus = col("Focus Area", 0)
+const iSpace = col("Space Type", 1)
+const iLevel = col("School Level", 2)
+const iRequired = col("Required", 3)
+const iMinSurveys = col("Minimum Surveys", -1)
+const iScoringFocus = col("Focus Area (Scoring)", iMinSurveys >= 0 ? 5 : 4)
+const iSpaceWeight = col("Space Type Weight", iMinSurveys >= 0 ? 6 : 5)
+const iFocusWeight = col("Focus Area Weight", iMinSurveys >= 0 ? 7 : 6)
+const iScoreCode = col("Score Code", iMinSurveys >= 0 ? 8 : 7)
+
 const dataRows = rows.slice(1).filter((r) => {
-  const level = r[2]?.trim()
+  const level = r[iLevel]?.trim()
   return level === "ES" || level === "MS" || level === "HS"
 })
 
 const entries = dataRows.map((r) => {
-  const surveyFocus = r[0].trim()
-  const spaceTypeRaw = r[1].trim()
-  const schoolLevel = r[2].trim()
-  const required = r[3].trim().toUpperCase() === "Y"
-  const scoringFocusLabel = r[4].trim()
-  const spaceTypeWeight = Number.parseInt(r[5], 10) || 0
-  const focusAreaWeight = Number.parseInt(r[6], 10) || 0
-  const scoreCode = normalizeScoreCode(spaceTypeRaw, r[7]?.trim() ?? "")
+  const surveyFocus = r[iFocus].trim()
+  const spaceTypeRaw = r[iSpace].trim()
+  const schoolLevel = r[iLevel].trim()
+  const required = r[iRequired].trim().toUpperCase() === "Y"
+  const minimumSurveyCount = required
+    ? Math.max(1, Number.parseInt(iMinSurveys >= 0 ? r[iMinSurveys] : "1", 10) || 1)
+    : 0
+  const scoringFocusLabel = r[iScoringFocus].trim()
+  const spaceTypeWeight = Number.parseInt(r[iSpaceWeight], 10) || 0
+  const focusAreaWeight = Number.parseInt(r[iFocusWeight], 10) || 0
+  const scoreCode = normalizeScoreCode(spaceTypeRaw, r[iScoreCode]?.trim() ?? "")
   const surveyType = surveyModuleFromFocusArea(surveyFocus, spaceTypeRaw)
   const scoringFocusAreaId = scoringFocusAreaIdFromLabel(scoringFocusLabel)
   const spaceType = canonicalSpaceType(spaceTypeRaw)
@@ -243,6 +261,7 @@ const entries = dataRows.map((r) => {
     spaceTypeRaw,
     schoolLevel,
     required,
+    minimumSurveyCount,
     scoringFocusLabel,
     scoringFocusAreaId,
     spaceTypeWeight,
@@ -313,6 +332,8 @@ export interface TableOfSurveyEntry {
   spaceTypeRaw: string
   schoolLevel: TableSchoolLevel
   required: boolean
+  /** Site-wide completed room surveys required by AISD_Matrix_RoomsRequired. 0 = not scored. */
+  minimumSurveyCount: number
   scoringFocusLabel: string
   scoringFocusAreaId: ScoringFocusAreaId
   spaceTypeWeight: number
@@ -330,7 +351,7 @@ export const TABLE_OF_SURVEY_ENTRIES: TableOfSurveyEntry[] = [
 ${entries
   .map(
     (e) =>
-      `  { surveyFocus: ${esc(e.surveyFocus)}, surveyType: ${esc(e.surveyType)}, spaceType: ${esc(e.spaceType)}, spaceTypeRaw: ${esc(e.spaceTypeRaw)}, schoolLevel: ${esc(e.schoolLevel)}, required: ${e.required}, scoringFocusLabel: ${esc(e.scoringFocusLabel)}, scoringFocusAreaId: ${esc(e.scoringFocusAreaId)}, spaceTypeWeight: ${e.spaceTypeWeight}, focusAreaWeight: ${e.focusAreaWeight}, scoreCode: ${esc(e.scoreCode)} },`,
+      `  { surveyFocus: ${esc(e.surveyFocus)}, surveyType: ${esc(e.surveyType)}, spaceType: ${esc(e.spaceType)}, spaceTypeRaw: ${esc(e.spaceTypeRaw)}, schoolLevel: ${esc(e.schoolLevel)}, required: ${e.required}, minimumSurveyCount: ${e.minimumSurveyCount}, scoringFocusLabel: ${esc(e.scoringFocusLabel)}, scoringFocusAreaId: ${esc(e.scoringFocusAreaId)}, spaceTypeWeight: ${e.spaceTypeWeight}, focusAreaWeight: ${e.focusAreaWeight}, scoreCode: ${esc(e.scoreCode)} },`,
   )
   .join("\n")}
 ]
@@ -497,6 +518,29 @@ export function isSpaceTypeRequiredForSchool(
   schoolClass: string | null | undefined,
 ): boolean {
   return lookupTableEntry(surveyType, spaceType, schoolClass)?.required ?? false
+}
+
+/** Required completed room surveys for this space type at the school level. 0 = optional / not scored. */
+export function minimumSurveyCountForSpaceType(
+  surveyType: SurveyType,
+  spaceType: string,
+  schoolClass: string | null | undefined,
+): number {
+  const entry = lookupTableEntry(surveyType, spaceType, schoolClass)
+  if (!entry) return 1
+  if (!entry.required) return 0
+  return Math.max(1, entry.minimumSurveyCount)
+}
+
+/** Optional (not-required) space types do not enter campus scoring. */
+export function spaceTypeCountsTowardCampusScore(
+  surveyType: SurveyType,
+  spaceType: string,
+  schoolClass: string | null | undefined,
+): boolean {
+  const entry = lookupTableEntry(surveyType, spaceType, schoolClass)
+  if (!entry) return true
+  return entry.required
 }
 
 export function scoreCodeForSpaceType(

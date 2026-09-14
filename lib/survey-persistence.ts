@@ -11,6 +11,7 @@ import type {
 import {
   SURVEY_TYPES,
   applyPreWalkSpaceTypeExistsToSession,
+  isAbsentSpaceTypeRoomId,
 } from "@aisd/shared"
 import {
   ART_RUBRIC_VERSION,
@@ -52,6 +53,17 @@ export interface PersistedSurveyDraft {
   preWalk?: PreWalkState
   lastSubmission: SurveySubmission | null
   savedAt: string
+  /** Room ids removed on this device; cloud pull must not bring them back. */
+  discardedRoomIds?: string[]
+  /** Outdoor pin ids removed on this device. */
+  discardedPinIds?: string[]
+  /**
+   * Room ids this device last saved from live survey state. Cloud pull may union
+   * other people's rooms into localStorage; those must not be treated as discarded.
+   */
+  ownedRoomIds?: string[]
+  /** Outdoor pin ids this device last saved from live survey state. */
+  ownedPinIds?: string[]
   /**
    * Stamped after Traditional studio rooms are cleared for v3 rubric migration.
    * Drafts without this (or with a lower value) drop Traditional room answers on load.
@@ -253,6 +265,15 @@ function stripStudioTypeFromDraft(
   }
 }
 
+function packageVersionNeedsStrip(
+  draftVersion: number | undefined,
+  current: number,
+): boolean {
+  // Missing stamps are first-time bookkeeping — do not wipe field answers.
+  // Only strip when a stored version is older than the current package.
+  return typeof draftVersion === "number" && draftVersion !== current
+}
+
 /**
  * Clear package studio room drafts when their rubrics land
  * (answers from the shared rubric — or older packages — are invalid).
@@ -262,92 +283,91 @@ function migratePackageStudioDrafts(draft: PersistedSurveyDraft): PersistedSurve
   let changed = false
 
   if (next.traditionalStudiosRubricVersion !== TRADITIONAL_STUDIOS_RUBRIC_VERSION) {
-    next = {
-      ...stripStudioTypeFromDraft(next, "Traditional studio"),
-      traditionalStudiosRubricVersion: TRADITIONAL_STUDIOS_RUBRIC_VERSION,
+    if (packageVersionNeedsStrip(next.traditionalStudiosRubricVersion, TRADITIONAL_STUDIOS_RUBRIC_VERSION)) {
+      next = stripStudioTypeFromDraft(next, "Traditional studio")
     }
+    next = { ...next, traditionalStudiosRubricVersion: TRADITIONAL_STUDIOS_RUBRIC_VERSION }
     changed = true
   }
 
   if (next.sensoryLabRubricVersion !== SENSORY_LAB_RUBRIC_VERSION) {
-    next = {
-      ...stripStudioTypeFromDraft(next, "Sensory Lab"),
-      sensoryLabRubricVersion: SENSORY_LAB_RUBRIC_VERSION,
+    if (packageVersionNeedsStrip(next.sensoryLabRubricVersion, SENSORY_LAB_RUBRIC_VERSION)) {
+      next = stripStudioTypeFromDraft(next, "Sensory Lab")
     }
+    next = { ...next, sensoryLabRubricVersion: SENSORY_LAB_RUBRIC_VERSION }
     changed = true
   }
 
   if (next.vocationalLabRubricVersion !== VOCATIONAL_LAB_RUBRIC_VERSION) {
-    // Strip both casings (legacy "Vocational lab" + package "Vocational Lab")
-    next = stripStudioTypeFromDraft(next, "Vocational lab")
-    next = {
-      ...stripStudioTypeFromDraft(next, "Vocational Lab"),
-      vocationalLabRubricVersion: VOCATIONAL_LAB_RUBRIC_VERSION,
+    if (packageVersionNeedsStrip(next.vocationalLabRubricVersion, VOCATIONAL_LAB_RUBRIC_VERSION)) {
+      next = stripStudioTypeFromDraft(next, "Vocational lab")
+      next = stripStudioTypeFromDraft(next, "Vocational Lab")
     }
+    next = { ...next, vocationalLabRubricVersion: VOCATIONAL_LAB_RUBRIC_VERSION }
     changed = true
   }
 
   if (next.lifeSkillsRubricVersion !== LIFE_SKILLS_RUBRIC_VERSION) {
-    next = {
-      ...stripStudioTypeFromDraft(next, "Life Skills Room"),
-      lifeSkillsRubricVersion: LIFE_SKILLS_RUBRIC_VERSION,
+    if (packageVersionNeedsStrip(next.lifeSkillsRubricVersion, LIFE_SKILLS_RUBRIC_VERSION)) {
+      next = stripStudioTypeFromDraft(next, "Life Skills Room")
     }
+    next = { ...next, lifeSkillsRubricVersion: LIFE_SKILLS_RUBRIC_VERSION }
     changed = true
   }
 
   if (next.spedFlexRubricVersion !== SPED_FLEX_RUBRIC_VERSION) {
-    next = {
-      ...stripStudioTypeFromDraft(next, "Sped flex studio"),
-      spedFlexRubricVersion: SPED_FLEX_RUBRIC_VERSION,
+    if (packageVersionNeedsStrip(next.spedFlexRubricVersion, SPED_FLEX_RUBRIC_VERSION)) {
+      next = stripStudioTypeFromDraft(next, "Sped flex studio")
     }
+    next = { ...next, spedFlexRubricVersion: SPED_FLEX_RUBRIC_VERSION }
     changed = true
   }
 
   if (next.scienceRubricVersion !== SCIENCE_RUBRIC_VERSION) {
-    next = {
-      ...stripStudioTypeFromDraft(next, "Science"),
-      scienceRubricVersion: SCIENCE_RUBRIC_VERSION,
+    if (packageVersionNeedsStrip(next.scienceRubricVersion, SCIENCE_RUBRIC_VERSION)) {
+      next = stripStudioTypeFromDraft(next, "Science")
     }
+    next = { ...next, scienceRubricVersion: SCIENCE_RUBRIC_VERSION }
     changed = true
   }
 
   if (next.sciencePrepRubricVersion !== SCIENCE_PREP_RUBRIC_VERSION) {
-    next = {
-      ...stripStudioTypeFromDraft(next, "Science Prep Room"),
-      sciencePrepRubricVersion: SCIENCE_PREP_RUBRIC_VERSION,
+    if (packageVersionNeedsStrip(next.sciencePrepRubricVersion, SCIENCE_PREP_RUBRIC_VERSION)) {
+      next = stripStudioTypeFromDraft(next, "Science Prep Room")
     }
+    next = { ...next, sciencePrepRubricVersion: SCIENCE_PREP_RUBRIC_VERSION }
     changed = true
   }
 
   if (next.artRubricVersion !== ART_RUBRIC_VERSION) {
-    next = {
-      ...stripStudioTypeFromDraft(next, "Art"),
-      artRubricVersion: ART_RUBRIC_VERSION,
+    if (packageVersionNeedsStrip(next.artRubricVersion, ART_RUBRIC_VERSION)) {
+      next = stripStudioTypeFromDraft(next, "Art")
     }
+    next = { ...next, artRubricVersion: ART_RUBRIC_VERSION }
     changed = true
   }
 
   if (next.musicRubricVersion !== MUSIC_RUBRIC_VERSION) {
-    next = {
-      ...stripStudioTypeFromDraft(next, "Music"),
-      musicRubricVersion: MUSIC_RUBRIC_VERSION,
+    if (packageVersionNeedsStrip(next.musicRubricVersion, MUSIC_RUBRIC_VERSION)) {
+      next = stripStudioTypeFromDraft(next, "Music")
     }
+    next = { ...next, musicRubricVersion: MUSIC_RUBRIC_VERSION }
     changed = true
   }
 
   if (next.earlyChildhoodRubricVersion !== EARLY_CHILDHOOD_RUBRIC_VERSION) {
-    next = {
-      ...stripStudioTypeFromDraft(next, "Early childhood studio"),
-      earlyChildhoodRubricVersion: EARLY_CHILDHOOD_RUBRIC_VERSION,
+    if (packageVersionNeedsStrip(next.earlyChildhoodRubricVersion, EARLY_CHILDHOOD_RUBRIC_VERSION)) {
+      next = stripStudioTypeFromDraft(next, "Early childhood studio")
     }
+    next = { ...next, earlyChildhoodRubricVersion: EARLY_CHILDHOOD_RUBRIC_VERSION }
     changed = true
   }
 
   if (next.earlyChildhoodSpedRubricVersion !== EARLY_CHILDHOOD_SPED_RUBRIC_VERSION) {
-    next = {
-      ...stripStudioTypeFromDraft(next, "Early childhood special education studio"),
-      earlyChildhoodSpedRubricVersion: EARLY_CHILDHOOD_SPED_RUBRIC_VERSION,
+    if (packageVersionNeedsStrip(next.earlyChildhoodSpedRubricVersion, EARLY_CHILDHOOD_SPED_RUBRIC_VERSION)) {
+      next = stripStudioTypeFromDraft(next, "Early childhood special education studio")
     }
+    next = { ...next, earlyChildhoodSpedRubricVersion: EARLY_CHILDHOOD_SPED_RUBRIC_VERSION }
     changed = true
   }
 
@@ -465,17 +485,147 @@ export function loadDraftsForSchool(schoolId: string): PersistedSurveyDraft[] {
     .filter((d): d is PersistedSurveyDraft => d != null)
 }
 
+export function nextDiscardedRoomIds(
+  previous: PersistedSurveyDraft | null | undefined,
+  session: SurveySession,
+): string[] {
+  const discarded = new Set(previous?.discardedRoomIds ?? [])
+  // Only rooms this device previously owned. A cloud pull may union other
+  // assessors' rooms into the stored draft; those must not be deleted on save.
+  const previousOwned = previous?.ownedRoomIds
+  if (previousOwned) {
+    for (const roomId of previousOwned) {
+      if (!session.rooms[roomId]) discarded.add(roomId)
+    }
+  }
+  for (const roomId of Object.keys(session.rooms)) discarded.delete(roomId)
+  return [...discarded]
+}
+
+export function nextDiscardedPinIds(
+  previous: PersistedSurveyDraft | null | undefined,
+  session: SurveySession,
+): string[] {
+  const discarded = new Set(previous?.discardedPinIds ?? [])
+  const currentIds = new Set((session.outdoorElementPins ?? []).map((pin) => pin.id))
+  const previousOwned = previous?.ownedPinIds
+  if (previousOwned) {
+    for (const pinId of previousOwned) {
+      if (!currentIds.has(pinId)) discarded.add(pinId)
+    }
+  }
+  for (const id of currentIds) discarded.delete(id)
+  return [...discarded]
+}
+
 function submittedRoomCount(draft: PersistedSurveyDraft | null | undefined): number {
   return draft?.lastSubmission?.campus?.rooms?.length ?? 0
 }
 
-function sessionResponseCount(session: SurveySession | null | undefined): number {
-  if (!session) return 0
-  let count = 0
-  for (const room of Object.values(session.rooms)) {
-    count += room.responses?.length ?? 0
+export function roomAssessmentWeight(room: RoomSurveySession): number {
+  let count = room.responses?.length ?? 0
+  for (const response of room.responses ?? []) {
+    if (response.comment?.trim()) count += 1
+    count += response.photos?.length ?? 0
+    if (response.photo) count += 1
   }
+  if (room.gradeType) count += 1
+  if (room.deferredToCloseOut) count += 1
+  if (room.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(room.roomId)) count += 1
   return count
+}
+
+export function roomHasAssessmentProgress(room: RoomSurveySession | null | undefined): boolean {
+  if (!room) return false
+  return roomAssessmentWeight(room) > 0
+}
+
+/** Responses plus existence / absent-space answers so DNE work is not treated as empty. */
+export function sessionAssessmentWeight(session: SurveySession | null | undefined): number {
+  if (!session) return 0
+  let count = session.outdoorElementPins?.length ?? 0
+  for (const room of Object.values(session.rooms)) {
+    count += roomAssessmentWeight(room)
+  }
+  count += Object.keys(session.spaceTypeExistsAtSchool ?? {}).length
+  return count
+}
+
+/**
+ * Combine two sessions without dropping completed rooms or "does not exist" answers.
+ * Rooms are unioned. The richer copy of the same room wins. Discarded rooms stay gone.
+ */
+export function mergeSurveySessions(
+  local: SurveySession,
+  remote: SurveySession,
+  localNewer: boolean,
+  options?: { includeOtherOnlyRooms?: boolean; excludeRoomIds?: string[] },
+): SurveySession {
+  const primary = localNewer ? local : remote
+  const secondary = localNewer ? remote : local
+  const rooms: Record<string, RoomSurveySession> = { ...primary.rooms }
+  const allowSecondaryOnly = options?.includeOtherOnlyRooms ?? true
+  const excluded = new Set(options?.excludeRoomIds ?? [])
+
+  for (const id of excluded) {
+    delete rooms[id]
+  }
+
+  for (const [roomId, room] of Object.entries(secondary.rooms)) {
+    if (excluded.has(roomId)) continue
+    const existing = rooms[roomId]
+    if (!existing) {
+      if (allowSecondaryOnly && roomHasAssessmentProgress(room)) rooms[roomId] = room
+      continue
+    }
+    if (roomAssessmentWeight(room) > roomAssessmentWeight(existing)) {
+      rooms[roomId] = room
+    }
+  }
+
+  const spaceTypeExistsAtSchool = {
+    ...(secondary.spaceTypeExistsAtSchool ?? {}),
+    ...(primary.spaceTypeExistsAtSchool ?? {}),
+  }
+
+  const primaryPins = primary.outdoorElementPins ?? []
+  const secondaryPins = secondary.outdoorElementPins ?? []
+  const pinsById = new Map(secondaryPins.map((pin) => [pin.id, pin]))
+  for (const pin of primaryPins) pinsById.set(pin.id, pin)
+  const outdoorElementPins = [...pinsById.values()]
+
+  const primaryUpdated = Date.parse(primary.updatedAt || "") || 0
+  const secondaryUpdated = Date.parse(secondary.updatedAt || "") || 0
+  const updatedAt =
+    primaryUpdated >= secondaryUpdated ? primary.updatedAt : secondary.updatedAt
+
+  return {
+    ...primary,
+    rooms,
+    outdoorElementPins: outdoorElementPins.length > 0 ? outdoorElementPins : primary.outdoorElementPins,
+    spaceTypeExistsAtSchool:
+      Object.keys(spaceTypeExistsAtSchool).length > 0 ? spaceTypeExistsAtSchool : undefined,
+    submittedAt: primary.submittedAt ?? secondary.submittedAt,
+    updatedAt: updatedAt || primary.updatedAt,
+  }
+}
+
+/** True when `cover` already includes every room and existence answer from `local`. */
+export function sessionCoversLocalProgress(
+  cover: SurveySession | null | undefined,
+  local: SurveySession | null | undefined,
+): boolean {
+  if (!local) return true
+  if (!cover) return false
+  for (const [roomId, room] of Object.entries(local.rooms)) {
+    if (!roomHasAssessmentProgress(room)) continue
+    const other = cover.rooms[roomId]
+    if (!other || roomAssessmentWeight(other) < roomAssessmentWeight(room)) return false
+  }
+  for (const [key, exists] of Object.entries(local.spaceTypeExistsAtSchool ?? {})) {
+    if (cover.spaceTypeExistsAtSchool?.[key] !== exists) return false
+  }
+  return true
 }
 
 function submissionAnsweredCount(draft: PersistedSurveyDraft | null | undefined): number {
@@ -488,7 +638,7 @@ function submissionAnsweredCount(draft: PersistedSurveyDraft | null | undefined)
 
 /**
  * Prefer cloud when it is the richer copy, but keep local when this device just
- * saved (including Close Out score updates) and the pull is still stale.
+ * saved (including Close Out score updates and "does not exist") and the pull is still stale.
  */
 export function mergePulledDraftWithLocal(
   remote: PersistedSurveyDraft,
@@ -496,33 +646,41 @@ export function mergePulledDraftWithLocal(
 ): PersistedSurveyDraft {
   if (!local) return remote
 
-  const localResponses = sessionResponseCount(local.session)
-  const remoteResponses = sessionResponseCount(remote.session)
   const localAnswered = submissionAnsweredCount(local)
   const remoteAnswered = submissionAnsweredCount(remote)
   const localNewer = (local.savedAt || "") > (remote.savedAt || "")
 
-  const keepLocalSession =
-    localResponses > remoteResponses ||
-    (localNewer && localResponses >= remoteResponses && localResponses > 0)
   const keepLocalSnapshot =
     localAnswered > remoteAnswered ||
     (submittedRoomCount(local) > 0 && submittedRoomCount(remote) === 0) ||
     (localNewer && localAnswered >= remoteAnswered && submittedRoomCount(local) > 0)
 
-  if (!keepLocalSession && !keepLocalSnapshot) return remote
+  const session = mergeSurveySessions(local.session, remote.session, localNewer, {
+    includeOtherOnlyRooms: true,
+    excludeRoomIds: local.discardedRoomIds,
+  })
+  const discardedPinIds = new Set(local.discardedPinIds ?? [])
+  if (session.outdoorElementPins) {
+    session.outdoorElementPins = session.outdoorElementPins.filter((pin) => !discardedPinIds.has(pin.id))
+  }
 
   return {
     ...remote,
-    session: keepLocalSession
-      ? local.session
-      : {
-          ...remote.session,
-          submittedAt: remote.session.submittedAt ?? local.session.submittedAt,
-        },
+    ...local,
+    session,
+    discardedRoomIds: local.discardedRoomIds,
+    discardedPinIds: local.discardedPinIds,
+    ownedRoomIds: local.ownedRoomIds,
+    ownedPinIds: local.ownedPinIds,
     lastSubmission: keepLocalSnapshot
       ? (local.lastSubmission ?? remote.lastSubmission)
       : (remote.lastSubmission ?? local.lastSubmission),
+    pendingStudioType: local.pendingStudioType ?? remote.pendingStudioType,
+    pendingNeighborhood: local.pendingNeighborhood ?? remote.pendingNeighborhood,
+    selectedRoomId: local.selectedRoomId ?? remote.selectedRoomId,
+    selectedLevelId: local.selectedLevelId ?? remote.selectedLevelId,
+    view: local.view ?? remote.view,
+    preWalk: local.preWalk ?? remote.preWalk,
     savedAt: localNewer ? local.savedAt : remote.savedAt,
   }
 }
@@ -684,6 +842,15 @@ export function persistPreWalkSpaceTypeExistsToSchoolDrafts(input: {
   }
 
   return written
+}
+
+export function draftRetainsSession(
+  schoolId: string,
+  surveyType: SurveyType,
+  session: SurveySession,
+): boolean {
+  const loaded = loadDraft(schoolId, surveyType)
+  return !!loaded && sessionCoversLocalProgress(loaded.session, session)
 }
 
 export function formatSavedAt(iso: string): string {

@@ -31,6 +31,7 @@ import {
   focusAreaWeightForSchool,
   lookupTableEntry,
   schoolLevelFromSchoolClass,
+  spaceTypeCountsTowardCampusScore,
   TABLE_OF_SURVEY_ENTRIES,
 } from "@aisd/shared"
 import { scoreRoomSessionWithMetadata, scoreAbsentSpaceTypeRoom } from "@/lib/traditional-studio-room-score"
@@ -311,6 +312,9 @@ function computeWeightedCampusScore(
 
     const spaceTypeScores: { score: number; weight: number }[] = []
     for (const [spaceType, typeRooms] of bySpaceType) {
+      if (!spaceTypeCountsTowardCampusScore(typeRooms[0].surveyType, spaceType, schoolClass)) {
+        continue
+      }
       const avg = average(typeRooms.map((room) => room.overallScore!))
       if (avg == null) continue
       const entry = lookupTableEntry(typeRooms[0].surveyType, spaceType, schoolClass)
@@ -343,6 +347,7 @@ function buildAssessedRoom(
   if (!roomHasAssessment(detail, assessmentOptions)) return null
 
   const spaceType = resolveSpaceType(roomSession, surveyType, schoolClass)
+  if (!spaceTypeCountsTowardCampusScore(surveyType, spaceType, schoolClass)) return null
   const focusAreaId = scoringFocusAreaForRoom(surveyType, roomSession.roomType, schoolClass)
   if (!focusAreaId) return null
 

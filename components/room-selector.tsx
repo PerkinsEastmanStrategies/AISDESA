@@ -16,7 +16,6 @@ import {
   isStudioType,
   NEIGHBORHOOD_OPTIONS,
   spaceTypeCompletionProgress,
-  spaceTypeCompletionRule,
   spaceTypeOptionsForSurvey,
   readSpaceTypeExistsAtSchool,
   isSpaceTypeMarkedAbsentAtSchool,
@@ -1001,7 +1000,9 @@ export default function RoomSelector({
                 const hasSaved = absent || progress.started > 0
                 const roomsOfType = roomsWithPlanNeighborhood(
                   state.session
-                    ? Object.values(state.session.rooms).filter((room) => room.roomType === type)
+                    ? Object.values(state.session.rooms).filter(
+                        (room) => room.roomType === type && roomHasAssessmentProgress(room),
+                      )
                     : [],
                   state.allRooms,
                 )
@@ -1020,7 +1021,7 @@ export default function RoomSelector({
                     (room) => roomSurveyComplete(room),
                   )
                 const inProgress = hasSaved && !typeComplete
-                const isTraditional = spaceTypeCompletionRule(type, state.school?.schoolClass).kind === "perNeighborhood"
+                const showQuota = isRequired && completionProgress.required > 1
                 const itemClass = active
                   ? "bg-blue-50 text-[var(--color-primary)]"
                   : absent
@@ -1044,20 +1045,16 @@ export default function RoomSelector({
                         <span className="block leading-snug">{type}</span>
                         {!isRequired && (
                           <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-wide text-slate-400">
-                            Optional
+                            Optional · not scored
                           </span>
                         )}
-                        {isTraditional ? (
-                          completionProgress.complete > 0 || progress.started > 0 ? (
-                            <span className="mt-0.5 block text-xs font-normal text-[var(--color-muted-foreground)]">
-                              {completionProgress.complete}
-                              {completionProgress.required > 1 ? ` / ${completionProgress.required}` : ""}{" "}
-                              complete
-                              {inProgress
-                                ? ` · ${Math.max(0, progress.started - progress.complete)} in progress`
-                                : ""}
-                            </span>
-                          ) : null
+                        {showQuota ? (
+                          <span className="mt-0.5 block text-xs font-normal text-[var(--color-muted-foreground)]">
+                            {completionProgress.complete} / {completionProgress.required} complete
+                            {inProgress
+                              ? ` · ${Math.max(0, progress.started - progress.complete)} in progress`
+                              : ""}
+                          </span>
                         ) : typeComplete ? (
                           <span
                             className={cn(

@@ -1,4 +1,4 @@
-import { testCampusCloneForSchool, type AisdSchoolOption } from "@aisd/shared"
+import { compareSchoolsForPicker, testCampusCloneForSchool, type AisdSchoolOption } from "@aisd/shared"
 
 /** Live Google Sheet (published CSV) — fallback when `floor_plan_manifest` has no row for a campus. */
 export const DEFAULT_FLOOR_PLAN_MANIFEST_URL =
@@ -377,9 +377,7 @@ export function schoolsWithManifestDisplayNames(
       ...school,
       displayName: displayNameForSchoolFromManifest(school, manifest),
     }))
-    .sort((a, b) =>
-      a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" }),
-    )
+    .sort(compareSchoolsForPicker)
 }
 
 export function rowHasFloorPlans(row: FloorPlanManifestRow): boolean {

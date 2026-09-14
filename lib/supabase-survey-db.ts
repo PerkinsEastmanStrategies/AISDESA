@@ -16,11 +16,12 @@ import {
   isAbsentSpaceTypeRoomId,
   parseAbsentSpaceTypeRoomId,
   spaceTypeExistenceKey,
+  applyPreWalkSpaceTypeExistsToSession,
 } from "@aisd/shared"
 import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
+import { roomAssessmentWeight } from "@/lib/survey-persistence"
 import { sessionHasRegisteredAssessor } from "@/lib/assessor"
-import { countDraftResponses } from "@/lib/school-draft-merge"
-import { applyPreWalkMappingDeletes, mergePreWalkStates } from "@/lib/prewalk"
+import { applyPreWalkMappingDeletes, mergePreWalkStates, parsePreWalkSpaceTypeExistsKey, preWalkSpaceTypeExistsKey } from "@/lib/prewalk"
 import {
   isSupabaseServerConfigured,
   supabaseRestDelete,
@@ -100,6 +101,15 @@ interface DbPrewalkMapping {
   note1: string | null
   note2: string | null
   mapped_at: string | null
+}
+
+interface DbPrewalkExistence {
+  school_id: string
+  campus_id: string
+  survey_type: SurveyType
+  space_type: string
+  does_exist: boolean
+  answered_at: string | null
 }
 
 interface DbManualRoom {
@@ -312,6 +322,54 @@ function dbRoomToSession(row: DbSurveyRoom, responses: DbQuestionResponse[]): Ro
   }
 }
 
+const PREWALK_EXISTENCE_TABLE = "esa_prewalk_existence_20260914"
+
+async function syncPrewalkExistence(
+  school: AisdSchoolOption,
+  spaceTypeExists: Record<string, boolean> | undefined,
+): Promise<void> {
+  const rows: DbPrewalkExistence[] = []
+  const answeredAt = new Date().toISOString()
+  for (const [key, doesExist] of Object.entries(spaceTypeExists ?? {})) {
+    if (doesExist !== true && doesExist !== false) continue
+    const parsed = parsePreWalkSpaceTypeExistsKey(key)
+    if (!parsed) continue
+    rows.push({
+      school_id: school.id,
+      campus_id: school.campusId,
+      survey_type: parsed.surveyType,
+      space_type: parsed.spaceType,
+      does_exist: doesExist,
+      answered_at: answeredAt,
+    })
+  }
+  if (rows.length === 0) return
+  try {
+    await supabaseRestUpsert(PREWALK_EXISTENCE_TABLE, rows, "school_id,survey_type,space_type")
+  } catch (error) {
+    console.error("Pre-walk existence sync failed. Run esa_prewalk_existence_20260914 SQL in Supabase.", error)
+  }
+}
+
+async function loadPrewalkExistence(schoolId: string): Promise<Record<string, boolean>> {
+  try {
+    const rows = await supabaseRestSelect<DbPrewalkExistence>(
+      PREWALK_EXISTENCE_TABLE,
+      `school_id=eq.${encodeURIComponent(schoolId)}&select=survey_type,space_type,does_exist`,
+    )
+    const spaceTypeExists: Record<string, boolean> = {}
+    for (const row of rows) {
+      if (!row.survey_type || !row.space_type) continue
+      if (row.does_exist !== true && row.does_exist !== false) continue
+      spaceTypeExists[preWalkSpaceTypeExistsKey(row.survey_type, row.space_type)] = row.does_exist
+    }
+    return spaceTypeExists
+  } catch (error) {
+    console.error("Pre-walk existence load failed. Run esa_prewalk_existence_20260914 SQL in Supabase.", error)
+    return {}
+  }
+}
+
 async function syncPrewalk(
   school: AisdSchoolOption,
   preWalk: PreWalkState | undefined,
@@ -356,6 +414,8 @@ async function syncPrewalk(
       `school_id=eq.${encodeURIComponent(school.id)}&survey_type=eq.${encodeURIComponent(deletion.surveyType)}&room_id=eq.${encodeURIComponent(deletion.roomId)}`,
     )
   }
+
+  await syncPrewalkExistence(school, preWalk.spaceTypeExists)
 }
 
 async function syncManualRooms(schoolId: string, manualRooms: ParsedPlanRoom[] | undefined): Promise<void> {
@@ -380,42 +440,145 @@ async function syncManualRooms(schoolId: string, manualRooms: ParsedPlanRoom[] |
   )
 }
 
+async function deleteSessionRowsByIds(
+  table: string,
+  sessionId: string,
+  idColumn: string,
+  ids: string[],
+): Promise<void> {
+  const unique = [...new Set(ids.filter(Boolean))]
+  for (const id of unique) {
+    await supabaseRestDelete(
+      table,
+      `survey_session_id=eq.${encodeURIComponent(sessionId)}&${idColumn}=eq.${encodeURIComponent(id)}`,
+    )
+  }
+}
+
+async function deleteStaleQuestionResponses(
+  sessionId: string,
+  roomId: string,
+  keepQuestionIds: string[],
+): Promise<void> {
+  const encodedSession = encodeURIComponent(sessionId)
+  const encodedRoom = encodeURIComponent(roomId)
+  if (keepQuestionIds.length === 0) {
+    await supabaseRestDelete(
+      "esa_question_responses",
+      `survey_session_id=eq.${encodedSession}&room_id=eq.${encodedRoom}`,
+    )
+    return
+  }
+
+  const existing = await supabaseRestSelect<{ question_id: string }>(
+    "esa_question_responses",
+    `survey_session_id=eq.${encodedSession}&room_id=eq.${encodedRoom}&select=question_id`,
+  )
+  const keep = new Set(keepQuestionIds)
+  const stale = existing.map((row) => row.question_id).filter((id) => !keep.has(id))
+  for (const questionId of stale) {
+    await supabaseRestDelete(
+      "esa_question_responses",
+      `survey_session_id=eq.${encodedSession}&room_id=eq.${encodedRoom}&question_id=eq.${encodeURIComponent(questionId)}`,
+    )
+  }
+}
+
+async function upsertRoomsAndResponses(sessionId: string, rooms: RoomSurveySession[]): Promise<void> {
+  if (rooms.length === 0) return
+  for (let i = 0; i < rooms.length; i += 80) {
+    const chunk = rooms.slice(i, i + 80)
+    await supabaseRestUpsert(
+      "esa_survey_rooms",
+      chunk.map((room) => roomToDb(sessionId, room)),
+      "survey_session_id,room_id",
+    )
+    const responses = chunk.flatMap((room) =>
+      room.responses.map((response) => responseToDb(sessionId, room.roomId, response)),
+    )
+    if (responses.length > 0) {
+      await supabaseRestUpsert(
+        "esa_question_responses",
+        responses,
+        "survey_session_id,room_id,question_id",
+      )
+    }
+    for (const room of chunk) {
+      await deleteStaleQuestionResponses(
+        sessionId,
+        room.roomId,
+        room.responses.map((response) => response.questionId),
+      )
+    }
+  }
+}
+
 export async function pushSurveyDraft(input: {
   school: AisdSchoolOption
   draft: PersistedSurveyDraft
   writeSnapshot?: boolean
-}): Promise<{ updatedAt: string; action: "pushed" | "skipped_remote_newer" }> {
+}): Promise<{
+  updatedAt: string
+  action: "pushed" | "skipped_remote_newer"
+  sameRoomConflicts: string[]
+}> {
   const { school, draft, writeSnapshot = false } = input
   if (!isSupabaseServerConfigured()) {
-    return { updatedAt: draft.savedAt, action: "pushed" }
+    return { updatedAt: draft.savedAt, action: "pushed", sameRoomConflicts: [] }
   }
 
   const remoteRows = await supabaseRestSelect<DbSurveySession>(
     "esa_survey_sessions",
-    `school_id=eq.${encodeURIComponent(draft.schoolId)}&survey_type=eq.${encodeURIComponent(draft.surveyType)}&select=id,updated_at`,
+    `school_id=eq.${encodeURIComponent(draft.schoolId)}&survey_type=eq.${encodeURIComponent(draft.surveyType)}&select=*`,
   )
-  const remoteSessionId = remoteRows[0]?.id
-  const remoteUpdatedAt = remoteRows[0]?.updated_at
-  const localResponseCount = countDraftResponses(draft)
+  const existingSession = remoteRows[0]
+  const remoteSessionId = existingSession?.id
 
-  if (remoteUpdatedAt && remoteUpdatedAt > draft.savedAt) {
-    const remoteDraft = await pullSurveyDraft({
-      schoolId: draft.schoolId,
-      surveyType: draft.surveyType,
-    })
-    const remoteResponseCount = remoteDraft ? countDraftResponses(remoteDraft) : 0
-    if (remoteResponseCount >= localResponseCount) {
-      return { updatedAt: remoteUpdatedAt, action: "skipped_remote_newer" }
+  const existingDraft = remoteSessionId
+    ? await pullSurveyDraft({
+        schoolId: draft.schoolId,
+        surveyType: draft.surveyType,
+      })
+    : null
+  const remoteRooms = existingDraft?.session.rooms ?? {}
+
+  const ownedRoomIds = draft.ownedRoomIds
+  const candidateRooms = Object.values(draft.session.rooms).filter(
+    (room) => !ownedRoomIds || ownedRoomIds.includes(room.roomId),
+  )
+
+  const roomsToUpsert: RoomSurveySession[] = []
+  const sameRoomConflicts: string[] = []
+  for (const room of candidateRooms) {
+    const remoteRoom = remoteRooms[room.roomId]
+    const localWeight = roomAssessmentWeight(room)
+    const remoteWeight = remoteRoom ? roomAssessmentWeight(remoteRoom) : 0
+    if (remoteRoom && remoteWeight > localWeight && localWeight > 0) {
+      sameRoomConflicts.push(room.roomNumber || room.roomType || room.roomId)
+      continue
     }
+    roomsToUpsert.push(room)
   }
+
+  const upsertedRoomIds = new Set(roomsToUpsert.map((room) => room.roomId))
+  const discardedRoomIds = (draft.discardedRoomIds ?? []).filter(
+    (roomId) => !upsertedRoomIds.has(roomId) && !draft.session.rooms[roomId],
+  )
 
   await upsertSchool(school)
   const campusAssessmentId = await ensureCampusAssessment(school)
 
   const session = draft.session
   if (!sessionHasRegisteredAssessor(session)) {
-    return { updatedAt: draft.savedAt, action: "pushed" }
+    return { updatedAt: draft.savedAt, action: "pushed", sameRoomConflicts }
   }
+
+  const remoteAssessorName = existingSession?.assessor_name?.trim() || ""
+  const remoteAssessorEmail = existingSession?.assessor_email?.trim() || ""
+  const startedAt =
+    existingSession?.started_at && existingSession.started_at < session.startedAt
+      ? existingSession.started_at
+      : session.startedAt
 
   const [upsertedSession] = await supabaseRestUpsert(
     "esa_survey_sessions",
@@ -427,13 +590,19 @@ export async function pushSurveyDraft(input: {
       school_name: session.schoolName,
       survey_type: session.surveyType,
       building: session.building || "Main",
-      assessor_name: session.assessorName ?? null,
-      assessor_email: session.assessorEmail ?? null,
-      assessor_registered_at: session.assessorRegisteredAt ?? null,
-      started_at: session.startedAt,
-      submitted_at: session.submittedAt ?? draft.lastSubmission?.submittedAt ?? null,
-      final_comment: session.finalComment ?? null,
-      campus_submitted_at: session.campusSubmittedAt ?? null,
+      assessor_name: remoteAssessorName || session.assessorName || null,
+      assessor_email: remoteAssessorEmail || session.assessorEmail || null,
+      assessor_registered_at:
+        existingSession?.assessor_registered_at || session.assessorRegisteredAt || null,
+      started_at: startedAt,
+      submitted_at:
+        session.submittedAt ??
+        draft.lastSubmission?.submittedAt ??
+        existingSession?.submitted_at ??
+        null,
+      final_comment: session.finalComment ?? existingSession?.final_comment ?? null,
+      campus_submitted_at:
+        session.campusSubmittedAt ?? existingSession?.campus_submitted_at ?? null,
       updated_at: draft.savedAt,
     },
     "school_id,survey_type",
@@ -441,46 +610,18 @@ export async function pushSurveyDraft(input: {
 
   const sessionId = (upsertedSession as DbSurveySession).id
 
-  const rooms = Object.values(session.rooms)
-  if (localResponseCount === 0 && remoteSessionId) {
-    const existingResponses = await supabaseRestSelect<{ room_id: string }>(
-      "esa_question_responses",
-      `survey_session_id=eq.${encodeURIComponent(remoteSessionId)}&select=room_id&limit=1`,
-    )
-    if (existingResponses.length > 0) {
-      return { updatedAt: remoteUpdatedAt ?? draft.savedAt, action: "skipped_remote_newer" }
-    }
-  }
+  await upsertRoomsAndResponses(sessionId, roomsToUpsert)
+  await deleteSessionRowsByIds("esa_survey_rooms", sessionId, "room_id", discardedRoomIds)
 
-  await supabaseRestDelete(
-    "esa_question_responses",
-    `survey_session_id=eq.${encodeURIComponent(sessionId)}`,
-  )
-  await supabaseRestDelete(
-    "esa_survey_rooms",
-    `survey_session_id=eq.${encodeURIComponent(sessionId)}`,
-  )
-  await supabaseRestDelete(
-    "esa_outdoor_pins",
-    `survey_session_id=eq.${encodeURIComponent(sessionId)}`,
-  )
-
-  if (rooms.length > 0) {
-    await supabaseRestInsert("esa_survey_rooms", rooms.map((room) => roomToDb(sessionId, room)))
-
-    const responses = rooms.flatMap((room) =>
-      room.responses.map((response) => responseToDb(sessionId, room.roomId, response)),
-    )
-    if (responses.length > 0) {
-      await supabaseRestInsert("esa_question_responses", responses)
-    }
-  }
-
-  const pins = session.outdoorElementPins ?? []
-  if (pins.length > 0) {
-    await supabaseRestInsert(
+  const ownedPinIds = draft.ownedPinIds
+  const localPins = session.outdoorElementPins ?? []
+  const pinsToUpsert = ownedPinIds
+    ? localPins.filter((pin) => ownedPinIds.includes(pin.id))
+    : localPins
+  if (pinsToUpsert.length > 0) {
+    await supabaseRestUpsert(
       "esa_outdoor_pins",
-      pins.map((pin) => ({
+      pinsToUpsert.map((pin) => ({
         survey_session_id: sessionId,
         pin_id: pin.id,
         element_type: pin.elementType,
@@ -488,8 +629,13 @@ export async function pushSurveyDraft(input: {
         lat: pin.lat,
         placed_at: pin.placedAt,
       })),
+      "survey_session_id,pin_id",
     )
   }
+
+  const upsertedPinIds = new Set(pinsToUpsert.map((pin) => pin.id))
+  const discardedPinIds = (draft.discardedPinIds ?? []).filter((pinId) => !upsertedPinIds.has(pinId))
+  await deleteSessionRowsByIds("esa_outdoor_pins", sessionId, "pin_id", discardedPinIds)
 
   // Pre-walk is school-scoped and has its own endpoint. Draft sync must not
   // replace esa_prewalk_mappings — a module draft with empty preWalk would wipe
@@ -537,7 +683,7 @@ export async function pushSurveyDraft(input: {
     )
   }
 
-  return { updatedAt: draft.savedAt, action: "pushed" }
+  return { updatedAt: draft.savedAt, action: "pushed", sameRoomConflicts }
 }
 
 type DbSubmissionSnapshot = {
@@ -584,10 +730,13 @@ async function loadSchoolSharedDraftData(schoolId: string): Promise<{
     }
   }
 
+  const spaceTypeExists = await loadPrewalkExistence(schoolId)
+
   const preWalk: PreWalkState = {
     mappings,
     completedAt: prewalkStateRows[0]?.completed_at ?? null,
     skippedAt: prewalkStateRows[0]?.skipped_at ?? null,
+    ...(Object.keys(spaceTypeExists).length > 0 ? { spaceTypeExists } : {}),
   }
 
   const manualRooms: ParsedPlanRoom[] = manualRoomRows.map((room) => ({
@@ -644,26 +793,30 @@ function buildDraftFromSessionRow(
     placedAt: pin.placed_at,
   }))
 
-  const surveySession: SurveySession = {
-    surveyId: sessionRow.survey_id,
-    surveyType: sessionRow.survey_type,
-    schoolId: sessionRow.school_id,
-    schoolName: sessionRow.school_name,
-    campusId: sessionRow.campus_id,
-    building: sessionRow.building,
-    rooms,
-    outdoorElementPins: outdoorElementPins.length ? outdoorElementPins : undefined,
-    assessorName: sessionRow.assessor_name ?? undefined,
-    assessorEmail: sessionRow.assessor_email ?? undefined,
-    assessorRegisteredAt: sessionRow.assessor_registered_at ?? undefined,
-    startedAt: sessionRow.started_at,
-    updatedAt: sessionRow.updated_at,
-    submittedAt: sessionRow.submitted_at ?? undefined,
-    finalComment: sessionRow.final_comment ?? undefined,
-    campusSubmittedAt: sessionRow.campus_submitted_at ?? undefined,
-    spaceTypeExistsAtSchool:
-      Object.keys(spaceTypeExistsAtSchool).length > 0 ? spaceTypeExistsAtSchool : undefined,
-  }
+  const surveySession: SurveySession = applyPreWalkSpaceTypeExistsToSession(
+    {
+      surveyId: sessionRow.survey_id,
+      surveyType: sessionRow.survey_type,
+      schoolId: sessionRow.school_id,
+      schoolName: sessionRow.school_name,
+      campusId: sessionRow.campus_id,
+      building: sessionRow.building,
+      rooms,
+      outdoorElementPins: outdoorElementPins.length ? outdoorElementPins : undefined,
+      assessorName: sessionRow.assessor_name ?? undefined,
+      assessorEmail: sessionRow.assessor_email ?? undefined,
+      assessorRegisteredAt: sessionRow.assessor_registered_at ?? undefined,
+      startedAt: sessionRow.started_at,
+      updatedAt: sessionRow.updated_at,
+      submittedAt: sessionRow.submitted_at ?? undefined,
+      finalComment: sessionRow.final_comment ?? undefined,
+      campusSubmittedAt: sessionRow.campus_submitted_at ?? undefined,
+      spaceTypeExistsAtSchool:
+        Object.keys(spaceTypeExistsAtSchool).length > 0 ? spaceTypeExistsAtSchool : undefined,
+    },
+    shared.preWalk.spaceTypeExists,
+    sessionRow.survey_type,
+  )
 
   const lastSubmission: SurveySubmission | null = snapshot
     ? {
@@ -824,7 +977,7 @@ export async function pushPrewalkOnly(input: {
   await upsertSchool(input.school)
   const remote = await pullPrewalkForSchool(input.school.id)
   const merged = applyPreWalkMappingDeletes(
-    mergePreWalkStates(remote, input.preWalk),
+    mergePreWalkStates(input.preWalk, remote),
     input.deletions?.map((d) => ({
       surveyType: d.surveyType as SurveyType,
       roomId: d.roomId,

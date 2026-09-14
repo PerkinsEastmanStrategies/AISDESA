@@ -1,12 +1,15 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { Check, X } from "lucide-react"
+import { AlertTriangle, Check, CheckCircle2, Loader2, X } from "lucide-react"
+import { surveyTypeLabel } from "@aisd/shared"
 import { useSurvey } from "@/lib/survey-store"
 import { countIncompleteItems } from "@/lib/closeout"
 import type { SubmitValidationResult } from "@/lib/survey-validation"
 import { cn } from "@/lib/utils"
+
+type SaveAck = "saving" | "synced" | "error" | "offline"
 
 export default function SurveyActionBar() {
   const {
@@ -18,34 +21,41 @@ export default function SurveyActionBar() {
     discardCurrentAssessment,
     peekSubmitValidation,
     selectRoom,
+    flushCloudSave,
+    sameRoomCloudConflicts,
   } = useSurvey()
 
   const [incompleteConfirmOpen, setIncompleteConfirmOpen] = useState(false)
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false)
   const [pendingValidation, setPendingValidation] = useState<SubmitValidationResult | null>(null)
+  const [saveAck, setSaveAck] = useState<SaveAck | null>(null)
   const [mounted, setMounted] = useState(false)
+  const saveInFlightRef = useRef(false)
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
+  const dialogOpen = incompleteConfirmOpen || discardConfirmOpen || !!saveAck
+
   useEffect(() => {
-    if (!incompleteConfirmOpen && !discardConfirmOpen) return
+    if (!dialogOpen) return
     const prev = document.body.style.overflow
     document.body.style.overflow = "hidden"
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setIncompleteConfirmOpen(false)
-        setDiscardConfirmOpen(false)
-        setPendingValidation(null)
-      }
+      if (e.key !== "Escape") return
+      if (saveAck === "saving") return
+      setIncompleteConfirmOpen(false)
+      setDiscardConfirmOpen(false)
+      setPendingValidation(null)
+      if (saveAck) setSaveAck(null)
     }
     document.addEventListener("keydown", onKey)
     return () => {
       document.body.style.overflow = prev
       document.removeEventListener("keydown", onKey)
     }
-  }, [incompleteConfirmOpen, discardConfirmOpen])
+  }, [dialogOpen, saveAck])
 
   const incompleteSummary = useMemo(() => {
     if (!pendingValidation) return null
@@ -59,11 +69,26 @@ export default function SurveyActionBar() {
     setIncompleteConfirmOpen(true)
   }
 
+  const confirmDatabaseSave = async () => {
+    if (saveInFlightRef.current) return
+    saveInFlightRef.current = true
+    setSaveAck("saving")
+    try {
+      const result = await flushCloudSave()
+      setSaveAck(result)
+    } catch {
+      setSaveAck("error")
+    } finally {
+      saveInFlightRef.current = false
+    }
+  }
+
   const handleSaveClick = () => {
-    if (!canSubmit) return
+    if (!canSubmit || saveAck === "saving") return
     const validation = peekSubmitValidation()
     if (!validation || validation.valid) {
       saveAndCompleteAnotherSurvey()
+      void confirmDatabaseSave()
       return
     }
     openIncompleteConfirm(validation)
@@ -73,6 +98,7 @@ export default function SurveyActionBar() {
     setIncompleteConfirmOpen(false)
     setPendingValidation(null)
     saveAndCompleteAnotherSurvey({ deferIncomplete: true })
+    void confirmDatabaseSave()
   }
 
   const handleGoBack = () => {
@@ -87,6 +113,8 @@ export default function SurveyActionBar() {
     if (!canDiscard) return
     setDiscardConfirmOpen(true)
   }
+
+  const moduleLabel = surveyTypeLabel(state.surveyType)
 
   const incompleteDialog =
     mounted &&
@@ -235,6 +263,109 @@ export default function SurveyActionBar() {
       document.body,
     )
 
+  const saveAckDialog =
+    mounted &&
+    saveAck &&
+    createPortal(
+      <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
+        {saveAck !== "saving" && (
+          <button
+            type="button"
+            aria-label="Dismiss"
+            className="absolute inset-0 bg-slate-900/45"
+            onClick={() => setSaveAck(null)}
+          />
+        )}
+        {saveAck === "saving" && <div className="absolute inset-0 bg-slate-900/45" />}
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="save-ack-title"
+          aria-live="polite"
+          className="relative z-10 w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-white p-5 shadow-2xl"
+        >
+          {saveAck === "saving" && (
+            <div className="flex items-start gap-3">
+              <Loader2 className="mt-0.5 h-6 w-6 shrink-0 animate-spin text-[var(--color-primary)]" />
+              <div>
+                <h2 id="save-ack-title" className="text-base font-semibold">
+                  Saving to the database…
+                </h2>
+                <p className="mt-1.5 text-sm text-[var(--color-muted-foreground)]">
+                  Keep this page open until save is confirmed. Answers are already stored on this
+                  device.
+                </p>
+              </div>
+            </div>
+          )}
+          {saveAck === "synced" && (
+            <>
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-emerald-600" />
+                <div>
+                  <h2 id="save-ack-title" className="text-base font-semibold">
+                    Saved to the database
+                  </h2>
+                  <p className="mt-1.5 text-sm text-[var(--color-muted-foreground)]">
+                    {moduleLabel} answers are stored. You can reopen this survey and they will still
+                    be there.
+                  </p>
+                  {sameRoomCloudConflicts.length > 0 && (
+                    <p className="mt-2 text-sm text-amber-800">
+                      Another iPad already had more answers in{" "}
+                      {sameRoomCloudConflicts.join(", ")}. Those rooms were left unchanged in the
+                      database.
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSaveAck(null)}
+                className="mt-4 flex min-h-[48px] w-full items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 text-sm font-semibold text-white active:opacity-90"
+              >
+                Continue
+              </button>
+            </>
+          )}
+          {(saveAck === "error" || saveAck === "offline") && (
+            <>
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-6 w-6 shrink-0 text-amber-600" />
+                <div>
+                  <h2 id="save-ack-title" className="text-base font-semibold">
+                    Could not confirm the database save
+                  </h2>
+                  <p className="mt-1.5 text-sm text-[var(--color-muted-foreground)]">
+                    {moduleLabel} answers are on this device only
+                    {saveAck === "offline" ? " because this iPad is offline" : ""}. Stay here and tap
+                    Retry. Do not switch devices until the header says synced.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row-reverse">
+                <button
+                  type="button"
+                  onClick={() => void confirmDatabaseSave()}
+                  className="flex min-h-[48px] flex-1 items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 text-sm font-semibold text-white active:opacity-90"
+                >
+                  Retry
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSaveAck(null)}
+                  className="flex min-h-[48px] flex-1 items-center justify-center rounded-xl border border-[var(--color-border)] px-4 text-sm font-medium active:bg-slate-50"
+                >
+                  Continue anyway
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>,
+      document.body,
+    )
+
   return (
     <>
       <div className="shrink-0 border-t border-[var(--color-border)] bg-white px-3 pt-3 pb-3 safe-bottom">
@@ -244,11 +375,11 @@ export default function SurveyActionBar() {
         <div className="flex flex-row gap-2">
           <button
             type="button"
-            disabled={!canDiscard}
+            disabled={!canDiscard || saveAck === "saving"}
             onClick={handleDiscardClick}
             className={cn(
               "flex min-h-11 flex-1 items-center justify-center rounded-xl border px-3 text-sm font-semibold sm:min-h-[48px] sm:px-4",
-              canDiscard
+              canDiscard && saveAck !== "saving"
                 ? "border-red-200 bg-white text-red-600 active:bg-red-50"
                 : "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400",
             )}
@@ -257,11 +388,13 @@ export default function SurveyActionBar() {
           </button>
           <button
             type="button"
-            disabled={!canSubmit}
+            disabled={!canSubmit || saveAck === "saving"}
             onClick={handleSaveClick}
             className={cn(
               "flex min-h-11 flex-1 items-center justify-center rounded-xl px-3 text-sm font-semibold text-white transition-opacity sm:min-h-[48px] sm:px-4",
-              canSubmit ? "bg-[var(--color-primary)] active:opacity-90" : "cursor-not-allowed bg-slate-300",
+              canSubmit && saveAck !== "saving"
+                ? "bg-[var(--color-primary)] active:opacity-90"
+                : "cursor-not-allowed bg-slate-300",
             )}
           >
             Save and Complete Another Survey
@@ -270,6 +403,7 @@ export default function SurveyActionBar() {
       </div>
       {incompleteDialog}
       {discardDialog}
+      {saveAckDialog}
     </>
   )
 }

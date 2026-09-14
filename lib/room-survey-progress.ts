@@ -21,6 +21,9 @@ export function isRoomSurveyFilledOut(
   schoolClass?: string | null,
 ): boolean {
   if (room.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(room.roomId)) return true
+  const started =
+    room.responses.length > 0 || !!room.gradeType || !!room.deferredToCloseOut
+  if (!started) return false
   const rubric = getRoomSurveyRubric(
     surveyType,
     room.roomType,

@@ -6,9 +6,11 @@ import {
   isSpaceTypeRequiredForSchool,
   lookupTableEntry,
   lookupTableEntryBySpaceType,
+  minimumSurveyCountForSpaceType,
   requiredSurveyTypesForSchool,
   scoringFocusAreaForRoomFromTable,
   scoringFocusAreaLabel,
+  spaceTypeCountsTowardCampusScore,
   spaceTypesForSurveyModule,
   surveyFocusForSurveyType,
   surveyTypeAvailableForSchoolFromTable,
@@ -1509,6 +1511,16 @@ export function applyPreWalkSpaceTypeExistsToSession(
     const spaceType = key.slice(prefix.length).trim()
     if (!spaceType || spaceType.includes("::")) continue
     if (!spaceTypeRequiresExistenceGate(spaceType)) continue
+    // A survey "does not exist" answer is more recent than a pre-walk mapping's exists=true.
+    if (exists) {
+      const absentId = absentSpaceTypeRoomId(spaceType)
+      if (
+        isSpaceTypeMarkedAbsentAtSchool(next, spaceType) ||
+        next.rooms[absentId]?.spaceTypeMarkedAbsent
+      ) {
+        continue
+      }
+    }
     next = applySpaceTypeExistsToSession(next, spaceType, exists)
   }
   return next
@@ -1835,7 +1847,7 @@ export function spaceTypesForScoringFocusArea(
   const types: string[] = []
   for (const surveyType of surveyTypesForSchool(schoolClass)) {
     for (const entry of spaceTypesForSurveyModule(surveyType, schoolClass)) {
-      if (entry.scoringFocusAreaId !== id || seen.has(entry.spaceType)) continue
+      if (entry.scoringFocusAreaId !== id || seen.has(entry.spaceType) || !entry.required) continue
       seen.add(entry.spaceType)
       types.push(entry.spaceType)
     }
@@ -1859,7 +1871,9 @@ export function surveyTypeForScoringFocusArea(id: ScoringFocusAreaId): SurveyTyp
 
 export {
   isSpaceTypeRequiredForSchool,
+  minimumSurveyCountForSpaceType,
   requiredSurveyTypesForSchool,
+  spaceTypeCountsTowardCampusScore,
   spaceTypesForSurveyModule,
   surveyTypesForSchool,
   surveyTypesInSameNavGroup,

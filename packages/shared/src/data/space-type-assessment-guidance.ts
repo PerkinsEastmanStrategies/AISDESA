@@ -1,5 +1,9 @@
 import type { TableSchoolLevel } from "./table-of-surveys"
-import { schoolLevelFromSchoolClass, TABLE_OF_SURVEY_ENTRIES } from "./table-of-surveys"
+import {
+  lookupTableEntryBySpaceType,
+  schoolLevelFromSchoolClass,
+  TABLE_OF_SURVEY_ENTRIES,
+} from "./table-of-surveys"
 
 export interface SpaceTypeAssessmentGuidanceEntry {
   spaceType: string
@@ -273,6 +277,11 @@ export function spaceTypeCompletionRule(
   spaceType: string,
   schoolClass: string | null | undefined,
 ): SpaceTypeCompletionRule {
+  const table = lookupTableEntryBySpaceType(spaceType, schoolClass)
+  if (table?.required && table.minimumSurveyCount > 0) {
+    return { kind: "minRooms", count: table.minimumSurveyCount }
+  }
+
   if (spaceType === "Traditional studio") {
     return { kind: "perNeighborhood", minPerNeighborhood: 2 }
   }

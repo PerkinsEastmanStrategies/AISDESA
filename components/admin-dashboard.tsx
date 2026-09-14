@@ -35,7 +35,7 @@ import { pullAllRemoteDraftsClient } from "@/lib/survey-remote-sync"
 import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
 import QaSchoolReviewModal from "@/components/qa-school-review-modal"
 import { ScoreBadge, ScoreBar } from "@/components/score-display"
-import { SURVEY_TYPES, surveyTypeLabel, type SurveyType } from "@aisd/shared"
+import { isObservationalCategory, SURVEY_TYPES, surveyTypeLabel, type SurveyType } from "@aisd/shared"
 import { cn, scoreTextColor } from "@/lib/utils"
 
 function statusLabel(status: AdminSurveyStatus): string {
@@ -597,7 +597,9 @@ export default function AdminDashboard() {
   const compareCategories = useMemo(() => {
     const names = new Set<string>()
     for (const r of compared) {
-      for (const cat of r.categoryScores) names.add(cat.category)
+      for (const cat of r.categoryScores) {
+        if (cat.weight > 0 && !isObservationalCategory(cat.category)) names.add(cat.category)
+      }
     }
     return Array.from(names)
   }, [compared])

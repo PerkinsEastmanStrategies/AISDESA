@@ -38,7 +38,8 @@ function roomInSubmittedDraft(
   roomId: string,
 ): SubmittedRoomAssessment | null {
   const sub = draft.lastSubmission
-  const campusEntry = sub?.campus?.rooms?.find((r) => r.roomId === roomId)
+  if (!sub) return null
+  const campusEntry = sub.campus?.rooms?.find((r) => r.roomId === roomId)
   if (!campusEntry || !isSubmittedCampusRoom(campusEntry)) return null
 
   const sessionRoom = sub.session.rooms[roomId] ?? draft.session.rooms[roomId]

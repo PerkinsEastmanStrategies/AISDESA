@@ -1,26 +1,19 @@
 import type { SurveySession, SurveyType } from "@aisd/shared"
 import { SURVEY_TYPES } from "@aisd/shared"
-import { loadDraft, saveDraft, type PersistedSurveyDraft } from "@/lib/survey-persistence"
+import {
+  loadDraft,
+  saveDraft,
+  mergePulledDraftWithLocal,
+  sessionAssessmentWeight,
+  type PersistedSurveyDraft,
+} from "@/lib/survey-persistence"
 
 export function countDraftResponses(draft: PersistedSurveyDraft): number {
-  return countSessionResponses(draft.session)
+  return sessionAssessmentWeight(draft.session)
 }
 
 export function countSessionResponses(session: SurveySession | null | undefined): number {
-  if (!session) return 0
-  let count = session.outdoorElementPins?.length ?? 0
-  for (const room of Object.values(session.rooms)) {
-    count += room.responses.length
-    if (room.gradeType) count += 1
-  }
-  return count
-}
-
-function draftRichness(draft: PersistedSurveyDraft): number {
-  let score = countDraftResponses(draft)
-  if (draft.lastSubmission) score += 1000
-  if (draft.session.submittedAt) score += 500
-  return score
+  return sessionAssessmentWeight(session)
 }
 
 /** Prefer the draft with more assessment data; tie-break with savedAt. */
@@ -28,12 +21,7 @@ export function pickRicherDraft(
   local: PersistedSurveyDraft,
   remote: PersistedSurveyDraft,
 ): PersistedSurveyDraft {
-  const localRichness = draftRichness(local)
-  const remoteRichness = draftRichness(remote)
-  if (remoteRichness !== localRichness) {
-    return remoteRichness > localRichness ? remote : local
-  }
-  return remote.savedAt >= local.savedAt ? remote : local
+  return mergePulledDraftWithLocal(remote, local)
 }
 
 /** Merge local and remote drafts per survey module (all SURVEY_TYPES except closeout). */
@@ -50,7 +38,7 @@ export function mergeSchoolDrafts(
     const local = localByType.get(surveyType)
     const remote = remoteByType.get(surveyType)
     if (local && remote) {
-      merged.push(pickRicherDraft(local, remote))
+      merged.push(mergePulledDraftWithLocal(remote, local))
     } else if (remote) {
       merged.push(remote)
     } else if (local) {
@@ -69,7 +57,7 @@ export function hydrateLocalDraftsFromRemote(
   for (const remote of remoteDrafts) {
     if (schoolId && remote.schoolId !== schoolId) continue
     const local = loadDraft(remote.schoolId, remote.surveyType)
-    const merged = local ? pickRicherDraft(local, remote) : remote
+    const merged = local ? mergePulledDraftWithLocal(remote, local) : remote
     saveDraft(merged, { setActive: false })
   }
 }
