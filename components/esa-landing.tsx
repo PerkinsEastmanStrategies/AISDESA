@@ -72,8 +72,58 @@ export default function EsaLanding() {
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
-        <div className="mx-auto flex min-h-full max-w-3xl flex-col justify-center px-4 py-8 sm:px-6 sm:py-12">
+        <div className="mx-auto flex min-h-full max-w-4xl flex-col justify-start px-4 py-6 sm:px-6 sm:py-8">
           <div className="space-y-8">
+            <section
+              aria-labelledby="cache-clear-heading"
+              className="rounded-3xl border-4 border-amber-500 bg-amber-50 px-4 py-7 text-center shadow-[0_8px_24px_rgba(245,158,11,0.18)] sm:px-8 sm:py-10"
+            >
+              <p
+                id="cache-clear-heading"
+                className="text-4xl font-black leading-[1.05] tracking-tight text-amber-950 sm:text-5xl md:text-6xl"
+              >
+                Before using this tool, clear your browsing history and cache
+              </p>
+              <p className="mt-5 text-xl font-bold leading-snug text-amber-900 sm:text-2xl md:text-3xl">
+                This makes sure you are on the latest version.
+              </p>
+
+              <div className="mt-8 grid gap-6 text-left sm:grid-cols-2">
+                <div className="rounded-2xl border-2 border-amber-300 bg-white/80 px-4 py-5 sm:px-5">
+                  <h2 className="text-2xl font-black text-amber-950 sm:text-3xl">iPhone</h2>
+                  <ol className="mt-3 list-decimal space-y-2 pl-6 text-lg font-semibold leading-snug text-slate-800 sm:text-xl">
+                    <li>Open the Settings app.</li>
+                    <li>
+                      Tap Safari. On newer iOS, tap Apps first, then Safari.
+                    </li>
+                    <li>Scroll down and tap Clear History and Website Data.</li>
+                    <li>Tap Clear History and Data to confirm.</li>
+                    <li>
+                      Close Safari completely: swipe up from the bottom (or double-click the Home
+                      button), then swipe Safari off the screen.
+                    </li>
+                    <li>Open Safari again and return to this page.</li>
+                  </ol>
+                </div>
+                <div className="rounded-2xl border-2 border-amber-300 bg-white/80 px-4 py-5 sm:px-5">
+                  <h2 className="text-2xl font-black text-amber-950 sm:text-3xl">iPad</h2>
+                  <ol className="mt-3 list-decimal space-y-2 pl-6 text-lg font-semibold leading-snug text-slate-800 sm:text-xl">
+                    <li>Open the Settings app.</li>
+                    <li>
+                      In the left sidebar, tap Safari. On newer iPadOS, tap Apps first, then Safari.
+                    </li>
+                    <li>Tap Clear History and Website Data.</li>
+                    <li>Tap Clear History and Data to confirm.</li>
+                    <li>
+                      Close Safari completely: swipe up from the bottom (or double-click the Home
+                      button), then swipe Safari off the screen.
+                    </li>
+                    <li>Open Safari again and return to this page.</li>
+                  </ol>
+                </div>
+              </div>
+            </section>
+
             <div className="space-y-4 text-center sm:text-left">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
                 Austin Independent School District
