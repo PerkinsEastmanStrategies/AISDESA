@@ -9,8 +9,11 @@ import {
   gradeOptionsForSchool,
   isClassroomRoom,
   isNeighborhoodOnlySpaceType,
+  isCampusScopedArrivalSpaceType,
+  canonicalCampusScopedArrivalSpaceType,
   isNeighborhoodSurveyRoomId,
   isOutdoorSurveyRoomId,
+  isArrivalSurveyRoomId,
   isSpaceTypeRequiredForSchool,
   isSpaceTypeRoomsComplete,
   isStudioType,
@@ -24,14 +27,16 @@ import {
   neighborhoodSurveyRoomDisplayName,
   neighborhoodSurveyRoomId,
   outdoorSurveyRoomDisplayName,
+  arrivalSurveyRoomDisplayName,
   spaceTypeFromOutdoorSurveyRoomId,
+  spaceTypeFromArrivalSurveyRoomId,
   studioTypeShowsGradePicker,
   surveyModuleUsesSpaceTypePicker,
   surveyTypeForSpaceType,
   tableEntryForSpaceType,
   type RoomSurveySession,
 } from "@aisd/shared"
-import { roomNeedsCloseOut } from "@/lib/closeout"
+import { roomIsQueuedForCloseOut } from "@/lib/closeout"
 import { roomHasAssessmentProgress } from "@/lib/school-assessment-index"
 import {
   canSelectRoomForSurvey,
@@ -131,6 +136,9 @@ export default function RoomSelector({
     state.surveyType,
     selectedSpaceType,
   )
+  const campusScopedMode =
+    state.surveyType === "arrival" || isCampusScopedArrivalSpaceType(selectedSpaceType)
+  const skipRoomTagging = neighborhoodOnlyMode || campusScopedMode
   const isNeighborhoodsSurvey = state.surveyType === "neighborhoods"
   const showNeighborhoodsEarlyPicker = isNeighborhoodsSurvey && !!selectedSpaceType
   const showNeighborhoodPicker =
@@ -173,7 +181,7 @@ export default function RoomSelector({
     (state.surveyType === "closeout" &&
       !!currentRoomSession?.pendingGrade &&
       studioTypeShowsGradePicker(currentRoomSession.roomType, state.school?.schoolClass))
-  const floorPlanOpen = roomSelectionReady && showFloorPlan
+  const floorPlanOpen = roomSelectionReady && showFloorPlan && !skipRoomTagging
   useFloorPlanDisplay(floorPlanOpen)
   const [roomPickerOpen, setRoomPickerOpen] = useState(false)
   const [gradePickerOpen, setGradePickerOpen] = useState(false)
@@ -285,7 +293,7 @@ export default function RoomSelector({
       const seen = new Set<string>()
       const pending: typeof state.allRooms = []
       for (const roomSession of Object.values(state.session.rooms)) {
-        if (!roomNeedsCloseOut(roomSession, schoolClass) || seen.has(roomSession.roomId)) continue
+        if (!roomIsQueuedForCloseOut(roomSession) || seen.has(roomSession.roomId)) continue
         seen.add(roomSession.roomId)
         const matched =
           state.allRooms.find((room) => room.id === roomSession.roomId) ??
@@ -305,7 +313,11 @@ export default function RoomSelector({
             ? outdoorSurveyRoomDisplayName(
                 roomSession.roomType || spaceTypeFromOutdoorSurveyRoomId(roomSession.roomId),
               )
-            : neighborhoodLabel
+            : isArrivalSurveyRoomId(roomSession.roomId)
+              ? arrivalSurveyRoomDisplayName(
+                  roomSession.roomType || spaceTypeFromArrivalSurveyRoomId(roomSession.roomId),
+                )
+              : neighborhoodLabel
               ? neighborhoodSurveyRoomDisplayName(neighborhoodLabel)
               : roomSession.schoolRoomNumber?.trim() ||
                 roomSession.roomNumber?.trim() ||
@@ -523,10 +535,13 @@ export default function RoomSelector({
       surveyTypeForSpaceType(roomType, state.school?.schoolClass) ?? state.surveyType
     const enteringNeighborhoodOnly =
       isNeighborhoodOnlySpaceType(targetSurveyType, roomType)
+    const enteringCampusScoped = isCampusScopedArrivalSpaceType(roomType)
     if (
       selectedId &&
       ((enteringNeighborhoodOnly && !isNeighborhoodSurveyRoomId(selectedId)) ||
-        (!enteringNeighborhoodOnly && isNeighborhoodSurveyRoomId(selectedId)))
+        (!enteringNeighborhoodOnly && isNeighborhoodSurveyRoomId(selectedId)) ||
+        (enteringCampusScoped && !isArrivalSurveyRoomId(selectedId)) ||
+        (!enteringCampusScoped && isArrivalSurveyRoomId(selectedId)))
     ) {
       selectRoom(null)
     }
@@ -678,7 +693,9 @@ export default function RoomSelector({
                 !selectedSpaceType && "font-normal text-slate-400",
               )}
             >
-              {selectedSpaceType || `Select ${spaceTypeNoun}`}
+              {canonicalCampusScopedArrivalSpaceType(selectedSpaceType) === "Campus"
+                ? "General"
+                : selectedSpaceType || `Select ${spaceTypeNoun}`}
             </span>
             <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
           </button>
@@ -690,7 +707,9 @@ export default function RoomSelector({
                   ? "Choose a space type, then select the neighborhood you are assessing"
                   : neighborhoodOnlyMode
                     ? "Choose a space type, then select which neighborhood to assess"
-                    : `Choose a ${spaceTypeNoun} before selecting a room`}
+                    : campusScopedMode || state.surveyType === "arrival"
+                      ? "Choose a space type to begin scoring the campus, not a floor-plan room"
+                      : `Choose a ${spaceTypeNoun} before selecting a room`}
             </p>
           )}
           {selectedSpaceType && isNeighborhoodsSurvey && !selectedNeighborhood.trim() && (
@@ -698,9 +717,11 @@ export default function RoomSelector({
               Select the neighborhood you are in before confirming whether this space type exists there.
             </p>
           )}
-          {selectedSpaceType && neighborhoodOnlyMode && selectedNeighborhood.trim() && !spaceTypeAbsent && (
+          {selectedSpaceType && campusScopedMode && !spaceTypeAbsent && (
             <p className="mt-1.5 text-[11px] text-slate-500">
-              Confirm whether this space type exists in this neighborhood to begin scoring.
+              {canonicalCampusScopedArrivalSpaceType(selectedSpaceType) === "Campus"
+                ? "Score site lighting, wayfinding, deliveries, and other campus-wide general conditions, not a floor-plan room."
+                : "Score parking, landscape, signage, and other campus-wide entry features, not a floor-plan room."}
             </p>
           )}
         </div>
@@ -752,7 +773,7 @@ export default function RoomSelector({
       {!spaceTypeAbsent && (
       <>
       <div className="grid grid-cols-2 gap-x-3 gap-y-3">
-        {!neighborhoodOnlyMode && (
+        {!skipRoomTagging && (
           <>
             <div className={cn(!selectedId && "col-span-2")}>
               <label
@@ -823,7 +844,7 @@ export default function RoomSelector({
         {(state.school?.hasFloorPlan || plan) &&
           !floorPlanOpen &&
           roomSelectionReady &&
-          !neighborhoodOnlyMode &&
+          !skipRoomTagging &&
           state.surveyType !== "closeout" && (
           <div className="col-span-2">
             <button
@@ -1021,7 +1042,7 @@ export default function RoomSelector({
                     (room) => roomSurveyComplete(room),
                   )
                 const inProgress = hasSaved && !typeComplete
-                const showQuota = isRequired && completionProgress.required > 1
+                const showQuota = isRequired && !absent && completionProgress.required > 1
                 const itemClass = active
                   ? "bg-blue-50 text-[var(--color-primary)]"
                   : absent
@@ -1042,7 +1063,11 @@ export default function RoomSelector({
                       )}
                     >
                       <span className="min-w-0 flex-1">
-                        <span className="block leading-snug">{type}</span>
+                        <span className="block leading-snug">
+                          {canonicalCampusScopedArrivalSpaceType(type) === "Campus"
+                            ? "General"
+                            : type}
+                        </span>
                         {!isRequired && (
                           <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-wide text-slate-400">
                             Optional · not scored

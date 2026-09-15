@@ -30,7 +30,6 @@ import {
   isAutoAnsweredQuestion,
   isSkippedDependentQuestion,
 } from "@/lib/question-dependencies"
-import { effectiveCloseOutPendingQuestionIds } from "@/lib/closeout"
 import { isQuestionAnswered, isQuestionFullyAnswered, responseRequiresUnableToAssessNote } from "@/lib/survey-validation"
 import SurveyProgressTracker from "@/components/survey-progress-tracker"
 import TraditionalStudioCopyReviewBanner from "@/components/traditional-studio-copy-review-banner"
@@ -141,6 +140,7 @@ export default function QuestionForm() {
     flaggedQuestionIds,
     acknowledgeTraditionalStudioCopyReview,
     setPreWalkSpaceTypePhoto,
+    completeCloseOutRoom,
   } = useSurvey()
   const [showContext, setShowContext] = useState(readShowContextPreference)
   const roomId = state.selectedRoomId
@@ -175,14 +175,12 @@ export default function QuestionForm() {
     el?.scrollIntoView({ behavior: "smooth", block: "center" })
   }, [flaggedQuestionIds, roomId])
 
-  const pendingIds = currentRoomSession
-    ? effectiveCloseOutPendingQuestionIds(currentRoomSession, state.school?.schoolClass)
-    : []
+  const pendingIds = currentRoomSession?.pendingQuestionIds
   const questions = useMemo(() => {
     if (!rubric) return []
-    return state.surveyType === "closeout"
-      ? rubric.questions.filter((q) => pendingIds.includes(q.questionId))
-      : rubric.questions
+    if (state.surveyType !== "closeout") return rubric.questions
+    const ids = pendingIds ?? []
+    return rubric.questions.filter((q) => ids.includes(q.questionId))
   }, [rubric, state.surveyType, pendingIds])
 
   const hasAnyContext = useMemo(
@@ -385,10 +383,32 @@ export default function QuestionForm() {
               }
               onCommentChange={(comment) => updateResponse(q.questionId, { comment })}
               onPhotoChange={(photos) => updateResponse(q.questionId, { photos })}
+              stayOpen={state.surveyType === "closeout"}
             />
           )
         })}
       </div>
+      {state.surveyType === "closeout" && roomId ? (
+        <div className="mt-5 rounded-2xl border border-slate-200/90 bg-white/95 px-4 py-4 shadow-sm">
+          {flaggedQuestionIds.length > 0 ? (
+            <p className="mb-3 text-center text-xs font-medium text-red-700">
+              Answer the highlighted questions before submitting this room.
+            </p>
+          ) : (
+            <p className="mb-3 text-center text-xs leading-snug text-slate-500">
+              Submit this room when you are done. Campus submit below is for the whole survey.
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => completeCloseOutRoom(roomId)}
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 text-sm font-semibold text-white active:opacity-90 sm:min-h-[48px]"
+          >
+            <Check className="h-4 w-4" />
+            Submit this room
+          </button>
+        </div>
+      ) : null}
     </div>
     </>
   )
@@ -492,6 +512,7 @@ function QuestionField({
   onChange,
   onCommentChange,
   onPhotoChange,
+  stayOpen = false,
 }: {
   id: string
   index: number
@@ -511,13 +532,17 @@ function QuestionField({
   onChange: (value: string | string[]) => void
   onCommentChange: (comment: string) => void
   onPhotoChange: (photos: string[]) => void
+  /** Close Out keeps every deferred question expanded until the room is submitted. */
+  stayOpen?: boolean
 }) {
   const rootRef = useRef<HTMLDivElement>(null)
   const answered = isQuestionFullyAnswered(question, { value: value ?? "", comment })
   const noteRequired = responseRequiresUnableToAssessNote(value)
   const multiSelect = isMultiSelectQuestionType(question.questionType)
   const textEntry = isTextQuestionType(question.questionType)
-  const [collapsed, setCollapsed] = useState(() => answered && !highlighted && !noteRequired && !autoAnswered)
+  const [collapsed, setCollapsed] = useState(
+    () => answered && !highlighted && !noteRequired && !autoAnswered && !stayOpen,
+  )
   const [userExpanded, setUserExpanded] = useState(false)
   const wasAnsweredRef = useRef(answered)
   const prevCollapsedRef = useRef(collapsed)
@@ -526,14 +551,14 @@ function QuestionField({
   const skipObserverCollapseRef = useRef(false)
 
   useEffect(() => {
-    if (autoAnswered || highlighted) {
+    if (stayOpen || autoAnswered || highlighted) {
       setCollapsed(false)
     }
     // Keep the card open only while the required NATA note is still missing.
     if (noteRequired && !answered) {
       setCollapsed(false)
     }
-  }, [autoAnswered, highlighted, noteRequired, answered])
+  }, [autoAnswered, highlighted, noteRequired, answered, stayOpen])
 
   useEffect(() => {
     const justAnswered = answered && !wasAnsweredRef.current
@@ -548,11 +573,11 @@ function QuestionField({
       setUserExpanded(false)
       return
     }
-    if (!justAnswered || highlighted || userExpanded || multiSelect || textEntry) return
+    if (!justAnswered || highlighted || userExpanded || multiSelect || textEntry || stayOpen) return
 
     const timer = window.setTimeout(() => setCollapsed(true), 400)
     return () => window.clearTimeout(timer)
-  }, [answered, highlighted, userExpanded, multiSelect, textEntry, value, autoAnswered])
+  }, [answered, highlighted, userExpanded, multiSelect, textEntry, value, autoAnswered, stayOpen])
 
   // When a question is manually collapsed, keep following content inside the scroll window.
   useEffect(() => {

@@ -236,22 +236,28 @@ export function useSelectRoomWithConfirm() {
                 <span className="font-medium text-slate-800">{pendingRoomName}</span> was already
                 assessed as{" "}
                 <span className="font-medium text-slate-800">{pendingSubmitted.spaceType}</span> (
-                {pendingSubmitted.surveyLabel}). To change responses, open{" "}
-                <span className="font-medium text-slate-800">Results → Room</span> and select the
-                room there.
+                {pendingSubmitted.surveyLabel}). You can edit those answers here, or review scores
+                in Results.
               </p>
               <div className="mt-4 flex flex-col gap-2">
                 <button
                   type="button"
-                  onClick={goToResults}
-                  className="flex min-h-10 flex-1 items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 text-sm font-semibold text-white active:opacity-90"
+                  onClick={confirmEdit}
+                  className="flex min-h-10 w-full items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 text-sm font-semibold text-white active:opacity-90"
                 >
-                  Go to Results
+                  Edit answers
+                </button>
+                <button
+                  type="button"
+                  onClick={goToResults}
+                  className="flex min-h-10 w-full items-center justify-center rounded-xl border border-[var(--color-border)] px-4 text-sm font-medium active:bg-slate-50"
+                >
+                  View in Results
                 </button>
                 <button
                   type="button"
                   onClick={chooseDifferent}
-                  className="flex min-h-10 flex-1 items-center justify-center rounded-xl border border-[var(--color-border)] px-4 text-sm font-medium active:bg-slate-50"
+                  className="flex min-h-10 w-full items-center justify-center rounded-xl border border-[var(--color-border)] px-4 text-sm font-medium active:bg-slate-50"
                 >
                   Choose different room
                 </button>

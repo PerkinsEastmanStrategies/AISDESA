@@ -237,7 +237,9 @@ export default function StudioSurvey() {
                         : "Confirm whether this space type exists in this neighborhood, then select a room to begin scoring."
                   : neighborhoodOnlyMode
                     ? "Select a space type, then choose a neighborhood to begin scoring."
-                    : !selectedSpaceType
+                    : state.surveyType === "arrival"
+                      ? "Select Entry Experience or General to begin scoring the whole school, not a floor-plan room."
+                      : !selectedSpaceType
                       ? "Select a space type, then choose a room from the dropdown or floor plan to begin scoring."
                       : "Confirm whether this space type exists at this school, then select a room to begin scoring."
                 : "Select a studio type, then choose a room from the dropdown or floor plan to begin scoring."}

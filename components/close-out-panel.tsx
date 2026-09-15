@@ -145,8 +145,8 @@ export default function CloseOutPanel() {
           <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-900">Campus Close Out</p>
             <p className="mt-1 text-xs leading-relaxed text-slate-600">
-              Unanswered questions from other survey sections appear here. Finish them, add any final
-              thoughts, then submit the full campus assessment.
+              Unanswered questions from other survey sections appear here. Finish each room and tap
+              Submit this room, add any final thoughts, then submit the full campus assessment.
             </p>
             <p className="mt-2 text-xs font-medium text-slate-700">{pendingSummary}</p>
             {closeOutPending.roomIds.length > 0 ? (

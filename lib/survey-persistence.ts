@@ -623,7 +623,9 @@ export function sessionCoversLocalProgress(
     if (!other || roomAssessmentWeight(other) < roomAssessmentWeight(room)) return false
   }
   for (const [key, exists] of Object.entries(local.spaceTypeExistsAtSchool ?? {})) {
-    if (cover.spaceTypeExistsAtSchool?.[key] !== exists) return false
+    // "Does not exist" is stored as an absent room. "Yes it exists" is stored as a
+    // real room, so a pull will not always echo the true flag until reconstructed.
+    if (exists === false && cover.spaceTypeExistsAtSchool?.[key] !== false) return false
   }
   return true
 }

@@ -313,6 +313,7 @@ export function requiredCompletedRoomsForSpaceType(
 
 export interface SpaceTypeRoomSession {
   neighborhood?: string | null
+  spaceTypeMarkedAbsent?: boolean
 }
 
 function neighborhoodKey(value: string | null | undefined): string {
@@ -324,12 +325,17 @@ function filledNeighborhoodKeys<T extends SpaceTypeRoomSession>(filled: T[]): st
   return [...new Set(filled.map((room) => neighborhoodKey(room.neighborhood)).filter(Boolean))]
 }
 
+function roomsMarkSpaceTypeAbsent<T extends SpaceTypeRoomSession>(rooms: T[]): boolean {
+  return rooms.some((room) => !!room.spaceTypeMarkedAbsent)
+}
+
 export function isSpaceTypeRoomsComplete<T extends SpaceTypeRoomSession>(
   spaceType: string,
   rooms: T[],
   schoolClass: string | null | undefined,
   isFilledOut: (room: T) => boolean,
 ): boolean {
+  if (roomsMarkSpaceTypeAbsent(rooms)) return true
   const rule = spaceTypeCompletionRule(spaceType, schoolClass)
   const filled = rooms.filter((room) => isFilledOut(room))
 
@@ -355,8 +361,12 @@ export function spaceTypeCompletionProgress<T extends SpaceTypeRoomSession>(
   schoolClass: string | null | undefined,
   isFilledOut: (room: T) => boolean,
 ): { complete: number; required: number } {
-  const rule = spaceTypeCompletionRule(spaceType, schoolClass)
   const filled = rooms.filter((room) => isFilledOut(room))
+  if (roomsMarkSpaceTypeAbsent(rooms)) {
+    const count = Math.max(1, filled.length)
+    return { complete: count, required: count }
+  }
+  const rule = spaceTypeCompletionRule(spaceType, schoolClass)
 
   if (rule.kind === "minRooms") {
     return { complete: filled.length, required: rule.count }

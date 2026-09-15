@@ -1,10 +1,11 @@
 import type { CategoryScore, RoomScoreResult, SurveySession } from "../types/survey"
 import type { FloorPlanRoom } from "../types/floor-plan-room"
-import { isOutdoorSurveyRoomId, studioTypeRequiresGrade } from "../data/survey-config"
+import { isArrivalSurveyRoomId, isOutdoorSurveyRoomId, studioTypeRequiresGrade } from "../data/survey-config"
 import { isObservationalCategory } from "./score-units"
 
 export const UNASSIGNED_NEIGHBORHOOD_ID = "__unassigned__" as const
 export const OUTDOOR_NEIGHBORHOOD_ID = "Outdoor" as const
+export const ARRIVAL_NEIGHBORHOOD_ID = "Campus" as const
 
 export interface ScoredRoomEntry {
   roomId: string
@@ -81,6 +82,7 @@ export function neighborhoodGroupId(
   roomId?: string | null,
 ): string {
   if (roomId && isOutdoorSurveyRoomId(roomId)) return OUTDOOR_NEIGHBORHOOD_ID
+  if (roomId && isArrivalSurveyRoomId(roomId)) return ARRIVAL_NEIGHBORHOOD_ID
   const trimmed = raw?.trim()
   return trimmed ? trimmed : UNASSIGNED_NEIGHBORHOOD_ID
 }
@@ -88,6 +90,7 @@ export function neighborhoodGroupId(
 export function neighborhoodGroupLabel(id: string): string {
   if (id === UNASSIGNED_NEIGHBORHOOD_ID) return "Unassigned"
   if (id === OUTDOOR_NEIGHBORHOOD_ID) return "Outdoor"
+  if (id === ARRIVAL_NEIGHBORHOOD_ID) return "Campus"
   return id
 }
 
@@ -96,6 +99,8 @@ function compareNeighborhoodIds(a: string, b: string): number {
   if (b === UNASSIGNED_NEIGHBORHOOD_ID) return -1
   if (a === OUTDOOR_NEIGHBORHOOD_ID) return 1
   if (b === OUTDOOR_NEIGHBORHOOD_ID) return -1
+  if (a === ARRIVAL_NEIGHBORHOOD_ID) return 1
+  if (b === ARRIVAL_NEIGHBORHOOD_ID) return -1
   const aNum = Number(a)
   const bNum = Number(b)
   if (!Number.isNaN(aNum) && !Number.isNaN(bNum)) return aNum - bNum

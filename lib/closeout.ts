@@ -62,8 +62,14 @@ export function roomNeedsCloseOut(
   schoolClass?: string | null,
 ): boolean {
   return (
-    effectiveCloseOutPendingQuestionIds(room, schoolClass).length > 0 || !!room.pendingGrade
+    effectiveCloseOutPendingQuestionIds(room, schoolClass).length > 0 ||
+    (!!room.pendingGrade && !room.gradeType)
   )
+}
+
+/** True until the assessor taps Submit on this Close Out room (answers may already be filled). */
+export function roomIsQueuedForCloseOut(room: RoomSurveySession): boolean {
+  return (room.pendingQuestionIds?.length ?? 0) > 0 || !!room.pendingGrade
 }
 
 /** Drop auto-skipped IDs from the pending list so completed rooms clear out. */
@@ -85,6 +91,20 @@ export function pruneCloseOutRoomPending(
     ...room,
     pendingQuestionIds,
     deferredToCloseOut: pendingQuestionIds.length > 0 || !!room.pendingGrade,
+  }
+}
+
+/** Drop answered Close Out items after the assessor submits this room. */
+export function commitCloseOutRoom(
+  room: RoomSurveySession,
+  schoolClass?: string | null,
+): RoomSurveySession {
+  const pruned = pruneCloseOutRoomPending(room, schoolClass)
+  const pendingGrade = !!pruned.pendingGrade && !pruned.gradeType
+  return {
+    ...pruned,
+    pendingGrade: pendingGrade || undefined,
+    deferredToCloseOut: (pruned.pendingQuestionIds?.length ?? 0) > 0 || pendingGrade,
   }
 }
 
@@ -120,7 +140,7 @@ export function countCloseOutPendingItems(session: SurveySession | null | undefi
     if (!roomHasCloseOutWork(room)) continue
     rooms += 1
     questions += effectiveCloseOutPendingQuestionIds(room).length
-    if (room.pendingGrade) grades += 1
+    if (room.pendingGrade && !room.gradeType) grades += 1
   }
   return { rooms, questions, grades }
 }

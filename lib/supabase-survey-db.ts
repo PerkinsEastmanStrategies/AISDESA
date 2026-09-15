@@ -14,8 +14,7 @@ import type {
 import {
   surveyTypeLabel,
   isAbsentSpaceTypeRoomId,
-  parseAbsentSpaceTypeRoomId,
-  spaceTypeExistenceKey,
+  spaceTypeExistsAtSchoolFromRooms,
   applyPreWalkSpaceTypeExistsToSession,
 } from "@aisd/shared"
 import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
@@ -553,8 +552,10 @@ export async function pushSurveyDraft(input: {
     const remoteRoom = remoteRooms[room.roomId]
     const localWeight = roomAssessmentWeight(room)
     const remoteWeight = remoteRoom ? roomAssessmentWeight(remoteRoom) : 0
-    if (remoteRoom && remoteWeight > localWeight && localWeight > 0) {
-      sameRoomConflicts.push(room.roomNumber || room.roomType || room.roomId)
+    if (remoteRoom && remoteWeight > localWeight) {
+      if (localWeight > 0) {
+        sameRoomConflicts.push(room.roomNumber || room.roomType || room.roomId)
+      }
       continue
     }
     roomsToUpsert.push(room)
@@ -776,14 +777,10 @@ function buildDraftFromSessionRow(
     rooms[row.room_id] = dbRoomToSession(row, responsesByRoom.get(row.room_id) ?? [])
   }
 
-  const spaceTypeExistsAtSchool: Record<string, boolean> = {}
-  for (const room of Object.values(rooms)) {
-    if (!room.spaceTypeMarkedAbsent && !isAbsentSpaceTypeRoomId(room.roomId)) continue
-    const parsed = parseAbsentSpaceTypeRoomId(room.roomId)
-    const spaceType = parsed?.spaceType || room.roomType
-    if (!spaceType) continue
-    spaceTypeExistsAtSchool[spaceTypeExistenceKey(spaceType, parsed?.neighborhood)] = false
-  }
+  const spaceTypeExistsAtSchool = spaceTypeExistsAtSchoolFromRooms(
+    rooms,
+    sessionRow.survey_type,
+  )
 
   const outdoorElementPins: OutdoorElementPin[] = pinRows.map((pin) => ({
     id: pin.pin_id,

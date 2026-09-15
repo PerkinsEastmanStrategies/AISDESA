@@ -12,10 +12,13 @@ import {
   hasRequiredUnableToAssessNote,
   isMultiSelectQuestionType,
   isOutdoorSurveyRoomId,
+  isArrivalSurveyRoomId,
   neighborhoodFromSurveyRoomId,
   neighborhoodSurveyRoomDisplayName,
   outdoorSurveyRoomDisplayName,
   spaceTypeFromOutdoorSurveyRoomId,
+  arrivalSurveyRoomDisplayName,
+  spaceTypeFromArrivalSurveyRoomId,
   responseRequiresUnableToAssessNote,
   studioTypeRequiresGrade,
 } from "@aisd/shared"
@@ -24,6 +27,9 @@ import { isSkippedDependentQuestion } from "@/lib/question-dependencies"
 function validationRoomDisplayName(roomId: string, parsedName?: string): string {
   if (isOutdoorSurveyRoomId(roomId)) {
     return outdoorSurveyRoomDisplayName(spaceTypeFromOutdoorSurveyRoomId(roomId))
+  }
+  if (isArrivalSurveyRoomId(roomId)) {
+    return arrivalSurveyRoomDisplayName(spaceTypeFromArrivalSurveyRoomId(roomId))
   }
   const neighborhoodLabel = neighborhoodFromSurveyRoomId(roomId)
   if (neighborhoodLabel) return neighborhoodSurveyRoomDisplayName(neighborhoodLabel)

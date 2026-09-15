@@ -1040,7 +1040,11 @@ export function getRoomSurveyRubric(
       roomType === "Entry Experience"
     ) {
       rubric = MAIN_OFFICE_RUBRIC
-    } else if (roomType === "Campus") {
+    } else if (
+      roomType === "Campus" ||
+      roomType === "General" ||
+      roomType === "General Campus"
+    ) {
       rubric = CAMPUS_RUBRIC
     } else {
       return null
@@ -1360,11 +1364,34 @@ export function isOutdoorSpaceType(value: string): value is OutdoorSpaceType {
   return (OUTDOOR_SPACE_TYPE_OPTIONS as readonly string[]).includes(value)
 }
 
-/** Outdoor and Traditional studio skip the "does this space exist?" gate. */
+export function canonicalCampusScopedArrivalSpaceType(
+  spaceType: string | null | undefined,
+): "Entry Experience" | "Campus" | null {
+  const trimmed = spaceType?.trim()
+  if (!trimmed) return null
+  if (trimmed === "Entry Experience") return "Entry Experience"
+  if (
+    trimmed === "Campus" ||
+    trimmed === "General" ||
+    trimmed === "General Campus"
+  ) {
+    return "Campus"
+  }
+  return null
+}
+
+export function isCampusScopedArrivalSpaceType(
+  spaceType: string | null | undefined,
+): spaceType is "Entry Experience" | "Campus" | "General" | "General Campus" {
+  return canonicalCampusScopedArrivalSpaceType(spaceType) !== null
+}
+
+/** Outdoor, Entry Experience, and Campus skip the "does this space exist?" gate. */
 export function spaceTypeRequiresExistenceGate(spaceType: string | null | undefined): boolean {
   if (!spaceType?.trim()) return false
   if (spaceType === "Traditional studio") return false
   if (isOutdoorSpaceType(spaceType)) return false
+  if (isCampusScopedArrivalSpaceType(spaceType)) return false
   return true
 }
 
@@ -1554,6 +1581,43 @@ export function outdoorSurveyRoomDisplayName(spaceType?: string | null): string 
   return spaceType === "Outdoor Spaces" ? "Outdoor Spaces" : spaceType
 }
 
+/** Synthetic session keys for campus-wide Arrival scoring (not floor-plan rooms). */
+export const ENTRY_EXPERIENCE_SURVEY_ROOM_ID = "__entry-experience__" as const
+export const CAMPUS_ORGANIZATION_SURVEY_ROOM_ID = "__campus-organization__" as const
+
+export function arrivalSurveyRoomId(spaceType?: string | null): string {
+  return canonicalCampusScopedArrivalSpaceType(spaceType) === "Campus"
+    ? CAMPUS_ORGANIZATION_SURVEY_ROOM_ID
+    : ENTRY_EXPERIENCE_SURVEY_ROOM_ID
+}
+
+export function isArrivalSurveyRoomId(roomId: string | null | undefined): boolean {
+  return (
+    roomId === ENTRY_EXPERIENCE_SURVEY_ROOM_ID ||
+    roomId === CAMPUS_ORGANIZATION_SURVEY_ROOM_ID
+  )
+}
+
+export function spaceTypeFromArrivalSurveyRoomId(
+  roomId: string | null | undefined,
+): "Entry Experience" | "Campus" | null {
+  if (roomId === CAMPUS_ORGANIZATION_SURVEY_ROOM_ID) return "Campus"
+  if (roomId === ENTRY_EXPERIENCE_SURVEY_ROOM_ID) return "Entry Experience"
+  return null
+}
+
+export function arrivalSurveyRoomDisplayName(spaceType?: string | null): string {
+  const canonical = canonicalCampusScopedArrivalSpaceType(spaceType)
+  if (canonical === "Campus") return "General"
+  if (!spaceType) return "Entry Experience"
+  return canonical === "Entry Experience" ? "Entry Experience" : spaceType
+}
+
+/** Synthetic campus-wide sessions that are not tagged to a floor-plan room. */
+export function isCampusScopedSurveyRoomId(roomId: string | null | undefined): boolean {
+  return isOutdoorSurveyRoomId(roomId) || isArrivalSurveyRoomId(roomId)
+}
+
 /** Synthetic session keys for Neighborhood space-type scoring (one per identified neighborhood). */
 export const NEIGHBORHOOD_SURVEY_ROOM_PREFIX = "__neighborhood-survey__:" as const
 
@@ -1594,6 +1658,34 @@ export function spaceTypeFromNeighborhoodSurveyRoomId(
 export function neighborhoodSurveyRoomDisplayName(neighborhood: string): string {
   const trimmed = neighborhood.trim()
   return trimmed ? `Neighborhood ${trimmed}` : "Neighborhood"
+}
+
+/** Rebuild Yes/No existence from saved rooms. Cloud drafts do not store the map itself. */
+export function spaceTypeExistsAtSchoolFromRooms(
+  rooms: Record<string, RoomSurveySession>,
+  surveyType: SurveyType,
+): Record<string, boolean> {
+  const result: Record<string, boolean> = {}
+  for (const room of Object.values(rooms)) {
+    const parsed = parseAbsentSpaceTypeRoomId(room.roomId)
+    const absent = !!(room.spaceTypeMarkedAbsent || parsed)
+    const spaceType = (parsed?.spaceType || room.roomType || "").trim()
+    if (!spaceType) continue
+    const neighborhood =
+      surveyType === "neighborhoods"
+        ? parsed?.neighborhood ||
+          neighborhoodFromSurveyRoomId(room.roomId) ||
+          room.neighborhood?.trim() ||
+          null
+        : parsed?.neighborhood || null
+    const key = spaceTypeExistenceKey(spaceType, neighborhood)
+    if (absent) {
+      result[key] = false
+      continue
+    }
+    if (result[key] !== false) result[key] = true
+  }
+  return result
 }
 
 function normalizeNeighborhoodSpaceType(spaceType: string): string {
@@ -1689,7 +1781,9 @@ export function usesPackageArrivalRubric(roomType: string | null | undefined): b
     roomType === "Main Entry/Reception" ||
     roomType === "Main Office" ||
     roomType === "Entry Experience" ||
-    roomType === "Campus"
+    roomType === "Campus" ||
+    roomType === "General" ||
+    roomType === "General Campus"
   )
 }
 
