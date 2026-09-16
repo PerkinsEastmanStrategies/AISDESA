@@ -414,17 +414,42 @@ function applySupabaseRoomSchedule(
   }
 }
 
-async function fetchSupabaseRoomSchedule(): Promise<RoomScheduleDbRow[]> {
+async function fetchText(url: string, timeoutMs = 12_000): Promise<string> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 12_000)
-    const response = await fetch("/api/room-schedule", {
+    const response = await fetch(url, {
       cache: "no-store",
       signal: controller.signal,
     })
+    if (!response.ok) return ""
+    const text = await response.text()
+    if (!text.trim() || text.trimStart().startsWith("<")) return ""
+    return text
+  } catch {
+    return ""
+  } finally {
     clearTimeout(timer)
-    if (!response.ok) return []
-    const payload = (await response.json()) as { rows?: RoomScheduleDbRow[] }
+  }
+}
+
+/**
+ * iPads / school networks often block docs.google.com. Prefer the same-origin
+ * Vercel proxy so LBJ and Eastside (sheet-only) still load.
+ */
+async function fetchSheetCsvText(): Promise<string> {
+  if (typeof window !== "undefined") {
+    const proxied = await fetchText("/api/room-neighborhood-csv")
+    if (proxied) return proxied
+  }
+  return fetchText(getCsvUrl())
+}
+
+async function fetchSupabaseRoomSchedule(): Promise<RoomScheduleDbRow[]> {
+  try {
+    const text = await fetchText("/api/room-schedule")
+    if (!text) return []
+    const payload = JSON.parse(text) as { rows?: RoomScheduleDbRow[] }
     return Array.isArray(payload.rows) ? payload.rows : []
   } catch {
     return []
@@ -436,10 +461,10 @@ async function loadSchoolIndex(): Promise<Map<string, SchoolNeighborhoodData>> {
 
   csvLoadPromise = (async () => {
     try {
-      const sheetText = await fetch(getCsvUrl(), { cache: "no-store" })
-        .then((res) => (res.ok ? res.text() : ""))
-        .catch(() => "")
-      const supabaseRows = await fetchSupabaseRoomSchedule()
+      const [sheetText, supabaseRows] = await Promise.all([
+        fetchSheetCsvText(),
+        fetchSupabaseRoomSchedule(),
+      ])
       const index = sheetText
         ? buildSchoolIndex(sheetText)
         : new Map<string, SchoolNeighborhoodData>()
