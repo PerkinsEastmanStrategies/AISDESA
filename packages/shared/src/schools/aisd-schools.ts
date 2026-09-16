@@ -76,6 +76,13 @@ export interface TestCampusClone {
   campusId: string
   /** When set, the school picker lists this clone after every live campus (1 = first of that group). */
   pickerEndOrder?: number
+  /**
+   * Copy rooms and answers from the source campus, keeping a response only when
+   * the current question still exists and the stored value is still a valid option.
+   */
+  seedCompatibleAnswersFromSource?: boolean
+  /** Used when seeding if the source esa_schools row is missing. */
+  schoolClass?: string
 }
 
 export const TEST_CAMPUS_CLONES: readonly TestCampusClone[] = [
@@ -86,6 +93,15 @@ export const TEST_CAMPUS_CLONES: readonly TestCampusClone[] = [
     sourceName: "LBJ",
     sourceCampusId: "014",
     campusId: "014-TEST",
+  },
+  {
+    id: "lbj-pilot-test",
+    name: "LBJ (PILOT Test)",
+    displayName: "LBJ (PILOT Test)",
+    sourceName: "LBJ",
+    sourceCampusId: "014",
+    campusId: "014-PILOT-TEST",
+    seedCompatibleAnswersFromSource: true,
   },
   {
     id: "lbj-pilot-2",
@@ -120,6 +136,46 @@ export const TEST_CAMPUS_CLONES: readonly TestCampusClone[] = [
     campusId: "126-PILOT-2",
   },
   {
+    id: "lbj-pilot-2-merge",
+    name: "LBJ (Pilot #2 Merge)",
+    displayName: "LBJ (Pilot #2 Merge)",
+    sourceName: "LBJ",
+    sourceCampusId: "014",
+    campusId: "014-PILOT-2-MERGE",
+    seedCompatibleAnswersFromSource: true,
+    schoolClass: "HIGH",
+  },
+  {
+    id: "ortega-pilot-2-merge",
+    name: "ORTEGA (Pilot #2 Merge)",
+    displayName: "Ortega (Pilot #2 Merge)",
+    sourceName: "ORTEGA",
+    sourceCampusId: "126",
+    campusId: "126-PILOT-2-MERGE",
+    seedCompatibleAnswersFromSource: true,
+    schoolClass: "ELEM",
+  },
+  {
+    id: "casis-pilot-2-merge",
+    name: "CASIS (Pilot #2 Merge)",
+    displayName: "Casis (Pilot #2 Merge)",
+    sourceName: "CASIS",
+    sourceCampusId: "112",
+    campusId: "112-PILOT-2-MERGE",
+    seedCompatibleAnswersFromSource: true,
+    schoolClass: "ELEM",
+  },
+  {
+    id: "eastside-echs-pilot-2-merge",
+    name: "EASTSIDE ECHS (Pilot #2 Merge)",
+    displayName: "Eastside (Pilot #2 Merge)",
+    sourceName: "EASTSIDE ECHS",
+    sourceCampusId: "142",
+    campusId: "142-PILOT-2-MERGE",
+    seedCompatibleAnswersFromSource: true,
+    schoolClass: "HIGH",
+  },
+  {
     id: "test-es",
     name: "TEST ES",
     displayName: "Test ES",
@@ -147,6 +203,17 @@ export const TEST_CAMPUS_CLONES: readonly TestCampusClone[] = [
     pickerEndOrder: 3,
   },
 ]
+
+export function sourceSchoolIdForTestClone(clone: TestCampusClone): string {
+  return schoolIdFromName(clone.sourceName)
+}
+
+export function campusUsesSeededWalkedRooms(
+  school: Pick<AisdSchoolOption, "id" | "name" | "campusId"> | { name?: string | null; campusId?: string | null; id?: string | null } | null | undefined,
+): boolean {
+  if (!school) return false
+  return !!testCampusCloneForSchool(school)?.seedCompatibleAnswersFromSource
+}
 
 export function testCampusCloneForSchool(
   school: Pick<AisdSchoolOption, "id" | "name" | "campusId"> | { name?: string | null; campusId?: string | null; id?: string | null },

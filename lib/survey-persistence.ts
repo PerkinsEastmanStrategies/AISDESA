@@ -12,6 +12,8 @@ import {
   SURVEY_TYPES,
   applyPreWalkSpaceTypeExistsToSession,
   isAbsentSpaceTypeRoomId,
+  parseAbsentSpaceTypeRoomId,
+  spaceTypeExistenceKey,
 } from "@aisd/shared"
 import {
   ART_RUBRIC_VERSION,
@@ -109,6 +111,16 @@ export interface PersistedSurveyDraft {
    * Stamped after Early childhood special education studio rooms are cleared.
    */
   earlyChildhoodSpedRubricVersion?: number
+  /**
+   * Stamped when a seeded Pilot campus Results snapshot was wiped so carry-over
+   * rooms do not reappear until they are Saved again.
+   */
+  pilotResultsResetAt?: string
+  /**
+   * Stamped after the PILOT Test cloud snapshot wipe succeeded. Until then,
+   * cloud pull must not resurrect the old Results dump.
+   */
+  pilotResultsCloudResetAt?: string
 }
 
 export interface ActiveDraftMeta {
@@ -434,6 +446,8 @@ export function saveDraft(
         `aisd-survey-${draft.session.surveyId}`,
         JSON.stringify(draft.lastSubmission),
       )
+    } else {
+      localStorage.removeItem(`aisd-survey-${draft.session.surveyId}`)
     }
   } catch {
     /* quota or private browsing */
@@ -587,6 +601,19 @@ export function mergeSurveySessions(
     ...(secondary.spaceTypeExistsAtSchool ?? {}),
     ...(primary.spaceTypeExistsAtSchool ?? {}),
   }
+  for (const roomId of excluded) {
+    const parsed = parseAbsentSpaceTypeRoomId(roomId)
+    if (parsed) {
+      delete spaceTypeExistsAtSchool[
+        spaceTypeExistenceKey(parsed.spaceType, parsed.neighborhood)
+      ]
+      continue
+    }
+    const room = secondary.rooms[roomId] ?? primary.rooms[roomId]
+    if (room?.spaceTypeMarkedAbsent && room.roomType) {
+      delete spaceTypeExistsAtSchool[spaceTypeExistenceKey(room.roomType, room.neighborhood)]
+    }
+  }
 
   const primaryPins = primary.outdoorElementPins ?? []
   const secondaryPins = secondary.outdoorElementPins ?? []
@@ -661,6 +688,12 @@ export function mergePulledDraftWithLocal(
     includeOtherOnlyRooms: true,
     excludeRoomIds: local.discardedRoomIds,
   })
+  if (local.pilotResultsResetAt && !local.session.campusSubmittedAt) {
+    session.campusSubmittedAt = undefined
+  }
+  if (local.pilotResultsResetAt && !local.lastSubmission && !local.session.submittedAt) {
+    session.submittedAt = undefined
+  }
   const discardedPinIds = new Set(local.discardedPinIds ?? [])
   if (session.outdoorElementPins) {
     session.outdoorElementPins = session.outdoorElementPins.filter((pin) => !discardedPinIds.has(pin.id))
@@ -674,13 +707,23 @@ export function mergePulledDraftWithLocal(
     discardedPinIds: local.discardedPinIds,
     ownedRoomIds: local.ownedRoomIds,
     ownedPinIds: local.ownedPinIds,
-    lastSubmission: keepLocalSnapshot
-      ? (local.lastSubmission ?? remote.lastSubmission)
-      : (remote.lastSubmission ?? local.lastSubmission),
-    pendingStudioType: local.pendingStudioType ?? remote.pendingStudioType,
-    pendingNeighborhood: local.pendingNeighborhood ?? remote.pendingNeighborhood,
-    selectedRoomId: local.selectedRoomId ?? remote.selectedRoomId,
-    selectedLevelId: local.selectedLevelId ?? remote.selectedLevelId,
+    lastSubmission: local.pilotResultsResetAt && !local.pilotResultsCloudResetAt
+      ? local.lastSubmission
+      : keepLocalSnapshot
+        ? (local.lastSubmission ?? remote.lastSubmission)
+        : (remote.lastSubmission ?? local.lastSubmission),
+    pilotResultsResetAt: local.pilotResultsResetAt ?? remote.pilotResultsResetAt,
+    pilotResultsCloudResetAt: local.pilotResultsCloudResetAt ?? remote.pilotResultsCloudResetAt,
+    pendingStudioType:
+      local.pendingStudioType !== undefined ? local.pendingStudioType : remote.pendingStudioType,
+    pendingNeighborhood:
+      local.pendingNeighborhood !== undefined
+        ? local.pendingNeighborhood
+        : remote.pendingNeighborhood,
+    selectedRoomId:
+      local.selectedRoomId !== undefined ? local.selectedRoomId : remote.selectedRoomId,
+    selectedLevelId:
+      local.selectedLevelId !== undefined ? local.selectedLevelId : remote.selectedLevelId,
     view: local.view ?? remote.view,
     preWalk: local.preWalk ?? remote.preWalk,
     savedAt: localNewer ? local.savedAt : remote.savedAt,

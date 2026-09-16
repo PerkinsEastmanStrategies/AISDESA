@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useSurvey } from "@/lib/survey-store"
 import { canSelectRoomForSurvey } from "@/lib/prewalk"
+import { campusUsesSeededWalkedRooms } from "@aisd/shared"
 import {
   computeCloseOutRoomFloorPlanEntry,
   resolveCloseOutSessionRoom,
@@ -88,6 +89,7 @@ export function useSelectRoomWithConfirm() {
           sessionRooms: state.session?.rooms,
           roomId,
           schoolClass: state.school?.schoolClass,
+          preferSurveyedRooms: campusUsesSeededWalkedRooms(state.school),
         })
       ) {
         return "blocked" as const
@@ -153,6 +155,7 @@ export function useSelectRoomWithConfirm() {
       state.selectedRoomId,
       state.session?.rooms,
       state.allRooms,
+      state.school,
       state.school?.schoolClass,
       findSubmittedRoomAssessment,
     ],

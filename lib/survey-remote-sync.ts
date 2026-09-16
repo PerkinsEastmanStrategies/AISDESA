@@ -195,6 +195,22 @@ export async function pushPrewalkClient(input: {
   }
 }
 
+export async function wipePilotResultsCloudClient(schoolId: string): Promise<boolean> {
+  if (!isBrowserOnline()) return false
+  try {
+    const response = await fetch("/api/survey/pilot-results-reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ schoolId }),
+    })
+    if (!response.ok) return false
+    const payload = (await response.json()) as { ok?: boolean }
+    return payload.ok !== false
+  } catch {
+    return false
+  }
+}
+
 export async function pushSurveyDraftClient(input: {
   school: AisdSchoolOption
   draft: PersistedSurveyDraft
@@ -267,7 +283,7 @@ export async function flushSurveySyncQueue(input: {
       const result = await pushSurveyDraftClient({
         school,
         draft,
-        writeSnapshot: !!draft.lastSubmission,
+        writeSnapshot: (draft.lastSubmission?.campus?.rooms?.length ?? 0) > 0,
       })
       if (result.action === "skipped_remote_newer") {
         input.onRemoteNewer?.(entry)

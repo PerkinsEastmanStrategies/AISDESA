@@ -9,6 +9,7 @@ import type {
 } from "@aisd/shared"
 import {
   aggregateCampusScores,
+  campusUsesSeededWalkedRooms,
   EMPTY_WEIGHT_OVERRIDES,
   getRoomSurveyRubric,
   isOutdoorSurveyRoomId,
@@ -204,6 +205,9 @@ export function patchSubmissionWithSessionScores(
 ): SurveySubmission | null {
   const details = scoreSessionRooms(session, surveyType, schoolClass)
   const byId = new Map((submission?.campus.rooms ?? []).map((room) => [room.roomId, room]))
+  const incrementalResults = campusUsesSeededWalkedRooms({
+    id: school?.schoolId ?? submission?.campus.schoolId,
+  })
 
   for (const [roomId, room] of Object.entries(session.rooms)) {
     const detail = details[roomId]
@@ -212,6 +216,9 @@ export function patchSubmissionWithSessionScores(
     if (!hasScore && !room.deferredToCloseOut && !room.spaceTypeMarkedAbsent) continue
 
     const prior = byId.get(roomId)
+    // PILOT Test: Close Out may update rooms already Saved into Results, but
+    // must not dump every carry-over session room back onto the snapshot.
+    if (incrementalResults && !prior) continue
     byId.set(roomId, {
       roomId,
       roomName: prior?.roomName || room.roomNumber || roomId,
@@ -602,12 +609,15 @@ export function buildCampusScoringSnapshot(input: {
   }
 
   // Rooms saved incomplete (or finished later in Close Out) may live on the
-  // session before they appear in a submission snapshot.
+  // session before they appear in a submission snapshot. PILOT Test Results
+  // stay empty until each room is Saved again.
   const seen = new Set(allRooms.map((room) => room.roomId))
+  const includeUnsavedSessionRooms = !campusUsesSeededWalkedRooms({ id: input.schoolId })
   for (const [surveyType, session] of Object.entries(sessionsBySurveyType) as [
     SurveyType,
     SurveySession,
   ][]) {
+    if (!includeUnsavedSessionRooms) continue
     let details = roomScoreDetailsBySurveyType[surveyType]
     if (!details) {
       details = scoreSessionRooms(session, surveyType, input.schoolClass)

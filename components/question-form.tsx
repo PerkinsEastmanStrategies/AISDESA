@@ -196,6 +196,29 @@ export default function QuestionForm() {
     })
   }, [])
 
+  const roomSessionRef = useRef(currentRoomSession)
+  roomSessionRef.current = currentRoomSession
+
+  const updateResponse = useCallback(
+    (questionId: string, patch: Partial<RoomQuestionResponse>) => {
+      if (!roomId || !rubric) return
+      const existing = roomSessionRef.current?.responses.find((r) => r.questionId === questionId)
+      const q = rubric.questions.find((item) => item.questionId === questionId)
+      if (!q) return
+      setResponse(roomId, {
+        questionId,
+        value:
+          patch.value !== undefined
+            ? patch.value
+            : existing?.value ?? (isMultiSelectQuestionType(q.questionType) ? [] : ""),
+        comment:
+          patch.comment !== undefined ? patch.comment.trim() || undefined : existing?.comment,
+        ...mergeResponsePhotoFields(existing, patch),
+      })
+    },
+    [roomId, rubric, setResponse],
+  )
+
   if (!rubric || !roomId) return null
 
   const spaceType = currentRoomSession?.roomType
@@ -234,27 +257,6 @@ export default function QuestionForm() {
 
   const roomResponses = currentRoomSession?.responses ?? []
   const responses = new Map(roomResponses.map((r) => [r.questionId, r]))
-
-  const roomSessionRef = useRef(currentRoomSession)
-  roomSessionRef.current = currentRoomSession
-
-  const updateResponse = useCallback(
-    (questionId: string, patch: Partial<RoomQuestionResponse>) => {
-      const existing = roomSessionRef.current?.responses.find((r) => r.questionId === questionId)
-      const q = rubric.questions.find((item) => item.questionId === questionId)!
-      setResponse(roomId, {
-        questionId,
-        value:
-          patch.value !== undefined
-            ? patch.value
-            : existing?.value ?? (isMultiSelectQuestionType(q.questionType) ? [] : ""),
-        comment:
-          patch.comment !== undefined ? patch.comment.trim() || undefined : existing?.comment,
-        ...mergeResponsePhotoFields(existing, patch),
-      })
-    },
-    [roomId, rubric, setResponse],
-  )
 
   return (
     <>

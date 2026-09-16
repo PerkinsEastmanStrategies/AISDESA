@@ -42,6 +42,7 @@
     "lib/png-rgba.ts",
     "lib/campus-report-pdf.ts",
     "lib/campus-report-model.ts",
-    "components/campus-report-modal.tsx"
+    "components/campus-report-modal.tsx",
+    "scripts/seed-lbj-pilot-test.ts"
   ]
 }

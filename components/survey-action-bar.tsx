@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { AlertTriangle, Check, CheckCircle2, Loader2, X } from "lucide-react"
+import { AlertTriangle, Check, CheckCircle2, Download, Loader2, X } from "lucide-react"
 import { surveyTypeLabel } from "@aisd/shared"
 import { useSurvey } from "@/lib/survey-store"
 import { countIncompleteItems } from "@/lib/closeout"
+import { downloadSurveySaveFailureCsv } from "@/lib/survey-save-csv"
 import type { SubmitValidationResult } from "@/lib/survey-validation"
 import { cn } from "@/lib/utils"
 
@@ -107,6 +108,18 @@ export default function SurveyActionBar() {
       selectRoom(pendingValidation.firstIncompleteRoomId)
     }
     setPendingValidation(null)
+  }
+
+  const handleDownloadSaveCsv = () => {
+    if (!state.school || !state.session) return
+    downloadSurveySaveFailureCsv({
+      school: state.school,
+      session: state.session,
+      preWalk: state.preWalk,
+      allRooms: state.allRooms,
+      saveError: saveAck === "offline" ? "offline" : "error",
+      lastSavedAt: state.lastSavedAt,
+    })
   }
 
   const handleDiscardClick = () => {
@@ -339,22 +352,30 @@ export default function SurveyActionBar() {
                   <p className="mt-1.5 text-sm text-[var(--color-muted-foreground)]">
                     {moduleLabel} answers are on this device only
                     {saveAck === "offline" ? " because this iPad is offline" : ""}. Stay here and tap
-                    Retry. Do not switch devices until the header says synced.
+                    Retry. If Retry keeps failing, download a CSV backup of this survey.
                   </p>
                 </div>
               </div>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row-reverse">
+              <div className="mt-4 flex flex-col gap-2">
                 <button
                   type="button"
                   onClick={() => void confirmDatabaseSave()}
-                  className="flex min-h-[48px] flex-1 items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 text-sm font-semibold text-white active:opacity-90"
+                  className="flex min-h-[48px] w-full items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 text-sm font-semibold text-white active:opacity-90"
                 >
                   Retry
                 </button>
                 <button
                   type="button"
+                  onClick={handleDownloadSaveCsv}
+                  className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] px-4 text-sm font-semibold active:bg-slate-50"
+                >
+                  <Download className="h-4 w-4" />
+                  Download CSV backup
+                </button>
+                <button
+                  type="button"
                   onClick={() => setSaveAck(null)}
-                  className="flex min-h-[48px] flex-1 items-center justify-center rounded-xl border border-[var(--color-border)] px-4 text-sm font-medium active:bg-slate-50"
+                  className="flex min-h-[48px] w-full items-center justify-center rounded-xl border border-[var(--color-border)] px-4 text-sm font-medium active:bg-slate-50"
                 >
                   Continue anyway
                 </button>

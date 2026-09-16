@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { Check, CheckCircle2, ChevronDown, CircleHelp, Map as MapIcon, Search, X } from "lucide-react"
-import { useSurvey } from "@/lib/survey-store"
+import { useSurvey, findPlanRoomForSurveyRoom } from "@/lib/survey-store"
 import SurveyFloorPlan from "@/components/survey-floor-plan"
 import {
   gradeOptionsForSchool,
@@ -14,6 +14,7 @@ import {
   isNeighborhoodSurveyRoomId,
   isOutdoorSurveyRoomId,
   isArrivalSurveyRoomId,
+  isAbsentSpaceTypeRoomId,
   isSpaceTypeRequiredForSchool,
   isSpaceTypeRoomsComplete,
   isStudioType,
@@ -34,6 +35,7 @@ import {
   surveyModuleUsesSpaceTypePicker,
   surveyTypeForSpaceType,
   tableEntryForSpaceType,
+  campusUsesSeededWalkedRooms,
   type RoomSurveySession,
 } from "@aisd/shared"
 import { roomIsQueuedForCloseOut } from "@/lib/closeout"
@@ -51,6 +53,7 @@ import {
   neighborhoodOptionsForSchool,
 } from "@/lib/room-neighborhood-lookup"
 import { isRoomSurveyFilledOut } from "@/lib/room-survey-progress"
+import { spaceTypeBelongsToSurvey } from "@/lib/pilot-carryover"
 import { cn } from "@/lib/utils"
 import { useSelectRoomWithConfirm } from "@/components/use-select-room-with-confirm"
 import { useFloorPlanDisplay } from "@/lib/use-floor-plan-display"
@@ -152,6 +155,7 @@ export default function RoomSelector({
     state.surveyType,
     state.school?.schoolClass,
   )
+  const preferWalkedRooms = campusUsesSeededWalkedRooms(state.school)
   const spaceTypeReady = !showSpaceType || !!selectedSpaceType || preWalkMapped
   const pendingNeighborhood = state.pendingNeighborhood ?? ""
   const selectedNeighborhood = neighborhoodOnlyMode
@@ -275,8 +279,9 @@ export default function RoomSelector({
     return [...byId.values()]
   }
 
-  const { pinnedRoomOptions, otherRoomOptions } = useMemo(() => {
+  const { keptRoomOptions, keptOtherRoomOptions, pinnedRoomOptions, otherRoomOptions } = useMemo(() => {
     const schoolClass = state.school?.schoolClass
+    const preferWalkedRooms = campusUsesSeededWalkedRooms(state.school)
     const mappedTypeForRoom = (roomId: string) =>
       preWalkSpaceTypeForRoom(state.preWalk.mappings, roomId, state.surveyType, schoolClass)
     const startedAsOtherType = (roomId: string) => {
@@ -287,6 +292,34 @@ export default function RoomSelector({
         !!session?.roomType &&
         session.roomType !== selectedSpaceType
       )
+    }
+    const pickerRoomFromSession = (roomSession: RoomSurveySession) => {
+      const matched = findPlanRoomForSurveyRoom(state.allRooms, roomSession.roomId, roomSession)
+      const neighborhoodLabel = neighborhoodFromSurveyRoomId(roomSession.roomId)
+      const displayName = isOutdoorSurveyRoomId(roomSession.roomId)
+        ? outdoorSurveyRoomDisplayName(
+            roomSession.roomType || spaceTypeFromOutdoorSurveyRoomId(roomSession.roomId),
+          )
+        : isArrivalSurveyRoomId(roomSession.roomId)
+          ? arrivalSurveyRoomDisplayName(
+              roomSession.roomType || spaceTypeFromArrivalSurveyRoomId(roomSession.roomId),
+            )
+          : neighborhoodLabel
+            ? neighborhoodSurveyRoomDisplayName(neighborhoodLabel)
+            : roomSession.schoolRoomNumber?.trim() ||
+              roomSession.roomNumber?.trim() ||
+              matched?.name ||
+              roomSession.roomId
+      return {
+        id: roomSession.roomId,
+        name: displayName,
+        x: matched?.x ?? 0,
+        y: matched?.y ?? 0,
+        area: matched?.area ?? 0,
+        building: roomSession.building?.trim() || matched?.building,
+        levelId: roomSession.levelId || matched?.levelId || effectiveLevelId || "",
+        points: matched?.points ?? ([] as { x: number; y: number }[]),
+      }
     }
 
     if (state.surveyType === "closeout" && state.session) {
@@ -330,6 +363,8 @@ export default function RoomSelector({
         })
       }
       return {
+        keptRoomOptions: [],
+        keptOtherRoomOptions: [],
         pinnedRoomOptions: [],
         otherRoomOptions: sortRoomsByName(dedupeRoomsById(pending, effectiveLevelId)),
       }
@@ -342,7 +377,31 @@ export default function RoomSelector({
     const eligibleForPreWalk = (r: (typeof state.allRooms)[number]) =>
       isClassroomRoom(r) || !!mappedTypeForRoom(r.id)
     const pinnedIds = new Set<string>()
+    let kept: typeof onFloor = []
+    let keptOther: typeof onFloor = []
     let pinned: typeof onFloor = []
+
+    if (preferWalkedRooms && state.session) {
+      const walked = Object.values(state.session.rooms).filter((room) => {
+        if (!room.roomType?.trim()) return false
+        if (isAbsentSpaceTypeRoomId(room.roomId) || room.spaceTypeMarkedAbsent) return false
+        if (!spaceTypeBelongsToSurvey(state.surveyType, room.roomType, schoolClass)) return false
+        if (!roomHasAssessmentProgress(room)) return false
+        return true
+      })
+      const walkedCurrent = selectedSpaceType
+        ? walked.filter((room) => room.roomType === selectedSpaceType)
+        : walked
+      const walkedOther = selectedSpaceType
+        ? walked.filter((room) => room.roomType !== selectedSpaceType)
+        : []
+      kept = sortRoomsByName(walkedCurrent.map((room) => pickerRoomFromSession(room)))
+      keptOther = sortRoomsByName(walkedOther.map((room) => pickerRoomFromSession(room)))
+      for (const room of [...kept, ...keptOther]) {
+        pinnedIds.add(room.id)
+        pinnedIds.add(room.id.toUpperCase())
+      }
+    }
 
     if (preWalkMapped) {
       const pinnedSource = dedupeRoomsById(
@@ -351,10 +410,19 @@ export default function RoomSelector({
       )
       if (selectedSpaceType) {
         pinned = pinnedSource.filter(
-          (r) => mappedTypeForRoom(r.id) === selectedSpaceType && !startedAsOtherType(r.id),
+          (r) =>
+            mappedTypeForRoom(r.id) === selectedSpaceType &&
+            !startedAsOtherType(r.id) &&
+            !pinnedIds.has(r.id) &&
+            !pinnedIds.has(r.id.toUpperCase()),
         )
       } else {
-        pinned = pinnedSource.filter((r) => !!mappedTypeForRoom(r.id))
+        pinned = pinnedSource.filter(
+          (r) =>
+            !!mappedTypeForRoom(r.id) &&
+            !pinnedIds.has(r.id) &&
+            !pinnedIds.has(r.id.toUpperCase()),
+        )
       }
       for (const room of pinned) {
         pinnedIds.add(room.id)
@@ -379,7 +447,12 @@ export default function RoomSelector({
       }
     }
 
-    return { pinnedRoomOptions: pinned, otherRoomOptions: other }
+    return {
+      keptRoomOptions: kept,
+      keptOtherRoomOptions: keptOther,
+      pinnedRoomOptions: pinned,
+      otherRoomOptions: other,
+    }
   }, [
     state.allRooms,
     state.selectedLevelId,
@@ -389,14 +462,15 @@ export default function RoomSelector({
     state.session,
     state.preWalk.mappings,
     preWalkMapped,
+    preferWalkedRooms,
     selectedSpaceType,
     effectiveLevelId,
     state.school?.schoolClass,
   ])
 
   const roomOptions = useMemo(
-    () => [...pinnedRoomOptions, ...otherRoomOptions],
-    [pinnedRoomOptions, otherRoomOptions],
+    () => [...keptRoomOptions, ...keptOtherRoomOptions, ...pinnedRoomOptions, ...otherRoomOptions],
+    [keptRoomOptions, keptOtherRoomOptions, pinnedRoomOptions, otherRoomOptions],
   )
 
   const filterRoomsByQuery = (rooms: typeof state.allRooms) => {
@@ -410,6 +484,16 @@ export default function RoomSelector({
     )
   }
 
+  const filteredKeptRooms = useMemo(
+    () => filterRoomsByQuery(keptRoomOptions),
+    [keptRoomOptions, roomQuery],
+  )
+
+  const filteredKeptOtherRooms = useMemo(
+    () => filterRoomsByQuery(keptOtherRoomOptions),
+    [keptOtherRoomOptions, roomQuery],
+  )
+
   const filteredPinnedRooms = useMemo(
     () => filterRoomsByQuery(pinnedRoomOptions),
     [pinnedRoomOptions, roomQuery],
@@ -421,8 +505,13 @@ export default function RoomSelector({
   )
 
   const filteredRooms = useMemo(
-    () => [...filteredPinnedRooms, ...filteredOtherRooms],
-    [filteredPinnedRooms, filteredOtherRooms],
+    () => [
+      ...filteredKeptRooms,
+      ...filteredKeptOtherRooms,
+      ...filteredPinnedRooms,
+      ...filteredOtherRooms,
+    ],
+    [filteredKeptRooms, filteredKeptOtherRooms, filteredPinnedRooms, filteredOtherRooms],
   )
 
   const neighborhoodPickerLegend = useMemo(
@@ -486,7 +575,14 @@ export default function RoomSelector({
   )
 
   const selectedRoom = selectedId
-    ? state.allRooms.find((r) => r.id === selectedId) ?? roomOptions.find((r) => r.id === selectedId)
+    ? roomOptions.find((r) => r.id === selectedId) ??
+      findPlanRoomForSurveyRoom(
+        state.allRooms,
+        selectedId,
+        state.session?.rooms[selectedId],
+      ) ??
+      state.allRooms.find((r) => r.id === selectedId) ??
+      null
     : null
 
   const handleSelectRoom = (roomId: string | null) => {
@@ -500,6 +596,7 @@ export default function RoomSelector({
         sessionRooms: state.session?.rooms,
         roomId,
         schoolClass: state.school?.schoolClass,
+        preferSurveyedRooms: campusUsesSeededWalkedRooms(state.school),
       })
     ) {
       return
@@ -541,7 +638,8 @@ export default function RoomSelector({
       ((enteringNeighborhoodOnly && !isNeighborhoodSurveyRoomId(selectedId)) ||
         (!enteringNeighborhoodOnly && isNeighborhoodSurveyRoomId(selectedId)) ||
         (enteringCampusScoped && !isArrivalSurveyRoomId(selectedId)) ||
-        (!enteringCampusScoped && isArrivalSurveyRoomId(selectedId)))
+        (!enteringCampusScoped && isArrivalSurveyRoomId(selectedId)) ||
+        (!!selectedSpaceType && !!roomType && selectedSpaceType !== roomType))
     ) {
       selectRoom(null)
     }
@@ -701,7 +799,9 @@ export default function RoomSelector({
           </button>
           {!selectedSpaceType && (
             <p className="mt-1.5 text-[11px] text-slate-500">
-              {preWalkMapped
+              {preferWalkedRooms
+                ? "Choose a space type to see rooms that were already walked, or pick a room to resume it"
+                : preWalkMapped
                 ? "Select a room — its space type will fill in from your pre-walk map"
                 : isNeighborhoodsSurvey
                   ? "Choose a space type, then select the neighborhood you are assessing"
@@ -801,12 +901,14 @@ export default function RoomSelector({
                 <span
                   className={cn(
                     "min-w-0 flex-1 truncate",
-                    !selectedRoom && "font-normal text-slate-400",
+                    !selectedRoom && !selectedId && "font-normal text-slate-400",
                   )}
                 >
                   {selectedRoom
                     ? formatRoomPickerLabel(selectedRoom)
-                    : roomOptions.length
+                    : selectedId
+                      ? selectedId
+                      : roomOptions.length
                       ? "Select a room"
                       : state.surveyType === "closeout"
                         ? "No unfinished Close Out rooms"
@@ -1135,8 +1237,23 @@ export default function RoomSelector({
                 <p className="truncate text-xs text-[var(--color-muted-foreground)]">
                   {state.surveyType === "closeout"
                     ? `${roomOptions.length} with unfinished Close Out items`
-                    : filteredPinnedRooms.length > 0
-                      ? `${filteredPinnedRooms.length} pre-walk · ${filteredOtherRooms.length} other on this floor`
+                    : filteredKeptRooms.length > 0 ||
+                        filteredKeptOtherRooms.length > 0 ||
+                        filteredPinnedRooms.length > 0
+                      ? [
+                          filteredKeptRooms.length > 0
+                            ? `${filteredKeptRooms.length} kept`
+                            : null,
+                          filteredKeptOtherRooms.length > 0
+                            ? `${filteredKeptOtherRooms.length} other kept`
+                            : null,
+                          filteredPinnedRooms.length > 0
+                            ? `${filteredPinnedRooms.length} pre-walk`
+                            : null,
+                          `${filteredOtherRooms.length} other on this floor`,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")
                       : `${roomOptions.length} on this floor`}
                   {roomQuery.trim() ? ` · ${filteredRooms.length} match` : ""}
                 </p>
@@ -1206,6 +1323,96 @@ export default function RoomSelector({
                 </li>
               ) : (
                 <>
+                  {filteredKeptRooms.length > 0 && (
+                    <>
+                      <li className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                        {selectedSpaceType
+                          ? `Kept from previous walk · ${selectedSpaceType}`
+                          : "Kept from previous walk"}
+                      </li>
+                      {filteredKeptRooms.map((r) => {
+                        const active = selectedId === r.id
+                        const walkedType = state.session?.rooms[r.id]?.roomType?.trim()
+                        const levelLabel = state.floorPlan?.levels.find(
+                          (level) => level.id === r.levelId,
+                        )?.label
+                        return (
+                          <li key={`kept-${r.id}`}>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectRoom(r.id)}
+                              className={cn(
+                                "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium active:bg-slate-50",
+                                active && "bg-blue-50 text-[var(--color-primary)]",
+                                !active && "bg-slate-50/80",
+                              )}
+                            >
+                              <span className="min-w-0 flex-1 break-words leading-snug">
+                                {r.name}
+                                {(walkedType || levelLabel) && (
+                                  <span
+                                    className={cn(
+                                      "mt-0.5 block text-[11px] font-normal",
+                                      active ? "text-[var(--color-primary)]/80" : "text-slate-500",
+                                    )}
+                                  >
+                                    Kept
+                                    {walkedType ? ` · ${walkedType}` : ""}
+                                    {levelLabel ? ` · ${levelLabel}` : ""}
+                                  </span>
+                                )}
+                              </span>
+                              {active && <Check className="h-4 w-4 shrink-0" aria-hidden />}
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </>
+                  )}
+                  {filteredKeptOtherRooms.length > 0 && (
+                    <>
+                      <li className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                        Kept · other space types
+                      </li>
+                      {filteredKeptOtherRooms.map((r) => {
+                        const active = selectedId === r.id
+                        const walkedType = state.session?.rooms[r.id]?.roomType?.trim()
+                        const levelLabel = state.floorPlan?.levels.find(
+                          (level) => level.id === r.levelId,
+                        )?.label
+                        return (
+                          <li key={`kept-other-${r.id}`}>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectRoom(r.id)}
+                              className={cn(
+                                "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium active:bg-slate-50",
+                                active && "bg-blue-50 text-[var(--color-primary)]",
+                                !active && "bg-slate-50/80",
+                              )}
+                            >
+                              <span className="min-w-0 flex-1 break-words leading-snug">
+                                {r.name}
+                                {(walkedType || levelLabel) && (
+                                  <span
+                                    className={cn(
+                                      "mt-0.5 block text-[11px] font-normal",
+                                      active ? "text-[var(--color-primary)]/80" : "text-slate-500",
+                                    )}
+                                  >
+                                    Kept
+                                    {walkedType ? ` · ${walkedType}` : ""}
+                                    {levelLabel ? ` · ${levelLabel}` : ""}
+                                  </span>
+                                )}
+                              </span>
+                              {active && <Check className="h-4 w-4 shrink-0" aria-hidden />}
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </>
+                  )}
                   {filteredPinnedRooms.length > 0 && (
                     <>
                       <li className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
@@ -1221,8 +1428,11 @@ export default function RoomSelector({
                           state.surveyType,
                           state.school?.schoolClass,
                         )
+                        const levelLabel = state.floorPlan?.levels.find(
+                          (level) => level.id === r.levelId,
+                        )?.label
                         return (
-                          <li key={r.id}>
+                          <li key={`prewalk-${r.id}`}>
                             <button
                               type="button"
                               onClick={() => handleSelectRoom(r.id)}
@@ -1242,6 +1452,7 @@ export default function RoomSelector({
                                     )}
                                   >
                                     Pre-walk · {mappedType}
+                                    {levelLabel ? ` · ${levelLabel}` : ""}
                                   </span>
                                 )}
                               </span>
@@ -1254,7 +1465,9 @@ export default function RoomSelector({
                   )}
                   {filteredOtherRooms.length > 0 && (
                     <>
-                      {filteredPinnedRooms.length > 0 && (
+                      {(filteredKeptRooms.length > 0 ||
+                        filteredKeptOtherRooms.length > 0 ||
+                        filteredPinnedRooms.length > 0) && (
                         <li className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                           All rooms on this floor
                         </li>

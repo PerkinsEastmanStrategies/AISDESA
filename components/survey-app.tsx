@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { SurveyProvider, useSurvey } from "@/lib/survey-store"
 import SurveyHeader, { SurveyHeaderControls } from "@/components/survey-header"
 import SurveyTypeNav from "@/components/survey-type-nav"
@@ -12,9 +13,16 @@ import SurveyResults from "@/components/survey-results"
 import AdminDashboard from "@/components/admin-dashboard"
 import EsaLanding from "@/components/esa-landing"
 import PreWalkPromptModal from "@/components/pre-walk-prompt-modal"
+import PilotCarryOverModal from "@/components/pilot-carryover-modal"
 import SurveyRemoteConflictModal from "@/components/survey-remote-conflict-modal"
 import SurveyActionBar from "@/components/survey-action-bar"
 import { getSurveyRubric, surveyTypeLabel } from "@aisd/shared"
+import {
+  isPilotCarryOverSchool,
+  listPilotCarryOverRooms,
+  shouldPromptPilotCarryOver,
+  type PilotCarryOverRoom,
+} from "@/lib/pilot-carryover"
 
 function SurveyActionBarHost() {
   const { state, hasAssessorRegistered } = useSurvey()
@@ -145,6 +153,55 @@ function SurveyAppContent() {
   )
 }
 
+function PilotCarryOverHost() {
+  const {
+    state,
+    remoteSchoolDraftsLoading,
+    applyPilotCarryOverDecisions,
+  } = useSurvey()
+  const [rooms, setRooms] = useState<PilotCarryOverRoom[]>([])
+  const [open, setOpen] = useState(false)
+  const [applying, setApplying] = useState(false)
+
+  useEffect(() => {
+    const school = state.school
+    if (!state.hydrated || !school || !isPilotCarryOverSchool(school)) {
+      setOpen(false)
+      return
+    }
+    if (remoteSchoolDraftsLoading) return
+    const listed = listPilotCarryOverRooms(school.id, school.schoolClass)
+    const keys = listed.map((room) => room.key)
+    if (!shouldPromptPilotCarryOver(school.id, keys)) {
+      setOpen(false)
+      return
+    }
+    setRooms(listed)
+    setOpen(listed.length > 0)
+  }, [state.hydrated, state.school?.id, state.school?.schoolClass, remoteSchoolDraftsLoading])
+
+  return (
+    <PilotCarryOverModal
+      open={open}
+      schoolName={state.school?.displayName ?? ""}
+      rooms={rooms}
+      applying={applying}
+      onConfirm={async (removed) => {
+        setApplying(true)
+        try {
+          await applyPilotCarryOverDecisions(
+            removed,
+            rooms.map((room) => room.key),
+          )
+          setOpen(false)
+        } finally {
+          setApplying(false)
+        }
+      }}
+    />
+  )
+}
+
 function SurveyRemoteConflictHost() {
   const {
     remoteConflictOpen,
@@ -170,6 +227,7 @@ export default function SurveyApp() {
   return (
     <SurveyProvider>
       <SurveyAppContent />
+      <PilotCarryOverHost />
       <SurveyRemoteConflictHost />
     </SurveyProvider>
   )

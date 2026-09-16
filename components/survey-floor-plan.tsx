@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Maximize2, Minimize2, Scan, ZoomIn, ZoomOut, RotateCcw, X } from "lucide-react"
-import { useSurvey } from "@/lib/survey-store"
+import { useSurvey, findPlanRoomForSurveyRoom } from "@/lib/survey-store"
 import { useSelectRoomWithConfirm } from "@/components/use-select-room-with-confirm"
 import { overlayPointsForRoom, viewBoxString, type ParsedPlanRoom } from "@aisd/shared"
 import { getRoomSurveyProgress, ROOM_PROGRESS_FILL } from "@/lib/room-survey-progress"
@@ -278,6 +278,13 @@ export default function SurveyFloorPlan({
 
   const plan = state.floorPlan
   const levelId = state.selectedLevelId ?? plan?.defaultLevelId ?? "floor-1"
+  const selectedPlanId = state.selectedRoomId
+    ? findPlanRoomForSurveyRoom(
+        state.allRooms,
+        state.selectedRoomId,
+        state.session?.rooms[state.selectedRoomId],
+      )?.id ?? state.selectedRoomId
+    : null
   const level = plan?.levels.find((l) => l.id === levelId)
 
   // WebKit/iOS: render via data-URL <image> (blob: breaks; inline markup leaks CSS onto overlays).
@@ -782,6 +789,7 @@ export default function SurveyFloorPlan({
       selected: photoGalleryMode
         ? photoSelected
         : state.selectedRoomId === room.id ||
+          selectedPlanId === room.id ||
           preWalkSelectedRoomId === room.id ||
           photoSelected,
       hasPhotoMarker,

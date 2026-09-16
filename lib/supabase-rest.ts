@@ -101,3 +101,20 @@ export async function supabaseRestDelete(table: string, query: string): Promise<
     throw new Error(detail || `Supabase delete failed (${response.status})`)
   }
 }
+
+export async function supabaseRestPatch<T extends object>(
+  table: string,
+  query: string,
+  body: T,
+): Promise<void> {
+  const url = `${supabaseProjectUrl()}/rest/v1/${table}?${query}`
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: restHeaders("return=minimal"),
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "")
+    throw new Error(detail || `Supabase patch failed (${response.status})`)
+  }
+}
