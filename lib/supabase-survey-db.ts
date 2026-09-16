@@ -18,6 +18,7 @@ import {
   applyPreWalkSpaceTypeExistsToSession,
   TEST_CAMPUS_CLONES,
   sourceSchoolIdForTestClone,
+  canonicalStudioType,
 } from "@aisd/shared"
 import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
 import { roomAssessmentWeight } from "@/lib/survey-persistence"
@@ -282,6 +283,52 @@ function roomToDb(sessionId: string, room: RoomSurveySession): DbSurveyRoom {
   }
 }
 
+function photoUrlsForDb(response: RoomQuestionResponse): string[] {
+  const photos = Array.isArray(response.photos) ? response.photos : []
+  const values = photos.length > 0 ? photos : response.photo ? [response.photo] : []
+  return [...new Set(values.map((photo) => String(photo ?? "").trim()).filter(Boolean))]
+}
+
+function dedupeRoomResponses(responses: RoomQuestionResponse[]): RoomQuestionResponse[] {
+  const byId = new Map<string, RoomQuestionResponse>()
+  for (const response of responses) {
+    const questionId = response.questionId?.trim()
+    if (!questionId) continue
+    byId.set(questionId, response)
+  }
+  return [...byId.values()]
+}
+
+function spaceTypeKey(roomType: string | null | undefined): string {
+  return canonicalStudioType(roomType) || roomType?.trim() || ""
+}
+
+/** Keep unique local answers, and do not drop a space-type change behind a richer remote copy. */
+function mergeRoomForCloudPush(
+  local: RoomSurveySession,
+  remote: RoomSurveySession | undefined,
+): RoomSurveySession {
+  const localResponses = dedupeRoomResponses(local.responses ?? [])
+  if (!remote) return { ...local, responses: localResponses }
+
+  const localType = spaceTypeKey(local.roomType)
+  const remoteType = spaceTypeKey(remote.roomType)
+  if (localType && remoteType && localType !== remoteType) {
+    return { ...local, roomType: local.roomType, responses: localResponses }
+  }
+
+  const merged = new Map(
+    dedupeRoomResponses(remote.responses ?? []).map((response) => [response.questionId, response]),
+  )
+  for (const response of localResponses) merged.set(response.questionId, response)
+  return {
+    ...remote,
+    ...local,
+    roomType: local.roomType || remote.roomType,
+    responses: [...merged.values()],
+  }
+}
+
 function responseToDb(
   sessionId: string,
   roomId: string,
@@ -293,7 +340,7 @@ function responseToDb(
     question_id: response.questionId,
     value: response.value ?? null,
     comment: response.comment ?? null,
-    photos: response.photos ?? (response.photo ? [response.photo] : []),
+    photos: photoUrlsForDb(response),
   }
 }
 
@@ -499,7 +546,9 @@ async function upsertRoomsAndResponses(sessionId: string, rooms: RoomSurveySessi
       "survey_session_id,room_id",
     )
     const responses = chunk.flatMap((room) =>
-      room.responses.map((response) => responseToDb(sessionId, room.roomId, response)),
+      dedupeRoomResponses(room.responses).map((response) =>
+        responseToDb(sessionId, room.roomId, response),
+      ),
     )
     if (responses.length > 0) {
       await supabaseRestUpsert(
@@ -555,15 +604,23 @@ export async function pushSurveyDraft(input: {
   const sameRoomConflicts: string[] = []
   for (const room of candidateRooms) {
     const remoteRoom = remoteRooms[room.roomId]
+    const merged = mergeRoomForCloudPush(room, remoteRoom)
     const localWeight = roomAssessmentWeight(room)
     const remoteWeight = remoteRoom ? roomAssessmentWeight(remoteRoom) : 0
-    if (remoteRoom && remoteWeight > localWeight) {
+    const typeChanged =
+      !!spaceTypeKey(room.roomType) &&
+      !!spaceTypeKey(remoteRoom?.roomType) &&
+      spaceTypeKey(room.roomType) !== spaceTypeKey(remoteRoom?.roomType)
+    const localQuestionIds = new Set((room.responses ?? []).map((response) => response.questionId))
+    const remoteQuestionIds = new Set((remoteRoom?.responses ?? []).map((response) => response.questionId))
+    const hasUniqueLocalAnswers = [...localQuestionIds].some((id) => !remoteQuestionIds.has(id))
+    if (remoteRoom && remoteWeight > localWeight && !typeChanged && !hasUniqueLocalAnswers) {
       if (localWeight > 0) {
         sameRoomConflicts.push(room.roomNumber || room.roomType || room.roomId)
       }
       continue
     }
-    roomsToUpsert.push(room)
+    roomsToUpsert.push(merged)
   }
 
   const upsertedRoomIds = new Set(roomsToUpsert.map((room) => room.roomId))

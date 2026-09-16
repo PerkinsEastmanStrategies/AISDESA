@@ -192,7 +192,7 @@ export default function SurveyResults() {
   return (
     <div className="flex flex-col bg-gradient-to-b from-slate-200 to-slate-300/90">
       <div className="border-b border-slate-200/80 bg-white px-3 py-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
               Results
@@ -233,7 +233,24 @@ export default function SurveyResults() {
               How scoring works
             </button>
           </div>
-          <OverallScoreDisplay score={snapshot.campusOverallScore} label="Campus ESA" />
+          <div className="flex w-full shrink-0 flex-wrap items-stretch justify-end gap-2 sm:w-auto">
+            <OverallScoreDisplay
+              score={snapshot.campusOverallScore}
+              label="Campus ESA"
+              compact
+              detail="Not-present spaces count as 0%"
+            />
+            <OverallScoreDisplay
+              score={snapshot.campusOverallScoreExistingOnly}
+              label="Existing spaces"
+              compact
+              detail={
+                snapshot.absentSpaceCount > 0
+                  ? `Leaves out ${snapshot.absentSpaceCount} space${snapshot.absentSpaceCount === 1 ? "" : "s"} marked not present`
+                  : "Same as Campus ESA — none marked not present"
+              }
+            />
+          </div>
         </div>
 
         <div className="mt-4 flex gap-1 rounded-xl bg-slate-100 p-1 sm:gap-1.5 sm:p-1.5">

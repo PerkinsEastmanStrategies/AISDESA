@@ -1111,40 +1111,43 @@ export function getRoomSurveyRubric(
     rubric = filterRubricBySchoolLevel(base, schoolClass)
   } else if (effectiveType !== "studios" && effectiveType !== "closeout") {
     rubric = RUBRICS[effectiveType]
-  } else if (roomType === "Traditional studio") {
-    rubric = filterRubricBySchoolLevel(TRADITIONAL_STUDIOS_RUBRIC, schoolClass)
-  } else if (roomType === "Sensory Lab" || roomType === "Sensory Motor Lab") {
-    rubric = filterRubricBySchoolLevel(SENSORY_LAB_RUBRIC, schoolClass)
-  } else if (roomType === "Vocational Lab" || roomType === "Vocational lab") {
-    rubric = filterRubricBySchoolLevel(VOCATIONAL_LAB_RUBRIC, schoolClass)
-  } else if (roomType === "Life Skills Room" || roomType === "Life Skills Studio") {
-    rubric = filterRubricBySchoolLevel(LIFE_SKILLS_RUBRIC, schoolClass)
-  } else if (roomType === "Sped flex studio" || roomType === "SPED Flex Studio") {
-    rubric = filterRubricBySchoolLevel(SPED_FLEX_RUBRIC, schoolClass)
-  } else if (roomType === "Maker space") {
-    rubric = filterRubricBySchoolLevel(MAKER_SPACE_RUBRIC, schoolClass)
-  } else if (roomType === "Science") {
-    rubric = filterRubricBySchoolLevel(SCIENCE_RUBRIC, schoolClass)
-  } else if (roomType === "Science Prep Room") {
-    rubric = filterRubricBySchoolLevel(SCIENCE_PREP_RUBRIC, schoolClass)
-  } else if (roomType === "Art") {
-    rubric = filterRubricBySchoolLevel(ART_RUBRIC, schoolClass)
-  } else if (roomType === "2D Art Studio") {
-    rubric = filterRubricBySchoolLevel(ART_2D_RUBRIC, schoolClass)
-  } else if (roomType === "3D Art Studio") {
-    rubric = filterRubricBySchoolLevel(ART_3D_RUBRIC, schoolClass)
-  } else if (roomType === "Digital Art Studio") {
-    rubric = filterRubricBySchoolLevel(DIGITAL_ART_RUBRIC, schoolClass)
-  } else if (roomType === "Music" || roomType === "Music Studio") {
-    rubric = filterRubricBySchoolLevel(MUSIC_RUBRIC, schoolClass)
-  } else if (roomType === "Early childhood studio") {
-    rubric = filterRubricBySchoolLevel(EARLY_CHILDHOOD_RUBRIC, schoolClass)
-  } else if (roomType === "Early childhood special education studio") {
-    rubric = filterRubricBySchoolLevel(EARLY_CHILDHOOD_SPED_RUBRIC, schoolClass)
-  } else if (roomType === "Special Education Suite") {
-    rubric = filterRubricBySchoolLevel(SPECIAL_EDUCATION_SUITE_RUBRIC, schoolClass)
   } else {
-    rubric = STUDIOS_RUBRIC
+    const studioType = canonicalStudioType(roomType)
+    if (studioType === "Traditional studio") {
+      rubric = filterRubricBySchoolLevel(TRADITIONAL_STUDIOS_RUBRIC, schoolClass)
+    } else if (studioType === "Sensory Motor Lab") {
+      rubric = filterRubricBySchoolLevel(SENSORY_LAB_RUBRIC, schoolClass)
+    } else if (studioType === "Vocational Lab") {
+      rubric = filterRubricBySchoolLevel(VOCATIONAL_LAB_RUBRIC, schoolClass)
+    } else if (studioType === "Life Skills Studio") {
+      rubric = filterRubricBySchoolLevel(LIFE_SKILLS_RUBRIC, schoolClass)
+    } else if (studioType === "SPED Flex Studio") {
+      rubric = filterRubricBySchoolLevel(SPED_FLEX_RUBRIC, schoolClass)
+    } else if (studioType === "Maker space") {
+      rubric = filterRubricBySchoolLevel(MAKER_SPACE_RUBRIC, schoolClass)
+    } else if (studioType === "Science") {
+      rubric = filterRubricBySchoolLevel(SCIENCE_RUBRIC, schoolClass)
+    } else if (studioType === "Science Prep Room") {
+      rubric = filterRubricBySchoolLevel(SCIENCE_PREP_RUBRIC, schoolClass)
+    } else if (studioType === "Art") {
+      rubric = filterRubricBySchoolLevel(ART_RUBRIC, schoolClass)
+    } else if (studioType === "2D Art Studio") {
+      rubric = filterRubricBySchoolLevel(ART_2D_RUBRIC, schoolClass)
+    } else if (studioType === "3D Art Studio") {
+      rubric = filterRubricBySchoolLevel(ART_3D_RUBRIC, schoolClass)
+    } else if (studioType === "Digital Art Studio") {
+      rubric = filterRubricBySchoolLevel(DIGITAL_ART_RUBRIC, schoolClass)
+    } else if (studioType === "Music Studio") {
+      rubric = filterRubricBySchoolLevel(MUSIC_RUBRIC, schoolClass)
+    } else if (studioType === "Early childhood studio") {
+      rubric = filterRubricBySchoolLevel(EARLY_CHILDHOOD_RUBRIC, schoolClass)
+    } else if (studioType === "Early childhood special education studio") {
+      rubric = filterRubricBySchoolLevel(EARLY_CHILDHOOD_SPED_RUBRIC, schoolClass)
+    } else if (studioType === "Special Education Suite") {
+      rubric = filterRubricBySchoolLevel(SPECIAL_EDUCATION_SUITE_RUBRIC, schoolClass)
+    } else {
+      rubric = STUDIOS_RUBRIC
+    }
   }
 
   if (!rubric) return null
@@ -1311,8 +1314,28 @@ export const STUDIO_TYPE_OPTIONS = [
 
 export type StudioType = (typeof STUDIO_TYPE_OPTIONS)[number]
 
+/** Map picker / pre-walk labels onto the canonical Studios space type. */
+export function canonicalStudioType(roomType: string | null | undefined): string {
+  const trimmed = roomType?.trim() ?? ""
+  if (!trimmed) return trimmed
+  const tableName = lookupTableEntryBySpaceType(trimmed, null)?.spaceType?.trim()
+  if (tableName && (STUDIO_TYPE_OPTIONS as readonly string[]).includes(tableName)) {
+    return tableName
+  }
+  const lower = trimmed.toLowerCase()
+  const option = STUDIO_TYPE_OPTIONS.find((type) => type.toLowerCase() === lower)
+  if (option) return option
+  if (lower.includes("early childhood") && (lower.includes("sped") || lower.includes("special education"))) {
+    return "Early childhood special education studio"
+  }
+  if (lower.includes("sped flex") || lower.includes("special ed flex")) {
+    return "SPED Flex Studio"
+  }
+  return trimmed
+}
+
 export function isStudioType(value: string): value is StudioType {
-  return (STUDIO_TYPE_OPTIONS as readonly string[]).includes(value)
+  return (STUDIO_TYPE_OPTIONS as readonly string[]).includes(canonicalStudioType(value))
 }
 
 export const ADMIN_SPACE_TYPE_OPTIONS = [
@@ -1739,28 +1762,24 @@ export function isCampusScopedSurveyType(surveyType: SurveyType): boolean {
 
 /** Studio types that use a dedicated CSV package rubric (not the shared Studios questions). */
 export function usesPackageStudioRubric(roomType: string | null | undefined): boolean {
+  const studioType = canonicalStudioType(roomType)
   return (
-    roomType === "Traditional studio" ||
-    roomType === "Maker space" ||
-    roomType === "Sensory Lab" ||
-    roomType === "Sensory Motor Lab" ||
-    roomType === "Vocational Lab" ||
-    roomType === "Vocational lab" ||
-    roomType === "Life Skills Room" ||
-    roomType === "Life Skills Studio" ||
-    roomType === "Sped flex studio" ||
-    roomType === "SPED Flex Studio" ||
-    roomType === "Science" ||
-    roomType === "Science Prep Room" ||
-    roomType === "Art" ||
-    roomType === "2D Art Studio" ||
-    roomType === "3D Art Studio" ||
-    roomType === "Digital Art Studio" ||
-    roomType === "Music" ||
-    roomType === "Music Studio" ||
-    roomType === "Early childhood studio" ||
-    roomType === "Early childhood special education studio" ||
-    roomType === "Special Education Suite"
+    studioType === "Traditional studio" ||
+    studioType === "Maker space" ||
+    studioType === "Sensory Motor Lab" ||
+    studioType === "Vocational Lab" ||
+    studioType === "Life Skills Studio" ||
+    studioType === "SPED Flex Studio" ||
+    studioType === "Science" ||
+    studioType === "Science Prep Room" ||
+    studioType === "Art" ||
+    studioType === "2D Art Studio" ||
+    studioType === "3D Art Studio" ||
+    studioType === "Digital Art Studio" ||
+    studioType === "Music Studio" ||
+    studioType === "Early childhood studio" ||
+    studioType === "Early childhood special education studio" ||
+    studioType === "Special Education Suite"
   )
 }
 

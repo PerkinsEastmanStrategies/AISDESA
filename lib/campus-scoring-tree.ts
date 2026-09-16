@@ -59,6 +59,8 @@ export interface AssessedRoomRecord extends ScoredRoomEntry {
   surveyType: SurveyType
   spaceType: string
   focusAreaId: ScoringFocusAreaId
+  /** True when this space type was marked as not present / does not exist. */
+  spaceTypeDoesNotExist?: boolean
 }
 
 export interface SpaceTypeGroup {
@@ -91,6 +93,9 @@ export interface CampusScoringSnapshot {
   allRooms: AssessedRoomRecord[]
   neighborhoods: ReturnType<typeof aggregateCampusScores>["neighborhoods"]
   campusOverallScore: number | null
+  /** Same ESA rollup, omitting spaces marked as not present. */
+  campusOverallScoreExistingOnly: number | null
+  absentSpaceCount: number
   sessionsBySurveyType: Partial<Record<SurveyType, SurveySession>>
   roomScoreDetailsBySurveyType: Partial<Record<SurveyType, Record<string, RoomScoreResult>>>
 }
@@ -389,6 +394,8 @@ function buildAssessedRoom(
     surveyType,
     spaceType,
     focusAreaId,
+    spaceTypeDoesNotExist:
+      !!roomSession.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(roomId),
   }
 }
 
@@ -695,6 +702,11 @@ export function buildCampusScoringSnapshot(input: {
     allRooms: scoredRooms,
     neighborhoods: campusAgg.neighborhoods,
     campusOverallScore: computeWeightedCampusScore(scoredRooms, input.schoolClass),
+    campusOverallScoreExistingOnly: computeWeightedCampusScore(
+      scoredRooms.filter((room) => !room.spaceTypeDoesNotExist),
+      input.schoolClass,
+    ),
+    absentSpaceCount: scoredRooms.filter((room) => room.spaceTypeDoesNotExist).length,
     sessionsBySurveyType,
     roomScoreDetailsBySurveyType,
   }

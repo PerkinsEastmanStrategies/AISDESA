@@ -125,13 +125,37 @@ export function CategoryScoreList({ scores }: { scores: CategoryScore[] }) {
   )
 }
 
-export function OverallScoreDisplay({ score, label }: { score: number | null; label: string }) {
+export function OverallScoreDisplay({
+  score,
+  label,
+  detail,
+  compact = false,
+}: {
+  score: number | null
+  label: string
+  detail?: string
+  compact?: boolean
+}) {
   return (
-    <div className="mt-1.5 shrink-0 rounded-2xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50 px-5 py-4 text-center shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+    <div
+      className={cn(
+        "shrink-0 rounded-2xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50 text-center shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100",
+        compact ? "min-w-[7.5rem] px-3 py-3" : "mt-1.5 px-5 py-4",
+      )}
+    >
       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</p>
-      <p className={cn("mt-1 text-4xl font-bold tabular-nums tracking-tight", scoreTextColor(score))}>
+      <p
+        className={cn(
+          "mt-1 font-bold tabular-nums tracking-tight",
+          compact ? "text-3xl" : "text-4xl",
+          scoreTextColor(score),
+        )}
+      >
         {score !== null ? `${Math.round(score)}%` : "—"}
       </p>
+      {detail ? (
+        <p className="mt-1 max-w-[10.5rem] text-[10px] leading-snug text-slate-500">{detail}</p>
+      ) : null}
     </div>
   )
 }

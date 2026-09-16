@@ -57,7 +57,7 @@ const ROLLUP_LEVELS = [
     label: "Campus score",
     summary: "Focus areas combine using Focus Area Weight.",
     detail:
-      "The campus ESA score is a weighted average of focus-area scores. Focus Area Weight in the Table of Surveys sets how much each focus area counts relative to the others. Use the drill-down on this page to trace any score back to its questions.",
+      "Campus ESA is a weighted average of focus-area scores, with space types marked as not present counted as 0%. Existing spaces is the same rollup with those rooms left out. Focus Area Weight in the Table of Surveys sets how much each focus area counts. Use the drill-down on this page to trace any score back to its questions.",
     tone: "bg-white border-slate-300 text-slate-900 shadow-sm",
     width: "w-[58%]",
   },
