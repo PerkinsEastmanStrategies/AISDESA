@@ -231,11 +231,13 @@ export function parseSizeDeviationBand(raw: string | undefined): SizeDeviationBa
   return "red"
 }
 
+function normalizeLookupHeader(value: string): string {
+  return value.trim().toLowerCase().replace(/_/g, " ").replace(/\s+/g, " ")
+}
+
 function findHeaderIndex(header: string[], aliases: string[]): number {
-  const normalized = header.map((h) =>
-    h.trim().toLowerCase().replace(/_/g, " ").replace(/\s+/g, " "),
-  )
-  const want = aliases.map((alias) => alias.toLowerCase())
+  const normalized = header.map(normalizeLookupHeader)
+  const want = aliases.map(normalizeLookupHeader)
   return normalized.findIndex((h) => want.includes(h))
 }
 
