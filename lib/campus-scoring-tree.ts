@@ -617,7 +617,6 @@ export function buildCampusScoringSnapshot(input: {
     SurveyType,
     SurveySession,
   ][]) {
-    if (!includeUnsavedSessionRooms) continue
     let details = roomScoreDetailsBySurveyType[surveyType]
     if (!details) {
       details = scoreSessionRooms(session, surveyType, input.schoolClass)
@@ -625,10 +624,12 @@ export function buildCampusScoringSnapshot(input: {
     }
     for (const [roomId, roomSession] of Object.entries(session.rooms)) {
       if (seen.has(roomId)) continue
+      const absent =
+        roomSession.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(roomId)
+      if (!includeUnsavedSessionRooms && !absent) continue
       const detail = details[roomId]
       const assessable =
-        roomSession.spaceTypeMarkedAbsent ||
-        isAbsentSpaceTypeRoomId(roomId) ||
+        absent ||
         roomSession.deferredToCloseOut ||
         roomHasAssessment(detail, { allowScoreWithoutAnswers: true }) ||
         (detail

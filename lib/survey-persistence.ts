@@ -121,6 +121,11 @@ export interface PersistedSurveyDraft {
    * cloud pull must not resurrect the old Results dump.
    */
   pilotResultsCloudResetAt?: string
+  /**
+   * Stamped after merge campuses auto-kept rooms over the shared percent
+   * threshold so later devices do not re-filter in-progress rooms.
+   */
+  autoCarryOverAppliedAt?: string
 }
 
 export interface ActiveDraftMeta {
@@ -699,6 +704,18 @@ export function mergePulledDraftWithLocal(
     session.outdoorElementPins = session.outdoorElementPins.filter((pin) => !discardedPinIds.has(pin.id))
   }
 
+  const autoCarryOverAppliedAt =
+    local.autoCarryOverAppliedAt ??
+    remote.autoCarryOverAppliedAt ??
+    session.autoCarryOverAppliedAt ??
+    local.session.autoCarryOverAppliedAt ??
+    remote.session.autoCarryOverAppliedAt ??
+    local.lastSubmission?.session.autoCarryOverAppliedAt ??
+    remote.lastSubmission?.session.autoCarryOverAppliedAt
+  if (autoCarryOverAppliedAt) {
+    session.autoCarryOverAppliedAt = autoCarryOverAppliedAt
+  }
+
   return {
     ...remote,
     ...local,
@@ -714,6 +731,7 @@ export function mergePulledDraftWithLocal(
         : (remote.lastSubmission ?? local.lastSubmission),
     pilotResultsResetAt: local.pilotResultsResetAt ?? remote.pilotResultsResetAt,
     pilotResultsCloudResetAt: local.pilotResultsCloudResetAt ?? remote.pilotResultsCloudResetAt,
+    autoCarryOverAppliedAt,
     pendingStudioType:
       local.pendingStudioType !== undefined ? local.pendingStudioType : remote.pendingStudioType,
     pendingNeighborhood:

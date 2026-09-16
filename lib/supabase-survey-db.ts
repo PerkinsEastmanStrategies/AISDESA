@@ -833,6 +833,9 @@ function buildDraftFromSessionRow(
         floorPlanRooms: snapshot.floor_plan_rooms ?? [],
       }
     : null
+  if (lastSubmission?.session.autoCarryOverAppliedAt) {
+    surveySession.autoCarryOverAppliedAt = lastSubmission.session.autoCarryOverAppliedAt
+  }
 
   if (!sessionHasProgress(surveySession) && !lastSubmission) {
     if (!sessionRow.submitted_at && !sessionRow.campus_submitted_at) {
@@ -850,6 +853,9 @@ function buildDraftFromSessionRow(
     manualRooms: shared.manualRooms,
     lastSubmission,
     savedAt: sessionRow.updated_at,
+    autoCarryOverAppliedAt:
+      lastSubmission?.session.autoCarryOverAppliedAt ??
+      surveySession.autoCarryOverAppliedAt,
   }
 }
 
@@ -1068,7 +1074,7 @@ async function seedCompatibleAnswersIfNeeded(schoolId: string): Promise<void> {
       await pushSurveyDraft({
         school: destSchool,
         draft: cloned,
-        writeSnapshot: false,
+        writeSnapshot: (cloned.lastSubmission?.campus.rooms.length ?? 0) > 0,
       })
     }
   })().finally(() => {

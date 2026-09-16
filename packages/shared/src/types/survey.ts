@@ -226,6 +226,8 @@ export interface SurveySession {
   campusSubmittedAt?: string
   /** Per space type: false = space not present at this school (skip room survey). */
   spaceTypeExistsAtSchool?: Record<string, boolean>
+  /** Seeded merge campuses: shared auto-keep threshold was applied. */
+  autoCarryOverAppliedAt?: string
 }
 
 export interface CategoryScore {

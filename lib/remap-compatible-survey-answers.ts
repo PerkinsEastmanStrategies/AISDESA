@@ -10,6 +10,7 @@ import type {
   SurveyType,
 } from "@aisd/shared"
 import {
+  campusAutoCarryOverPercent,
   NOT_ABLE_TO_ASSESS_OPTION,
   asMultiSelectValues,
   canonicalizeResponseValue,
@@ -21,7 +22,7 @@ import {
   isTextQuestionType,
 } from "@aisd/shared"
 import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
-import { spaceTypeBelongsToSurvey } from "@/lib/pilot-carryover"
+import { prepareAutoCarryOverDraft, spaceTypeBelongsToSurvey } from "@/lib/pilot-carryover"
 
 export interface RemapAnswerStats {
   kept: number
@@ -471,22 +472,27 @@ export function cloneDraftWithCompatibleAnswers(input: {
     assessorRegisteredAt: draft.session.assessorRegisteredAt || now,
   }
 
+  const cloned: PersistedSurveyDraft = {
+    ...draft,
+    schoolId: destSchool.id,
+    session,
+    selectedRoomId: null,
+    pendingStudioType: null,
+    pendingNeighborhood: null,
+    view: "home",
+    lastSubmission: null,
+    savedAt: now,
+    discardedRoomIds: [],
+    discardedPinIds: [],
+    ownedRoomIds: Object.keys(rooms),
+    ownedPinIds: (session.outdoorElementPins ?? []).map((pin) => pin.id),
+  }
+  const autoPercent = campusAutoCarryOverPercent(destSchool)
+  const prepared =
+    autoPercent != null ? prepareAutoCarryOverDraft(cloned, destSchool, autoPercent) : cloned
+
   return {
-    draft: {
-      ...draft,
-      schoolId: destSchool.id,
-      session,
-      selectedRoomId: null,
-      pendingStudioType: null,
-      pendingNeighborhood: null,
-      view: "home",
-      lastSubmission: null,
-      savedAt: now,
-      discardedRoomIds: [],
-      discardedPinIds: [],
-      ownedRoomIds: Object.keys(rooms),
-      ownedPinIds: (session.outdoorElementPins ?? []).map((pin) => pin.id),
-    },
-    stats: { kept, dropped, rooms: Object.keys(rooms).length },
+    draft: prepared,
+    stats: { kept, dropped, rooms: Object.keys(prepared.session.rooms).length },
   }
 }

@@ -81,6 +81,11 @@ export interface TestCampusClone {
    * the current question still exists and the stored value is still a valid option.
    */
   seedCompatibleAnswersFromSource?: boolean
+  /**
+   * When set, keep carried-over rooms with progress above this percent and skip
+   * the Keep/Remove picker so every assessor sees the same room set.
+   */
+  autoCarryOverPercent?: number
   /** Used when seeding if the source esa_schools row is missing. */
   schoolClass?: string
 }
@@ -143,6 +148,7 @@ export const TEST_CAMPUS_CLONES: readonly TestCampusClone[] = [
     sourceCampusId: "014",
     campusId: "014-PILOT-2-MERGE",
     seedCompatibleAnswersFromSource: true,
+    autoCarryOverPercent: 25,
     schoolClass: "HIGH",
   },
   {
@@ -153,6 +159,7 @@ export const TEST_CAMPUS_CLONES: readonly TestCampusClone[] = [
     sourceCampusId: "126",
     campusId: "126-PILOT-2-MERGE",
     seedCompatibleAnswersFromSource: true,
+    autoCarryOverPercent: 25,
     schoolClass: "ELEM",
   },
   {
@@ -163,6 +170,7 @@ export const TEST_CAMPUS_CLONES: readonly TestCampusClone[] = [
     sourceCampusId: "112",
     campusId: "112-PILOT-2-MERGE",
     seedCompatibleAnswersFromSource: true,
+    autoCarryOverPercent: 25,
     schoolClass: "ELEM",
   },
   {
@@ -173,6 +181,7 @@ export const TEST_CAMPUS_CLONES: readonly TestCampusClone[] = [
     sourceCampusId: "142",
     campusId: "142-PILOT-2-MERGE",
     seedCompatibleAnswersFromSource: true,
+    autoCarryOverPercent: 25,
     schoolClass: "HIGH",
   },
   {
@@ -213,6 +222,15 @@ export function campusUsesSeededWalkedRooms(
 ): boolean {
   if (!school) return false
   return !!testCampusCloneForSchool(school)?.seedCompatibleAnswersFromSource
+}
+
+/** Percent threshold for auto-keeping carried rooms, or null when assessors pick Keep/Remove. */
+export function campusAutoCarryOverPercent(
+  school: Pick<AisdSchoolOption, "id" | "name" | "campusId"> | { name?: string | null; campusId?: string | null; id?: string | null } | null | undefined,
+): number | null {
+  if (!school) return null
+  const percent = testCampusCloneForSchool(school)?.autoCarryOverPercent
+  return typeof percent === "number" && percent > 0 ? percent : null
 }
 
 export function testCampusCloneForSchool(

@@ -75,6 +75,7 @@ import {
   surveyTypeAvailableForSchool,
   usesDedicatedSpaceRubric,
   campusUsesSeededWalkedRooms,
+  campusAutoCarryOverPercent,
   type WeightOverrides,
 } from "@aisd/shared"
 import {
@@ -146,7 +147,13 @@ import {
 } from "@/lib/closeout"
 import { buildCampusScoringSnapshot, patchSubmissionWithSessionScores } from "@/lib/campus-scoring-tree"
 import { EMPTY_PREWALK, getPreWalkMappingForSurveyModule, mergePreWalkStates, migratePreWalkState, preWalkHasCloudState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypeExistsKey, preWalkSpaceTypeForRoom, preWalkSpaceTypePhotoKey, preWalkSurveyAllowsSpaceTypeExists } from "@/lib/prewalk"
-import { markPilotCarryOverReviewed, spaceTypeBelongsToSurvey } from "@/lib/pilot-carryover"
+import {
+  draftHasAutoCarryOverApplied,
+  markPilotCarryOverReviewed,
+  markPilotAutoCarryOverApplied,
+  prepareAutoCarryOverDraft,
+  spaceTypeBelongsToSurvey,
+} from "@/lib/pilot-carryover"
 import {
   isPilotResultsResetSchool,
   shouldWipeCloudPilotResults,
@@ -2780,6 +2787,7 @@ interface SurveyContextValue {
     removed: Array<{ surveyType: SurveyType; roomId: string }>,
     reviewedKeys?: string[],
   ) => Promise<void>
+  applyPilotAutoCarryOver: () => Promise<void>
   acknowledgeTraditionalStudioCopyReview: (roomId: string) => void
   traditionalStudioCopyOffer: { sourceRoomId: string; sourceRoomName: string; neighborhood: string } | null
   submitSurvey: (options?: { deferIncomplete?: boolean; continue?: boolean }) => boolean
@@ -2991,6 +2999,8 @@ function persistDraftFromState(state: SurveyState): string | null {
     discardedPinIds,
     ownedRoomIds,
     ownedPinIds: (liveSession.outdoorElementPins ?? []).map((pin) => pin.id),
+    autoCarryOverAppliedAt:
+      previous?.autoCarryOverAppliedAt ?? sessionToSave.autoCarryOverAppliedAt,
   })
   const persisted = draftRetainsSession(state.school.id, state.surveyType, sessionToSave)
   if (!persisted) return null
@@ -4482,6 +4492,69 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     },
     [],
   )
+  const applyPilotAutoCarryOver = useCallback(async () => {
+    const school = stateRef.current.school
+    const percent = campusAutoCarryOverPercent(school)
+    if (!school || percent == null) return
+
+    const now = new Date().toISOString()
+    const savedByType = new Map<SurveyType, PersistedSurveyDraft>()
+    const pushes: Array<ReturnType<typeof pushSurveyDraftClient>> = []
+    let wroteSnapshot = false
+
+    for (const surveyType of SURVEY_TYPES) {
+      if (surveyType === "closeout") continue
+      const draft = loadDraft(school.id, surveyType)
+      if (!draft) continue
+      const nextDraft = prepareAutoCarryOverDraft(draft, school, percent)
+      const roomIdsChanged =
+        Object.keys(draft.session.rooms).sort().join("\0") !==
+        Object.keys(nextDraft.session.rooms).sort().join("\0")
+      const discardedChanged =
+        [...(draft.discardedRoomIds ?? [])].sort().join("\0") !==
+        [...(nextDraft.discardedRoomIds ?? [])].sort().join("\0")
+      const snapshotChanged =
+        (draft.lastSubmission?.campus.rooms ?? []).map((room) => room.roomId).sort().join("\0") !==
+        (nextDraft.lastSubmission?.campus.rooms ?? []).map((room) => room.roomId).sort().join("\0")
+      const stampChanged = !draftHasAutoCarryOverApplied(draft)
+      if (!roomIdsChanged && !discardedChanged && !snapshotChanged && !stampChanged) {
+        savedByType.set(surveyType, nextDraft)
+        continue
+      }
+      const persisted: PersistedSurveyDraft = {
+        ...nextDraft,
+        savedAt: now,
+      }
+      saveDraft(persisted, { setActive: false })
+      savedByType.set(surveyType, persisted)
+      if (stateRef.current.surveyType === surveyType) {
+        dispatch({
+          type: "RESTORE",
+          school,
+          draft: persisted,
+          showResumeBanner: false,
+          preserveLiveUi: false,
+        })
+      }
+      const writeSnapshot = (persisted.lastSubmission?.campus.rooms.length ?? 0) > 0 || stampChanged
+      if (writeSnapshot) wroteSnapshot = true
+      pushes.push(pushSurveyDraftClient({ school, draft: persisted, writeSnapshot }))
+    }
+
+    if (savedByType.size === 0) return
+    if (pushes.length) {
+      await Promise.all(pushes)
+      setRemoteSchoolDrafts((prev) => {
+        if (!prev) return prev
+        return prev.map((draft) => savedByType.get(draft.surveyType) ?? draft)
+      })
+      dispatch({ type: "MARK_SAVED", savedAt: now })
+    }
+    if (wroteSnapshot) {
+      lastSyncedSubmissionRef.current = now
+    }
+    markPilotAutoCarryOverApplied(school.id)
+  }, [])
   const setView = useCallback((view: SurveyView) => dispatch({ type: "SET_VIEW", view }), [])
   const enterSurveyModule = useCallback(
     (t: SurveyType, options?: { pendingStudioType?: string | null }) => {
@@ -4648,6 +4721,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         setResponse,
         applyTraditionalStudioCopy,
         applyPilotCarryOverDecisions,
+        applyPilotAutoCarryOver,
         acknowledgeTraditionalStudioCopyReview,
         traditionalStudioCopyOffer,
         submitSurvey,

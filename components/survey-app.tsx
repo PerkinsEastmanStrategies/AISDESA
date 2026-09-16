@@ -18,11 +18,18 @@ import SurveyRemoteConflictModal from "@/components/survey-remote-conflict-modal
 import SurveyActionBar from "@/components/survey-action-bar"
 import { getSurveyRubric, surveyTypeLabel } from "@aisd/shared"
 import {
+  isPilotAutoCarryOverSchool,
   isPilotCarryOverSchool,
   listPilotCarryOverRooms,
+  shouldApplyPilotAutoCarryOver,
   shouldPromptPilotCarryOver,
   type PilotCarryOverRoom,
 } from "@/lib/pilot-carryover"
+import {
+  isPilotResultsResetSchool,
+  shouldWipeCloudPilotResults,
+  shouldWipeLocalPilotResults,
+} from "@/lib/pilot-results-reset"
 
 function SurveyActionBarHost() {
   const { state, hasAssessorRegistered } = useSurvey()
@@ -158,6 +165,7 @@ function PilotCarryOverHost() {
     state,
     remoteSchoolDraftsLoading,
     applyPilotCarryOverDecisions,
+    applyPilotAutoCarryOver,
   } = useSurvey()
   const [rooms, setRooms] = useState<PilotCarryOverRoom[]>([])
   const [open, setOpen] = useState(false)
@@ -179,6 +187,25 @@ function PilotCarryOverHost() {
     setRooms(listed)
     setOpen(listed.length > 0)
   }, [state.hydrated, state.school?.id, state.school?.schoolClass, remoteSchoolDraftsLoading])
+
+  useEffect(() => {
+    const school = state.school
+    if (!state.hydrated || !school || !isPilotAutoCarryOverSchool(school)) return
+    if (remoteSchoolDraftsLoading) return
+    if (
+      isPilotResultsResetSchool(school) &&
+      (shouldWipeLocalPilotResults(school.id) || shouldWipeCloudPilotResults(school.id))
+    ) {
+      return
+    }
+    if (!shouldApplyPilotAutoCarryOver(school.id)) return
+    void applyPilotAutoCarryOver()
+  }, [
+    state.hydrated,
+    state.school?.id,
+    remoteSchoolDraftsLoading,
+    applyPilotAutoCarryOver,
+  ])
 
   return (
     <PilotCarryOverModal
