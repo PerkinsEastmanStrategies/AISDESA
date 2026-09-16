@@ -23,6 +23,7 @@ import {
 } from "@aisd/shared"
 import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
 import { prepareAutoCarryOverDraft, spaceTypeBelongsToSurvey } from "@/lib/pilot-carryover"
+import { linkedPhotoUrls, linkedPhotoCount, mergeRoomLinkedPhotos, roomHasLinkedPhotos } from "@/lib/response-photos"
 
 export interface RemapAnswerStats {
   kept: number
@@ -162,15 +163,21 @@ function optionLabelForStoredValue(
   return isNotAbleToAssessOption(match.option) ? NOT_ABLE_TO_ASSESS_OPTION : match.option
 }
 
+function photoFields(
+  response: RoomQuestionResponse,
+): Pick<RoomQuestionResponse, "photos"> | Record<string, never> {
+  const photos = linkedPhotoUrls(response)
+  return photos.length ? { photos } : {}
+}
+
 function remapResponseToCurrentQuestion(
   question: EsaQuestion,
   options: EsaQuestionOption[],
   response: RoomQuestionResponse,
 ): RoomQuestionResponse | null {
   const questionOptions = options.filter((option) => option.questionId === question.questionId)
-  const photos = response.photos?.filter(Boolean)
-  const photo = response.photo?.trim() || undefined
   const comment = response.comment?.trim() || undefined
+  const photos = photoFields(response)
 
   if (isTextQuestionType(question.questionType)) {
     const text =
@@ -179,12 +186,12 @@ function remapResponseToCurrentQuestion(
         : Array.isArray(response.value)
           ? response.value.filter((value) => typeof value === "string").join("\n")
           : ""
-    if (!text.trim() && !comment && !(photos?.length) && !photo) return null
+    if (!text.trim() && !comment && !photos.photos?.length) return null
     return {
       questionId: question.questionId,
       value: text,
       ...(comment ? { comment } : {}),
-      ...(photos?.length ? { photos } : photo ? { photo } : {}),
+      ...photos,
     }
   }
 
@@ -196,24 +203,26 @@ function remapResponseToCurrentQuestion(
           .filter((value): value is string => !!value),
       ),
     ]
-    if (!keptValues.length) return null
+    if (!keptValues.length && !photos.photos?.length && !comment) return null
     return {
       questionId: question.questionId,
       value: keptValues,
       ...(comment ? { comment } : {}),
-      ...(photos?.length ? { photos } : photo ? { photo } : {}),
+      ...photos,
     }
   }
 
   const raw = Array.isArray(response.value) ? response.value[0] : response.value
-  if (typeof raw !== "string" || !raw.trim()) return null
-  const matched = optionLabelForStoredValue(questionOptions, canonicalizeResponseValue(raw))
-  if (!matched) return null
+  const matched =
+    typeof raw === "string" && raw.trim()
+      ? optionLabelForStoredValue(questionOptions, canonicalizeResponseValue(raw))
+      : null
+  if (!matched && !photos.photos?.length && !comment) return null
   return {
     questionId: question.questionId,
-    value: matched,
+    value: matched ?? (typeof raw === "string" ? raw : ""),
     ...(comment ? { comment } : {}),
-    ...(photos?.length ? { photos } : photo ? { photo } : {}),
+    ...photos,
   }
 }
 
@@ -322,6 +331,14 @@ function currentQuestionForStoredAnswer(
     if (unusedMatch) return unusedMatch
   }
 
+  if (linkedPhotoUrls(response).length && unused.length) {
+    return (
+      unused.find((question) => question.questionId === storedId) ??
+      unused.find((question) => parseQuestionIdParts(question.questionId).baseId === baseId) ??
+      closestQuestionById(storedId, unused)
+    )
+  }
+
   return null
 }
 
@@ -402,7 +419,7 @@ export function remapRoomAnswersToCurrentQuestions(
   }
 }
 
-/** Keep the copy of each room that still has the most answers. */
+/** Keep the copy of each room that still has the most answers, and union linked photos. */
 export function mergeRicherRoomSessions(
   ...sessions: Array<SurveySession | null | undefined>
 ): Record<string, RoomSurveySession> {
@@ -411,12 +428,135 @@ export function mergeRicherRoomSessions(
     if (!session?.rooms) continue
     for (const [roomId, room] of Object.entries(session.rooms)) {
       const current = rooms[roomId]
+      if (!current) {
+        rooms[roomId] = room
+        continue
+      }
       const nextCount = room.responses?.length ?? 0
-      const currentCount = current?.responses?.length ?? 0
-      if (!current || nextCount > currentCount) rooms[roomId] = room
+      const currentCount = current.responses?.length ?? 0
+      const richer = nextCount > currentCount ? room : current
+      const other = nextCount > currentCount ? current : room
+      rooms[roomId] = mergeRoomLinkedPhotos(richer, other)
     }
   }
   return rooms
+}
+
+/** Copy original cloud photo URLs onto an already-seeded clone without changing answers. */
+export function mergeLinkedPhotosIntoDestDraft(input: {
+  dest: PersistedSurveyDraft
+  source: PersistedSurveyDraft
+  destSchool: AisdSchoolOption
+  extraSessions?: Array<SurveySession | null | undefined>
+}): { draft: PersistedSurveyDraft; added: number } {
+  const restoreDiscardedPhotoRooms = campusAutoCarryOverPercent(input.destSchool) != null
+  const sourceRooms = mergeRicherRoomSessions(
+    input.source.session,
+    input.source.lastSubmission?.session,
+    ...(input.extraSessions ?? []),
+  )
+  const destRooms: Record<string, RoomSurveySession> = { ...input.dest.session.rooms }
+  const discarded = new Set(input.dest.discardedRoomIds ?? [])
+  let added = 0
+
+  for (const [roomId, sourceRoom] of Object.entries(sourceRooms)) {
+    if (
+      !sourceRoom.spaceTypeMarkedAbsent &&
+      !isAbsentSpaceTypeRoomId(sourceRoom.roomId) &&
+      !spaceTypeBelongsToSurvey(input.dest.surveyType, sourceRoom.roomType, input.destSchool.schoolClass)
+    ) {
+      continue
+    }
+
+    const remapped = remapRoomAnswersToCurrentQuestions(
+      sourceRoom,
+      input.dest.surveyType,
+      input.destSchool.schoolClass,
+    ).room
+    const destRoom = destRooms[roomId]
+
+    if (!destRoom) {
+      if (!roomHasLinkedPhotos(remapped)) continue
+      if (discarded.has(roomId) && !restoreDiscardedPhotoRooms) continue
+      destRooms[roomId] = remapped
+      discarded.delete(roomId)
+      added += linkedPhotoCount(remapped)
+      continue
+    }
+
+    const merged = mergeRoomLinkedPhotos(destRoom, remapped)
+    const extra = linkedPhotoCount(merged) - linkedPhotoCount(destRoom)
+    if (extra > 0) {
+      destRooms[roomId] = merged
+      added += extra
+    }
+  }
+
+  const sourcePreWalkPhotos = input.source.preWalk?.spaceTypePhotos ?? {}
+  const destPreWalkPhotos = { ...(input.dest.preWalk?.spaceTypePhotos ?? {}) }
+  let preWalkAdded = 0
+  for (const [key, photo] of Object.entries(sourcePreWalkPhotos)) {
+    const url = photo?.trim()
+    if (!url || !url.startsWith("http") || destPreWalkPhotos[key]) continue
+    destPreWalkPhotos[key] = url
+    preWalkAdded += 1
+  }
+  added += preWalkAdded
+
+  if (added === 0) return { draft: input.dest, added: 0 }
+
+  const now = new Date().toISOString()
+  const session: SurveySession = {
+    ...input.dest.session,
+    rooms: destRooms,
+    updatedAt: now,
+  }
+
+  let lastSubmission = input.dest.lastSubmission
+  if (lastSubmission?.session.rooms) {
+    const subRooms = { ...lastSubmission.session.rooms }
+    let subChanged = false
+    for (const [roomId, room] of Object.entries(destRooms)) {
+      const existing = subRooms[roomId]
+      if (!existing) {
+        if (!roomHasLinkedPhotos(room)) continue
+        subRooms[roomId] = room
+        subChanged = true
+        continue
+      }
+      const merged = mergeRoomLinkedPhotos(existing, room)
+      if (linkedPhotoCount(merged) > linkedPhotoCount(existing)) {
+        subRooms[roomId] = merged
+        subChanged = true
+      }
+    }
+    if (subChanged) {
+      lastSubmission = {
+        ...lastSubmission,
+        session: { ...lastSubmission.session, rooms: subRooms },
+      }
+    }
+  }
+
+  return {
+    draft: {
+      ...input.dest,
+      session,
+      preWalk:
+        preWalkAdded > 0
+          ? {
+              mappings: input.dest.preWalk?.mappings ?? {},
+              ...input.dest.preWalk,
+              spaceTypePhotos: destPreWalkPhotos,
+            }
+          : input.dest.preWalk,
+      lastSubmission,
+      discardedRoomIds: [...discarded],
+      ownedRoomIds: Object.keys(destRooms),
+      savedAt: now,
+    },
+    added,
+  }
 }
 
 export function cloneDraftWithCompatibleAnswers(input: {

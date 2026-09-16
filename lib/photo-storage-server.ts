@@ -1,5 +1,6 @@
 import "server-only"
 
+import { TEST_CAMPUS_CLONES, sourceSchoolIdForTestClone } from "@aisd/shared"
 import {
   buildSurveyPhotoStoragePath,
   generateSurveyPhotoId,
@@ -153,11 +154,7 @@ async function walkJpegPaths(prefix: string, results: string[], depth: number): 
   }
 }
 
-/** List uploaded survey photos for one school (called only from the Photos results tab). */
-export async function listSurveyPhotosForSchool(
-  campusId: string,
-  schoolId: string,
-): Promise<ParsedSurveyPhotoPath[]> {
+async function listJpegPathsForCampusSchool(campusId: string, schoolId: string): Promise<string[]> {
   const rootPrefix = buildSurveyPhotoStoragePath({
     kind: "question",
     campusId,
@@ -172,8 +169,32 @@ export async function listSurveyPhotosForSchool(
 
   const paths: string[] = []
   await walkJpegPaths(`${rootPrefix}/`, paths, 0)
-
   return paths
-    .map((path) => parseSurveyPhotoStoragePath(path))
-    .filter((parsed): parsed is NonNullable<typeof parsed> => parsed != null)
+}
+
+/** List uploaded survey photos for one school (called only from the Photos results tab). */
+export async function listSurveyPhotosForSchool(
+  campusId: string,
+  schoolId: string,
+): Promise<ParsedSurveyPhotoPath[]> {
+  const prefixes = [{ campusId, schoolId }]
+  const clone = TEST_CAMPUS_CLONES.find((entry) => entry.id === schoolId || entry.campusId === campusId)
+  if (clone) {
+    prefixes.push({
+      campusId: clone.sourceCampusId,
+      schoolId: sourceSchoolIdForTestClone(clone),
+    })
+  }
+
+  const seen = new Set<string>()
+  const parsed: ParsedSurveyPhotoPath[] = []
+  for (const prefix of prefixes) {
+    for (const path of await listJpegPathsForCampusSchool(prefix.campusId, prefix.schoolId)) {
+      if (seen.has(path)) continue
+      seen.add(path)
+      const item = parseSurveyPhotoStoragePath(path)
+      if (item) parsed.push(item)
+    }
+  }
+  return parsed
 }

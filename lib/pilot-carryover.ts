@@ -35,6 +35,7 @@ import { roomHasAssessmentProgress } from "@/lib/school-assessment-index"
 import { isRoomSurveyFilledOut } from "@/lib/room-survey-progress"
 import { loadDraftsForSchool, type PersistedSurveyDraft } from "@/lib/survey-persistence"
 import { isQuestionFullyAnswered } from "@/lib/survey-validation"
+import { roomHasLinkedPhotos } from "@/lib/response-photos"
 
 const STORAGE_PREFIX = "esa-pilot-carryover-review:"
 const AUTO_CARRYOVER_PREFIX = "esa-pilot-auto-carryover:"
@@ -454,7 +455,11 @@ export function prepareAutoCarryOverDraft(
       absentRooms.push(scoreAbsentCarryOverRoom(room))
       continue
     }
-    if (!alreadyApplied && roomCarryOverProgress(room, draft.surveyType, schoolClass).percent <= percentThreshold) {
+    if (
+      !alreadyApplied &&
+      roomCarryOverProgress(room, draft.surveyType, schoolClass).percent <= percentThreshold &&
+      !roomHasLinkedPhotos(room)
+    ) {
       discarded.add(roomId)
       continue
     }

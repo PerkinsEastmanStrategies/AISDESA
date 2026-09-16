@@ -19,6 +19,20 @@ import {
   isObservationalCategory,
 } from "./score-units"
 
+/** Use the rubric wrapper area when it matches questions; otherwise the questions' own area. */
+function matchingAssessmentArea(
+  requested: string,
+  questions: EsaQuestion[],
+  categories: EsaCategory[],
+): string {
+  if (questions.some((question) => question.assessmentArea === requested)) return requested
+  return (
+    questions.find((question) => question.assessmentArea)?.assessmentArea ??
+    categories.find((category) => category.assessmentArea)?.assessmentArea ??
+    requested
+  )
+}
+
 function weightedAverage(items: { score: number; weight: number }[]): number | null {
   if (!items.length) return null
   const totalWeight = items.reduce((s, i) => s + i.weight, 0)
@@ -36,7 +50,8 @@ export function scoreRoom(
   assessmentArea: string,
   skipQuestionIds?: readonly string[],
 ): RoomScoreResult {
-  const areaQuestions = questions.filter((q) => q.assessmentArea === assessmentArea)
+  const scoringArea = matchingAssessmentArea(assessmentArea, questions, categories)
+  const areaQuestions = questions.filter((q) => q.assessmentArea === scoringArea)
   const responseMap = new Map(responses.map((r) => [r.questionId, r]))
   const skip = skipQuestionIds?.length ? new Set(skipQuestionIds) : null
 
@@ -94,7 +109,7 @@ export function scoreRoom(
     .filter((s) => !isObservationalCategory(s.category))
 
   const categoryScores: CategoryScore[] = categories
-    .filter((c) => c.assessmentArea === assessmentArea)
+    .filter((c) => c.assessmentArea === scoringArea)
     .filter((c) => c.categoryWeight > 0 && !isObservationalCategory(c.category))
     .map((cat) => {
       const subs = subcategoryScores.filter((s) => s.category === cat.category)

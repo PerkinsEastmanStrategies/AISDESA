@@ -28,6 +28,7 @@ import {
   TRADITIONAL_STUDIOS_RUBRIC_VERSION,
   VOCATIONAL_LAB_RUBRIC_VERSION,
 } from "@aisd/shared"
+import { mergeRoomLinkedPhotos } from "@/lib/response-photos"
 
 const ACTIVE_KEY = "aisd-survey-active"
 const ASSESSOR_KEY = "aisd-survey-assessors"
@@ -597,9 +598,9 @@ export function mergeSurveySessions(
       if (allowSecondaryOnly && roomHasAssessmentProgress(room)) rooms[roomId] = room
       continue
     }
-    if (roomAssessmentWeight(room) > roomAssessmentWeight(existing)) {
-      rooms[roomId] = room
-    }
+    const preferred = roomAssessmentWeight(room) > roomAssessmentWeight(existing) ? room : existing
+    const other = preferred === room ? existing : room
+    rooms[roomId] = mergeRoomLinkedPhotos(preferred, other)
   }
 
   const spaceTypeExistsAtSchool = {

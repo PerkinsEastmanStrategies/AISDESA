@@ -400,7 +400,7 @@ const MAKER_SPACE_RUBRIC: SurveyRubric = {
 }
 
 const SENSORY_LAB_RUBRIC: SurveyRubric = {
-  assessmentArea: "Studios",
+  assessmentArea: "Special Education",
   categories: SENSORY_LAB_CATEGORIES,
   subcategories: SENSORY_LAB_SUBCATEGORIES,
   questions: SENSORY_LAB_QUESTIONS as SurveyRubric["questions"],
@@ -408,7 +408,7 @@ const SENSORY_LAB_RUBRIC: SurveyRubric = {
 }
 
 const VOCATIONAL_LAB_RUBRIC: SurveyRubric = {
-  assessmentArea: "Studios",
+  assessmentArea: "Special Education",
   categories: VOCATIONAL_LAB_CATEGORIES,
   subcategories: VOCATIONAL_LAB_SUBCATEGORIES,
   questions: VOCATIONAL_LAB_QUESTIONS as SurveyRubric["questions"],
@@ -416,7 +416,7 @@ const VOCATIONAL_LAB_RUBRIC: SurveyRubric = {
 }
 
 const LIFE_SKILLS_RUBRIC: SurveyRubric = {
-  assessmentArea: "Studios",
+  assessmentArea: "Special Education",
   categories: LIFE_SKILLS_CATEGORIES,
   subcategories: LIFE_SKILLS_SUBCATEGORIES,
   questions: LIFE_SKILLS_QUESTIONS as SurveyRubric["questions"],
@@ -424,7 +424,7 @@ const LIFE_SKILLS_RUBRIC: SurveyRubric = {
 }
 
 const SPED_FLEX_RUBRIC: SurveyRubric = {
-  assessmentArea: "Studios",
+  assessmentArea: "Special Education",
   categories: SPED_FLEX_CATEGORIES,
   subcategories: SPED_FLEX_SUBCATEGORIES,
   questions: SPED_FLEX_QUESTIONS as SurveyRubric["questions"],
@@ -472,7 +472,7 @@ const EARLY_CHILDHOOD_RUBRIC: SurveyRubric = {
 }
 
 const EARLY_CHILDHOOD_SPED_RUBRIC: SurveyRubric = {
-  assessmentArea: "Studios",
+  assessmentArea: "Special Education",
   categories: EARLY_CHILDHOOD_SPED_CATEGORIES,
   subcategories: EARLY_CHILDHOOD_SPED_SUBCATEGORIES,
   questions: EARLY_CHILDHOOD_SPED_QUESTIONS as SurveyRubric["questions"],

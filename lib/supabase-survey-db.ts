@@ -21,7 +21,7 @@ import {
 } from "@aisd/shared"
 import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
 import { roomAssessmentWeight } from "@/lib/survey-persistence"
-import { cloneDraftWithCompatibleAnswers } from "@/lib/remap-compatible-survey-answers"
+import { cloneDraftWithCompatibleAnswers, mergeLinkedPhotosIntoDestDraft } from "@/lib/remap-compatible-survey-answers"
 import { sessionHasRegisteredAssessor } from "@/lib/assessor"
 import { applyPreWalkMappingDeletes, mergePreWalkStates, parsePreWalkSpaceTypeExistsKey, preWalkSpaceTypeExistsKey } from "@/lib/prewalk"
 import {
@@ -540,10 +540,9 @@ export async function pushSurveyDraft(input: {
   const remoteSessionId = existingSession?.id
 
   const existingDraft = remoteSessionId
-    ? await pullSurveyDraft({
-        schoolId: draft.schoolId,
-        surveyType: draft.surveyType,
-      })
+    ? ((await loadExistingSurveyDraftsForSchool(draft.schoolId)).find(
+        (row) => row.surveyType === draft.surveyType,
+      ) ?? null)
     : null
   const remoteRooms = existingDraft?.session.rooms ?? {}
 
@@ -1085,6 +1084,105 @@ async function seedCompatibleAnswersIfNeeded(schoolId: string): Promise<void> {
   await run
 }
 
+const photoSeedInFlight = new Map<string, Promise<void>>()
+
+async function loadSourceSnapshotSessionsByType(sourceId: string): Promise<Map<SurveyType, SurveySession[]>> {
+  const sourceSessions = await supabaseRestSelect<DbSurveySession>(
+    "esa_survey_sessions",
+    `school_id=eq.${encodeURIComponent(sourceId)}&select=*`,
+  )
+  const extrasByType = new Map<SurveyType, SurveySession[]>()
+  if (!sourceSessions.length) return extrasByType
+  const snapshotRows = await supabaseRestSelect<DbSubmissionSnapshot>(
+    "esa_submission_snapshots",
+    `${restInFilter(
+      "survey_session_id",
+      sourceSessions.map((row) => row.id),
+    )}&select=survey_session_id,session_json`,
+  )
+  const typeBySessionId = new Map(sourceSessions.map((row) => [row.id, row.survey_type]))
+  for (const row of snapshotRows) {
+    const surveyType = typeBySessionId.get(row.survey_session_id)
+    if (!surveyType || !row.session_json) continue
+    const list = extrasByType.get(surveyType) ?? []
+    list.push(row.session_json)
+    extrasByType.set(surveyType, list)
+  }
+  return extrasByType
+}
+
+async function seedCompatiblePhotosIfNeeded(schoolId: string): Promise<void> {
+  const clone = TEST_CAMPUS_CLONES.find(
+    (entry) => entry.id === schoolId && entry.seedCompatibleAnswersFromSource,
+  )
+  if (!clone) return
+
+  const pendingAnswers = answerSeedInFlight.get(schoolId)
+  if (pendingAnswers) await pendingAnswers
+
+  const existing = photoSeedInFlight.get(schoolId)
+  if (existing) {
+    await existing
+    return
+  }
+
+  const run = (async () => {
+    const destDrafts = await loadExistingSurveyDraftsForSchool(schoolId)
+    if (!destDrafts.length) return
+
+    const destSchool =
+      (await loadDbSchool(schoolId)) ??
+      ({
+        id: clone.id,
+        campusId: clone.campusId,
+        name: clone.name,
+        displayName: clone.displayName,
+        schoolClass: clone.schoolClass || "HIGH",
+        address: "",
+        lat: 0,
+        lng: 0,
+        hasFloorPlan: true,
+      } satisfies AisdSchoolOption)
+
+    const sourceId = sourceSchoolIdForTestClone(clone)
+    const [sourceDrafts, extrasByType] = await Promise.all([
+      loadExistingSurveyDraftsForSchool(sourceId),
+      loadSourceSnapshotSessionsByType(sourceId),
+    ])
+    if (!sourceDrafts.length && extrasByType.size === 0) return
+
+    for (const dest of destDrafts) {
+      const source = sourceDrafts.find((draft) => draft.surveyType === dest.surveyType)
+      const extras = extrasByType.get(dest.surveyType)
+      if (!source && !extras?.length) continue
+      const { draft, added } = mergeLinkedPhotosIntoDestDraft({
+        dest,
+        source: source ?? {
+          ...dest,
+          session: { ...dest.session, rooms: {} },
+          lastSubmission: null,
+        },
+        destSchool,
+        extraSessions: extras,
+      })
+      if (added === 0) continue
+      console.info(
+        `[pilot-test photos] ${clone.displayName} ${dest.surveyType}: added ${added} linked photos from original submissions`,
+      )
+      await pushSurveyDraft({
+        school: destSchool,
+        draft,
+        writeSnapshot: !!draft.lastSubmission,
+      })
+    }
+  })().finally(() => {
+    photoSeedInFlight.delete(schoolId)
+  })
+
+  photoSeedInFlight.set(schoolId, run)
+  await run
+}
+
 async function loadExistingSurveyDraftsForSchool(schoolId: string): Promise<PersistedSurveyDraft[]> {
   const sessionRows = await supabaseRestSelect<DbSurveySession>(
     "esa_survey_sessions",
@@ -1172,6 +1270,7 @@ async function buildDraftsForSessionRows(
 export async function pullSurveyDraftsForSchool(schoolId: string): Promise<PersistedSurveyDraft[]> {
   if (!isSupabaseServerConfigured()) return []
   await seedCompatibleAnswersIfNeeded(schoolId)
+  await seedCompatiblePhotosIfNeeded(schoolId)
   return loadExistingSurveyDraftsForSchool(schoolId)
 }
 

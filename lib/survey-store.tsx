@@ -1238,6 +1238,12 @@ function reducer(state: SurveyState, action: Action): SurveyState {
           ...restored,
           pendingStudioType: state.pendingStudioType ?? restored.pendingStudioType,
           pendingNeighborhood: state.pendingNeighborhood ?? restored.pendingNeighborhood,
+          // Survey drafts do not own the SVG/room-schedule load. Keep an in-flight
+          // or finished plan so Merge auto-carryover cannot blank room tags.
+          selectedLevelId: state.selectedLevelId ?? restored.selectedLevelId,
+          floorPlan: state.floorPlan ?? restored.floorPlan,
+          allRooms: state.allRooms.length > 0 ? state.allRooms : restored.allRooms,
+          floorPlanLoading: state.floorPlanLoading || restored.floorPlanLoading,
         }
       }
       const session = sessionWithLiveSelectedRoom(restored.session, state)
@@ -3698,6 +3704,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true
+      if (roomsLoadAttemptedKeyRef.current === attemptKey) {
+        roomsLoadAttemptedKeyRef.current = null
+      }
     }
     // Re-run when floor-plan identity changes, or after a cleared/failed load — not on metadata-only school upgrades.
   }, [
