@@ -2,6 +2,7 @@
 
 import type { AisdSchoolOption, PreWalkState, SurveyType } from "@aisd/shared"
 import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
+import { sessionCoversLocalProgress } from "@/lib/survey-persistence"
 import type { RemoteSurveyStatus } from "@/lib/survey-remote-types"
 
 const SYNC_QUEUE_KEY = "aisd-survey-sync-queue"
@@ -228,9 +229,25 @@ export async function pushSurveyDraftClient(input: {
     const response = await fetch("/api/survey/sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
+      body: JSON.stringify({
+        ...input,
+        draft: {
+          ...input.draft,
+          lastSubmission: input.draft.lastSubmission
+            ? { ...input.draft.lastSubmission, floorPlanRooms: [] }
+            : input.draft.lastSubmission,
+        },
+      }),
     })
     if (!response.ok) {
+      const remote = await pullRemoteDraftClient({
+        schoolId: input.draft.schoolId,
+        surveyType: input.draft.surveyType,
+      })
+      if (remote && sessionCoversLocalProgress(remote.session, input.draft.session)) {
+        markSurveySynced(input.draft.schoolId, input.draft.surveyType, input.draft.savedAt)
+        return { action: "pushed", sameRoomConflicts: [] }
+      }
       queueSurveySync(input.draft.schoolId, input.draft.surveyType, input.draft.savedAt)
       return { action: "error", sameRoomConflicts: [] }
     }
@@ -258,6 +275,14 @@ export async function pushSurveyDraftClient(input: {
     }
     return { action: "error", sameRoomConflicts }
   } catch {
+    const remote = await pullRemoteDraftClient({
+      schoolId: input.draft.schoolId,
+      surveyType: input.draft.surveyType,
+    })
+    if (remote && sessionCoversLocalProgress(remote.session, input.draft.session)) {
+      markSurveySynced(input.draft.schoolId, input.draft.surveyType, input.draft.savedAt)
+      return { action: "pushed", sameRoomConflicts: [] }
+    }
     queueSurveySync(input.draft.schoolId, input.draft.surveyType, input.draft.savedAt)
     return { action: "offline", sameRoomConflicts: [] }
   }

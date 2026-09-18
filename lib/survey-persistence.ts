@@ -643,7 +643,7 @@ export function mergeSurveySessions(
   }
 }
 
-/** True when `cover` already includes every room and existence answer from `local`. */
+/** True when `cover` already includes the answers from `local` that were actually saved. */
 export function sessionCoversLocalProgress(
   cover: SurveySession | null | undefined,
   local: SurveySession | null | undefined,
@@ -651,9 +651,21 @@ export function sessionCoversLocalProgress(
   if (!local) return true
   if (!cover) return false
   for (const [roomId, room] of Object.entries(local.rooms)) {
-    if (!roomHasAssessmentProgress(room)) continue
+    const localAnswers = (room.responses ?? []).filter((response) => {
+      if (response.value != null && String(response.value).trim() !== "") return true
+      if (response.comment?.trim()) return true
+      if ((response.photos ?? []).some(Boolean)) return true
+      return !!response.photo
+    })
+    const absent = !!room.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(roomId)
+    if (localAnswers.length === 0 && !absent) continue
     const other = cover.rooms[roomId]
-    if (!other || roomAssessmentWeight(other) < roomAssessmentWeight(room)) return false
+    if (!other) return false
+    if (absent) continue
+    const remoteIds = new Set((other.responses ?? []).map((response) => response.questionId))
+    for (const response of localAnswers) {
+      if (!remoteIds.has(response.questionId)) return false
+    }
   }
   for (const [key, exists] of Object.entries(local.spaceTypeExistsAtSchool ?? {})) {
     // "Does not exist" is stored as an absent room. "Yes it exists" is stored as a

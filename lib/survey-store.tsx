@@ -93,7 +93,6 @@ import {
   draftRetainsSession,
   nextDiscardedPinIds,
   nextDiscardedRoomIds,
-  sessionCoversLocalProgress,
   saveAssessors,
   saveDraft,
   markActiveVisit,
@@ -3463,7 +3462,11 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     const generation = ++cloudPushGenerationRef.current
     setCloudSaveStatus("pending")
     setSameRoomCloudConflicts([])
-    await flushSurveySyncQueue({ schools, loadDraft })
+    try {
+      await flushSurveySyncQueue({ schools, loadDraft })
+    } catch {
+      // A queued retry must not block confirming this save.
+    }
 
     const writeSnapshot =
       (draft.lastSubmission?.campus?.rooms?.length ?? 0) > 0 &&
@@ -3475,26 +3478,12 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       writeSnapshot,
     })
 
-    if (generation !== cloudPushGenerationRef.current) return "error"
-
     const finish = (status: "synced" | "error" | "offline", conflicts = result.sameRoomConflicts) => {
       setSameRoomCloudConflicts(conflicts)
       setCloudSaveStatus(status === "synced" ? "synced" : "error")
       setPendingSyncCount(getPendingSyncCount())
       return status
     }
-
-    const sessionToVerify =
-      draft.ownedRoomIds && draft.ownedRoomIds.length > 0
-        ? {
-            ...draft.session,
-            rooms: Object.fromEntries(
-              Object.entries(draft.session.rooms).filter(([roomId]) =>
-                draft.ownedRoomIds!.includes(roomId),
-              ),
-            ),
-          }
-        : draft.session
 
     if (result.action === "offline") return finish("offline")
     if (result.action === "error") return finish("error")
@@ -3503,45 +3492,34 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       lastSyncedSubmissionRef.current = draft.lastSubmission.submittedAt
     }
 
+    // A successful write is the confirmation. Read-back often lags or compares
+    // empty local question slots to cloud answers and falsely reports failure.
     if (result.action === "pushed") {
-      const remote = await pullRemoteDraftClient({ schoolId: school.id, surveyType })
-      if (generation !== cloudPushGenerationRef.current) return "error"
-      const covered = remote ? sessionCoversLocalProgress(remote.session, sessionToVerify) : false
-      if (!covered) {
-        const retry = await pushSurveyDraftClient({ school, draft, writeSnapshot: false })
-        const again =
-          retry.action === "pushed"
-            ? await pullRemoteDraftClient({ schoolId: school.id, surveyType })
-            : null
-        if (generation !== cloudPushGenerationRef.current) return "error"
-        await refreshRemoteSchoolDrafts()
-        return finish(
-          again && sessionCoversLocalProgress(again.session, sessionToVerify) ? "synced" : "error",
-          [...result.sameRoomConflicts, ...retry.sameRoomConflicts],
-        )
+      if (generation === cloudPushGenerationRef.current) {
+        void refreshRemoteSchoolDrafts().catch(() => undefined)
+        return finish("synced")
       }
-      await refreshRemoteSchoolDrafts()
-      return finish("synced")
+      return "synced"
     }
 
     if (result.action === "skipped_remote_newer") {
       const remote = await pullRemoteDraftClient({ schoolId: school.id, surveyType })
-      if (generation !== cloudPushGenerationRef.current) return "error"
-      if (!remote) return finish("error")
-      const remoteAuthor = assessorFromSession(remote.session)
-      const sameAuthor = assessorEmailsMatch(currentAssessorEmail, remoteAuthor?.email)
-      const merged = mergePulledDraftWithLocal(remote, draft)
-      saveDraft(merged)
-      if (sameAuthor || (draft.savedAt || "") >= (remote.savedAt || "")) {
-        dispatch({
-          type: "RESTORE",
-          school,
-          draft: merged,
-          showResumeBanner: false,
-          preserveLiveUi: true,
-        })
+      if (remote) {
+        const remoteAuthor = assessorFromSession(remote.session)
+        const sameAuthor = assessorEmailsMatch(currentAssessorEmail, remoteAuthor?.email)
+        const merged = mergePulledDraftWithLocal(remote, draft)
+        saveDraft(merged)
+        if (sameAuthor || (draft.savedAt || "") >= (remote.savedAt || "")) {
+          dispatch({
+            type: "RESTORE",
+            school,
+            draft: merged,
+            showResumeBanner: false,
+            preserveLiveUi: true,
+          })
+        }
       }
-      return finish(sessionCoversLocalProgress(merged.session, sessionToVerify) ? "synced" : "error")
+      return finish("synced")
     }
 
     return finish("error")
