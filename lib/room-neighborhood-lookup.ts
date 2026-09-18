@@ -1,4 +1,4 @@
-/** Load school room→neighborhood assignments from the live Google Sheet CSV. */
+/** Load school room use / neighborhood from Supabase, with Google Sheet CSV as fallback. */
 
 import type { AisdSchoolOption } from "@aisd/shared"
 import { NEIGHBORHOOD_OPTIONS, testCampusCloneForSchool } from "@aisd/shared"
@@ -23,7 +23,7 @@ export type SizeDeviationBand = "green" | "orange" | "red"
 
 export type RoomSizeDeviationMap = Map<string, SizeDeviationBand>
 
-/** Live Google Sheet (published CSV) — room neighborhoods by school + CAFM_ID. */
+/** Published Google Sheet CSV — used only when a school has no Supabase roomschedule rows. */
 export const DEFAULT_ROOM_NEIGHBORHOOD_CSV_URL =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vQhjfsjsbDHT0eEKZifiNn67Wup9CfA4flEB3Mcx9tlNEO3-A8tTc7Vj50sI_SyE38nDjI3vUkqpUmd/pub?output=csv"
 
@@ -335,9 +335,13 @@ function roomLookupIdsOnly(room: { id: string; name?: string | null }): string[]
   return roomLookupKeys(room.id)
 }
 
-function buildSchoolIndex(csvText: string): Map<string, SchoolNeighborhoodData> {
+function applySheetCsv(
+  index: Map<string, SchoolNeighborhoodData>,
+  csvText: string,
+  skipSchool?: (schoolName: string, campusId: string) => boolean,
+) {
   const rows = parseCsv(csvText.replace(/^\uFEFF/, ""))
-  if (rows.length < 2) return new Map()
+  if (rows.length < 2) return
 
   const header = rows[0].map((h) => h.trim())
   const schoolIdx = findHeaderIndex(header, ["school_name"])
@@ -349,21 +353,16 @@ function buildSchoolIndex(csvText: string): Map<string, SchoolNeighborhoodData> 
   const sfDeviationIdx = findHeaderIndex(header, ["sf deviation"])
   const campusIdx = findHeaderIndex(header, ["campus_id"])
   const buildingIdx = findHeaderIndex(header, ["building", "building label"])
-  if (schoolIdx < 0 || cafmIdx < 0) return new Map()
-
-  const index = new Map<string, SchoolNeighborhoodData>()
-  campusIdIndex = new Map()
+  if (schoolIdx < 0 || cafmIdx < 0) return
 
   for (const row of rows.slice(1)) {
     const schoolName = (row[schoolIdx] ?? "").trim()
     const cafmId = (row[cafmIdx] ?? "").trim()
     if (!schoolName) continue
+    const campusId = campusIdx >= 0 ? (row[campusIdx] ?? "").trim() : ""
+    if (skipSchool?.(schoolName, campusId)) continue
 
-    const data = ensureSchoolData(
-      index,
-      schoolName,
-      campusIdx >= 0 ? (row[campusIdx] ?? "").trim() : "",
-    )
+    const data = ensureSchoolData(index, schoolName, campusId)
     ingestRoomRow(data, {
       schoolName,
       cafmId,
@@ -375,8 +374,6 @@ function buildSchoolIndex(csvText: string): Map<string, SchoolNeighborhoodData> 
       building: buildingIdx >= 0 ? (row[buildingIdx] ?? "").trim() : "",
     })
   }
-
-  return index
 }
 
 type RoomScheduleDbRow = {
@@ -435,9 +432,38 @@ async function fetchText(url: string, timeoutMs = 12_000): Promise<string> {
   }
 }
 
+function coverageFromSupabaseRows(rows: RoomScheduleDbRow[]): {
+  campusIds: Set<string>
+  schoolNames: string[]
+} {
+  const campusIds = new Set<string>()
+  const schoolNames: string[] = []
+  const seenNames = new Set<string>()
+  for (const row of rows) {
+    const campusId = row.campus_id?.trim()
+    if (campusId) campusIds.add(campusId)
+    const name = row.school_name?.trim()
+    if (!name) continue
+    const key = normalizeSchoolLookupName(name)
+    if (seenNames.has(key)) continue
+    seenNames.add(key)
+    schoolNames.push(name)
+  }
+  return { campusIds, schoolNames }
+}
+
+function schoolCoveredBySupabase(
+  schoolName: string,
+  campusId: string,
+  covered: { campusIds: Set<string>; schoolNames: string[] },
+): boolean {
+  if (campusId && covered.campusIds.has(campusId)) return true
+  return covered.schoolNames.some((name) => schoolNamesMatch(name, schoolName))
+}
+
 /**
- * iPads / school networks often block docs.google.com. Prefer the same-origin
- * Vercel proxy so LBJ and Eastside (sheet-only) still load.
+ * iPads / school networks often block docs.google.com. Use the same-origin
+ * Vercel proxy as the sheet fallback when a school has no Supabase rows.
  */
 async function fetchSheetCsvText(): Promise<string> {
   if (typeof window !== "undefined") {
@@ -467,11 +493,15 @@ async function loadSchoolIndex(): Promise<Map<string, SchoolNeighborhoodData>> {
         fetchSheetCsvText(),
         fetchSupabaseRoomSchedule(),
       ])
-      const index = sheetText
-        ? buildSchoolIndex(sheetText)
-        : new Map<string, SchoolNeighborhoodData>()
-      if (index.size === 0) campusIdIndex = new Map()
+      campusIdIndex = new Map()
+      const index = new Map<string, SchoolNeighborhoodData>()
       if (supabaseRows.length > 0) applySupabaseRoomSchedule(index, supabaseRows)
+      const covered = coverageFromSupabaseRows(supabaseRows)
+      if (sheetText) {
+        applySheetCsv(index, sheetText, (schoolName, campusId) =>
+          schoolCoveredBySupabase(schoolName, campusId, covered),
+        )
+      }
       return index
     } catch {
       csvLoadPromise = null
@@ -708,7 +738,7 @@ export function buildingForRoom(
   return roomUseForRoom(map, roomId, roomName, building)?.building?.trim() || undefined
 }
 
-/** Prefer the live sheet room name; otherwise show the floor plan id (not "Classroom …" labels). */
+/** Prefer the schedule room name; otherwise show the floor plan id (not "Classroom …" labels). */
 export function resolveRoomDisplayName(
   room: { id: string; name: string; building?: string },
   useMap?: RoomUseMap,
