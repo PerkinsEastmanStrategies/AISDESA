@@ -2,7 +2,7 @@
 
 import type { AisdSchoolOption, PreWalkState, SurveyType } from "@aisd/shared"
 import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
-import { sessionCoversLocalProgress } from "@/lib/survey-persistence"
+import { draftForCloudSync, sessionCoversLocalProgress } from "@/lib/survey-persistence"
 import type { RemoteSurveyStatus } from "@/lib/survey-remote-types"
 
 const SYNC_QUEUE_KEY = "aisd-survey-sync-queue"
@@ -213,6 +213,74 @@ export async function wipePilotResultsCloudClient(schoolId: string): Promise<boo
   }
 }
 
+async function recoverPushIfRemoteHasLocalProgress(input: {
+  schoolId: string
+  surveyType: SurveyType
+  draft: PersistedSurveyDraft
+}): Promise<boolean> {
+  const remote = await pullRemoteDraftClient({
+    schoolId: input.schoolId,
+    surveyType: input.surveyType,
+  })
+  if (!remote || !sessionCoversLocalProgress(remote.session, draftForCloudSync(input.draft).session)) {
+    return false
+  }
+  markSurveySynced(input.draft.schoolId, input.draft.surveyType, input.draft.savedAt)
+  return true
+}
+
+async function postSurveyDraft(input: {
+  school: AisdSchoolOption
+  draft: PersistedSurveyDraft
+  writeSnapshot?: boolean
+}): Promise<{
+  action: "pushed" | "skipped_remote_newer" | "offline" | "error"
+  sameRoomConflicts: string[]
+}> {
+  const response = await fetch("/api/survey/sync", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      school: input.school,
+      writeSnapshot: input.writeSnapshot,
+      draft: draftForCloudSync(input.draft),
+    }),
+  })
+  if (!response.ok) {
+    if (await recoverPushIfRemoteHasLocalProgress({
+      schoolId: input.draft.schoolId,
+      surveyType: input.draft.surveyType,
+      draft: input.draft,
+    })) {
+      return { action: "pushed", sameRoomConflicts: [] }
+    }
+    return { action: "error", sameRoomConflicts: [] }
+  }
+  const payload = (await response.json()) as {
+    action?: "pushed" | "skipped_remote_newer" | "offline"
+    sameRoomConflicts?: string[]
+  }
+  const sameRoomConflicts = Array.isArray(payload.sameRoomConflicts)
+    ? payload.sameRoomConflicts.filter((name): name is string => typeof name === "string")
+    : []
+  if (payload.action === "pushed") {
+    markSurveySynced(input.draft.schoolId, input.draft.surveyType, input.draft.savedAt)
+    const queue = readQueue().filter(
+      (entry) =>
+        !(
+          entry.schoolId === input.draft.schoolId &&
+          entry.surveyType === input.draft.surveyType
+        ),
+    )
+    writeQueue(queue)
+    return { action: "pushed", sameRoomConflicts }
+  }
+  if (payload.action === "skipped_remote_newer") {
+    return { action: "skipped_remote_newer", sameRoomConflicts }
+  }
+  return { action: "error", sameRoomConflicts }
+}
+
 export async function pushSurveyDraftClient(input: {
   school: AisdSchoolOption
   draft: PersistedSurveyDraft
@@ -227,61 +295,20 @@ export async function pushSurveyDraftClient(input: {
   }
 
   try {
-    const response = await fetch("/api/survey/sync", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...input,
-        draft: {
-          ...input.draft,
-          lastSubmission: input.draft.lastSubmission
-            ? { ...input.draft.lastSubmission, floorPlanRooms: [] }
-            : input.draft.lastSubmission,
-        },
-      }),
-    })
-    if (!response.ok) {
-      const remote = await pullRemoteDraftClient({
-        schoolId: input.draft.schoolId,
-        surveyType: input.draft.surveyType,
-      })
-      if (remote && sessionCoversLocalProgress(remote.session, input.draft.session)) {
-        markSurveySynced(input.draft.schoolId, input.draft.surveyType, input.draft.savedAt)
-        return { action: "pushed", sameRoomConflicts: [] }
-      }
+    let result = await postSurveyDraft(input)
+    if (result.action === "error") {
+      result = await postSurveyDraft(input)
+    }
+    if (result.action === "error") {
       queueSurveySync(input.draft.schoolId, input.draft.surveyType, input.draft.savedAt)
-      return { action: "error", sameRoomConflicts: [] }
     }
-    const payload = (await response.json()) as {
-      action?: "pushed" | "skipped_remote_newer" | "offline"
-      sameRoomConflicts?: string[]
-    }
-    const sameRoomConflicts = Array.isArray(payload.sameRoomConflicts)
-      ? payload.sameRoomConflicts.filter((name): name is string => typeof name === "string")
-      : []
-    if (payload.action === "pushed") {
-      markSurveySynced(input.draft.schoolId, input.draft.surveyType, input.draft.savedAt)
-      const queue = readQueue().filter(
-        (entry) =>
-          !(
-            entry.schoolId === input.draft.schoolId &&
-            entry.surveyType === input.draft.surveyType
-          ),
-      )
-      writeQueue(queue)
-      return { action: "pushed", sameRoomConflicts }
-    }
-    if (payload.action === "skipped_remote_newer") {
-      return { action: "skipped_remote_newer", sameRoomConflicts }
-    }
-    return { action: "error", sameRoomConflicts }
+    return result
   } catch {
-    const remote = await pullRemoteDraftClient({
+    if (await recoverPushIfRemoteHasLocalProgress({
       schoolId: input.draft.schoolId,
       surveyType: input.draft.surveyType,
-    })
-    if (remote && sessionCoversLocalProgress(remote.session, input.draft.session)) {
-      markSurveySynced(input.draft.schoolId, input.draft.surveyType, input.draft.savedAt)
+      draft: input.draft,
+    })) {
       return { action: "pushed", sameRoomConflicts: [] }
     }
     queueSurveySync(input.draft.schoolId, input.draft.surveyType, input.draft.savedAt)

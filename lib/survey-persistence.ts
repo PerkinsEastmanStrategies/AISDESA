@@ -412,8 +412,8 @@ export function loadDraft(schoolId: string, surveyType: SurveyType): PersistedSu
 export function saveDraft(
   draft: Omit<PersistedSurveyDraft, "version">,
   options?: { setActive?: boolean },
-): void {
-  if (typeof window === "undefined") return
+): boolean {
+  if (typeof window === "undefined") return false
   try {
     const payload: PersistedSurveyDraft = {
       ...draft,
@@ -455,9 +455,59 @@ export function saveDraft(
     } else {
       localStorage.removeItem(`aisd-survey-${draft.session.surveyId}`)
     }
+    return true
   } catch {
     /* quota or private browsing */
+    return false
   }
+}
+
+function isInlineSurveyPhoto(value: string): boolean {
+  const trimmed = value.trim()
+  return trimmed.startsWith("data:") || trimmed.startsWith("blob:")
+}
+
+function stripInlinePhotosFromSession(session: SurveySession): SurveySession {
+  const rooms: SurveySession["rooms"] = {}
+  for (const [roomId, room] of Object.entries(session.rooms ?? {})) {
+    const responses = (room.responses ?? []).map((response) => {
+      const photos = (response.photos ?? [])
+        .map((photo) => String(photo ?? "").trim())
+        .filter((photo) => photo.length > 0 && !isInlineSurveyPhoto(photo))
+      const photoRaw = String(response.photo ?? "").trim()
+      const photo =
+        photoRaw && !isInlineSurveyPhoto(photoRaw) ? photoRaw : photos[0]
+      return { ...response, photos, photo }
+    })
+    rooms[roomId] = { ...room, responses }
+  }
+  return { ...session, rooms }
+}
+
+/** Drop device-only blobs so the database POST stays under host body limits. */
+export function draftForCloudSync(draft: PersistedSurveyDraft): PersistedSurveyDraft {
+  const session = stripInlinePhotosFromSession(draft.session)
+  return {
+    ...draft,
+    session,
+    preWalk: undefined,
+    lastSubmission: draft.lastSubmission
+      ? {
+          ...draft.lastSubmission,
+          session,
+          floorPlanRooms: [],
+        }
+      : null,
+  }
+}
+
+export function saveDraftWithQuotaFallback(
+  draft: Omit<PersistedSurveyDraft, "version">,
+  options?: { setActive?: boolean },
+): boolean {
+  if (saveDraft(draft, options)) return true
+  const slimmer = draftForCloudSync({ ...draft, version: DRAFT_VERSION })
+  return saveDraft(slimmer, options)
 }
 
 export function clearDraft(schoolId: string, surveyType: SurveyType): void {

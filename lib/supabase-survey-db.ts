@@ -21,7 +21,7 @@ import {
   canonicalStudioType,
 } from "@aisd/shared"
 import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
-import { roomAssessmentWeight } from "@/lib/survey-persistence"
+import { draftForCloudSync, roomAssessmentWeight } from "@/lib/survey-persistence"
 import { cloneDraftWithCompatibleAnswers, mergeLinkedPhotosIntoDestDraft } from "@/lib/remap-compatible-survey-answers"
 import { sessionHasRegisteredAssessor } from "@/lib/assessor"
 import { applyPreWalkMappingDeletes, mergePreWalkStates, parsePreWalkMappingKey, parsePreWalkSpaceTypeExistsKey, preWalkMappingKey, preWalkSpaceTypeExistsKey } from "@/lib/prewalk"
@@ -286,7 +286,13 @@ function roomToDb(sessionId: string, room: RoomSurveySession): DbSurveyRoom {
 function photoUrlsForDb(response: RoomQuestionResponse): string[] {
   const photos = Array.isArray(response.photos) ? response.photos : []
   const values = photos.length > 0 ? photos : response.photo ? [response.photo] : []
-  return [...new Set(values.map((photo) => String(photo ?? "").trim()).filter(Boolean))]
+  return [
+    ...new Set(
+      values
+        .map((photo) => String(photo ?? "").trim())
+        .filter((photo) => photo.length > 0 && !photo.startsWith("data:")),
+    ),
+  ]
 }
 
 function dedupeRoomResponses(responses: RoomQuestionResponse[]): RoomQuestionResponse[] {
@@ -575,7 +581,8 @@ export async function pushSurveyDraft(input: {
   action: "pushed" | "skipped_remote_newer"
   sameRoomConflicts: string[]
 }> {
-  const { school, draft, writeSnapshot = false } = input
+  const { school, writeSnapshot = false } = input
+  const draft = draftForCloudSync(input.draft)
   if (!isSupabaseServerConfigured()) {
     return { updatedAt: draft.savedAt, action: "pushed", sameRoomConflicts: [] }
   }
@@ -680,9 +687,23 @@ export async function pushSurveyDraft(input: {
     "school_id,survey_type",
   )
 
-  const sessionId = (upsertedSession as DbSurveySession).id
+  let sessionId = (upsertedSession as DbSurveySession | undefined)?.id ?? existingSession?.id
+  if (!sessionId) {
+    const rows = await supabaseRestSelect<DbSurveySession>(
+      "esa_survey_sessions",
+      `school_id=eq.${encodeURIComponent(draft.schoolId)}&survey_type=eq.${encodeURIComponent(draft.surveyType)}&select=id`,
+    )
+    sessionId = rows[0]?.id
+  }
+  if (!sessionId) {
+    throw new Error("Survey session was written but no session id was returned")
+  }
 
-  await upsertRoomsAndResponses(sessionId, roomsToUpsert)
+  try {
+    await upsertRoomsAndResponses(sessionId, roomsToUpsert)
+  } catch {
+    await upsertRoomsAndResponses(sessionId, roomsToUpsert)
+  }
 
   try {
     await deleteSessionRowsByIds("esa_question_responses", sessionId, "room_id", discardedRoomIds)

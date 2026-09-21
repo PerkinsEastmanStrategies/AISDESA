@@ -91,11 +91,11 @@ import {
   mergeSurveySessions,
   propagatePreWalkToSchoolDrafts,
   persistPreWalkSpaceTypeExistsToSchoolDrafts,
-  draftRetainsSession,
   nextDiscardedPinIds,
   nextDiscardedRoomIds,
   saveAssessors,
   saveDraft,
+  saveDraftWithQuotaFallback,
   markActiveVisit,
   hasActiveVisit,
   type AssessorBySurveyType,
@@ -2998,7 +2998,9 @@ function lastSubmissionToPersist(
   return state.submission ?? previous?.lastSubmission ?? null
 }
 
-function persistDraftFromState(state: SurveyState): string | null {
+function persistDraftFromState(
+  state: SurveyState,
+): { savedAt: string; draft: PersistedSurveyDraft } | null {
   if (!state.school || !state.session) return null
 
   const savedAt = new Date().toISOString()
@@ -3018,12 +3020,18 @@ function persistDraftFromState(state: SurveyState): string | null {
   const ownedRoomIds = Object.keys(liveSession.rooms).filter((roomId) =>
     roomHasAssessmentProgress(liveSession.rooms[roomId]),
   )
+  const sessionWithAssessor = withCampusAssessorOnSession(
+    sessionToSave,
+    state.assessorByType,
+    state.surveyType,
+  ).session
 
-  saveDraft({
+  const draft: PersistedSurveyDraft = {
     ...(previous ?? {}),
+    version: 1,
     schoolId: state.school.id,
     surveyType: state.surveyType,
-    session: sessionToSave,
+    session: sessionWithAssessor,
     selectedLevelId: state.selectedLevelId,
     selectedRoomId: state.selectedRoomId,
     pendingStudioType: state.pendingStudioType,
@@ -3043,87 +3051,93 @@ function persistDraftFromState(state: SurveyState): string | null {
     ownedRoomIds,
     ownedPinIds: (liveSession.outdoorElementPins ?? []).map((pin) => pin.id),
     autoCarryOverAppliedAt:
-      previous?.autoCarryOverAppliedAt ?? sessionToSave.autoCarryOverAppliedAt,
-  })
-  const persisted = draftRetainsSession(state.school.id, state.surveyType, sessionToSave)
-  if (!persisted) return null
-  if (preWalkHasCloudState(state.preWalk)) {
-    propagatePreWalkToSchoolDrafts(state.school.id, state.preWalk)
+      previous?.autoCarryOverAppliedAt ?? sessionWithAssessor.autoCarryOverAppliedAt,
   }
 
-  const siblingTypes = persistPreWalkSpaceTypeExistsToSchoolDrafts({
-    school: state.school,
-    preWalk: state.preWalk,
-    skipSurveyType: state.surveyType,
-    assessor: assessorFromSession(state.session),
-  })
-  for (const surveyType of siblingTypes) {
-    queueSurveySync(state.school.id, surveyType, savedAt)
+  // Phone localStorage quota must not block the database write.
+  saveDraftWithQuotaFallback(draft)
+
+  try {
+    if (preWalkHasCloudState(state.preWalk)) {
+      propagatePreWalkToSchoolDrafts(state.school.id, state.preWalk)
+    }
+
+    const siblingTypes = persistPreWalkSpaceTypeExistsToSchoolDrafts({
+      school: state.school,
+      preWalk: state.preWalk,
+      skipSurveyType: state.surveyType,
+      assessor: assessorFromSession(state.session),
+    })
+    for (const surveyType of siblingTypes) {
+      queueSurveySync(state.school.id, surveyType, savedAt)
+    }
+
+    if (state.surveyType === "closeout") {
+      const sourceTypes = new Set(
+        Object.values(state.session.rooms)
+          .map((room) => room.sourceSurveyType)
+          .filter((surveyType): surveyType is Exclude<SurveyType, "closeout"> => !!surveyType),
+      )
+      for (const sibling of loadDraftsForSchool(state.school.id)) {
+        if (sibling.session.surveyType === "closeout") continue
+        sourceTypes.add(sibling.session.surveyType as Exclude<SurveyType, "closeout">)
+      }
+      if (sourceTypes.size === 0) sourceTypes.add("studios")
+
+      for (const sourceType of sourceTypes) {
+        const sourceDraft = loadDraft(state.school.id, sourceType)
+        if (!sourceDraft?.session) continue
+        const synced = syncCloseOutProgressToSource(
+          state.session,
+          sourceDraft.session,
+          state.school.schoolClass,
+        )
+        const lastSubmission = patchSubmissionWithSessionScores(
+          sourceDraft.lastSubmission,
+          synced,
+          sourceType,
+          state.school.schoolClass,
+          {
+            schoolId: state.school.id,
+            schoolName: state.school.displayName,
+            campusId: state.school.campusId,
+          },
+        )
+        saveDraftWithQuotaFallback(
+          {
+            ...sourceDraft,
+            session: synced,
+            lastSubmission,
+            savedAt,
+          },
+          { setActive: false },
+        )
+        queueSurveySync(state.school.id, sourceType, savedAt)
+      }
+      queueSurveySync(state.school.id, "closeout", savedAt)
+    } else {
+      const closeDraft = loadDraft(state.school.id, "closeout")
+      if (closeDraft?.session) {
+        const synced = syncSourceProgressToCloseOut(
+          sessionWithAssessor,
+          closeDraft.session,
+          state.school.schoolClass,
+        )
+        saveDraftWithQuotaFallback(
+          {
+            ...closeDraft,
+            session: synced,
+            savedAt,
+          },
+          { setActive: false },
+        )
+      }
+    }
+  } catch {
+    // Sibling local copies must not fail an explicit Save.
   }
 
-  if (state.surveyType === "closeout") {
-    const sourceTypes = new Set(
-      Object.values(state.session.rooms)
-        .map((room) => room.sourceSurveyType)
-        .filter((surveyType): surveyType is Exclude<SurveyType, "closeout"> => !!surveyType),
-    )
-    for (const draft of loadDraftsForSchool(state.school.id)) {
-      if (draft.session.surveyType === "closeout") continue
-      sourceTypes.add(draft.session.surveyType as Exclude<SurveyType, "closeout">)
-    }
-    if (sourceTypes.size === 0) sourceTypes.add("studios")
-
-    for (const sourceType of sourceTypes) {
-      const sourceDraft = loadDraft(state.school.id, sourceType)
-      if (!sourceDraft?.session) continue
-      const synced = syncCloseOutProgressToSource(
-        state.session,
-        sourceDraft.session,
-        state.school.schoolClass,
-      )
-      const lastSubmission = patchSubmissionWithSessionScores(
-        sourceDraft.lastSubmission,
-        synced,
-        sourceType,
-        state.school.schoolClass,
-        {
-          schoolId: state.school.id,
-          schoolName: state.school.displayName,
-          campusId: state.school.campusId,
-        },
-      )
-      saveDraft(
-        {
-          ...sourceDraft,
-          session: synced,
-          lastSubmission,
-          savedAt,
-        },
-        { setActive: false },
-      )
-      queueSurveySync(state.school.id, sourceType, savedAt)
-    }
-    queueSurveySync(state.school.id, "closeout", savedAt)
-  } else {
-    const closeDraft = loadDraft(state.school.id, "closeout")
-    if (closeDraft?.session) {
-      const synced = syncSourceProgressToCloseOut(
-        sessionToSave,
-        closeDraft.session,
-        state.school.schoolClass,
-      )
-      saveDraft(
-        {
-          ...closeDraft,
-          session: synced,
-          savedAt,
-        },
-        { setActive: false },
-      )
-    }
-  }
-
-  return savedAt
+  return { savedAt, draft }
 }
 
 export function SurveyProvider({ children }: { children: ReactNode }) {
@@ -3279,9 +3293,13 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!state.hydrated || !state.school || !state.session) return
 
-    const savedAt = persistDraftFromState(state)
-    if (!savedAt) return
-    dispatch({ type: "MARK_SAVED", savedAt })
+    try {
+      const persisted = persistDraftFromState(state)
+      if (!persisted) return
+      dispatch({ type: "MARK_SAVED", savedAt: persisted.savedAt })
+    } catch {
+      /* Keep surveying if this phone cannot write localStorage. */
+    }
   }, [
     state.hydrated,
     state.school,
@@ -3541,16 +3559,39 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     void refreshRemoteSchoolDrafts()
   }, [state.view, state.school?.id, refreshRemoteSchoolDrafts])
 
-  const pushLoadedDraftToCloud = useCallback(async (): Promise<"synced" | "error" | "offline"> => {
+  const pushLoadedDraftToCloud = useCallback(async (
+    explicitDraft?: PersistedSurveyDraft,
+  ): Promise<"synced" | "error" | "offline"> => {
     const latest = stateRef.current
     const school = latest.school
-    const session = latest.session
-    if (!school || !session) return "error"
-    if (!sessionHasRegisteredAssessor(session)) return "error"
+    if (!school) return "error"
 
     const surveyType = latest.surveyType
-    const draft = loadDraft(school.id, surveyType)
-    if (!draft) {
+    const stamped = latest.session
+      ? withCampusAssessorOnSession(latest.session, latest.assessorByType, surveyType)
+      : null
+    const loaded = explicitDraft ?? loadDraft(school.id, surveyType)
+    if (!loaded) {
+      setCloudSaveStatus("error")
+      return "error"
+    }
+
+    const campusAssessor =
+      (stamped && sessionHasRegisteredAssessor(stamped.session)
+        ? assessorFromSession(stamped.session)
+        : null) ?? resolveCampusAssessor(latest.assessorByType, surveyType)
+    const draft: PersistedSurveyDraft =
+      campusAssessor && shouldStampSessionAssessor(loaded.session, campusAssessor)
+        ? {
+            ...loaded,
+            session: {
+              ...loaded.session,
+              ...assessorSessionFields(campusAssessor),
+            },
+          }
+        : loaded
+
+    if (!sessionHasRegisteredAssessor(draft.session)) {
       setCloudSaveStatus("error")
       return "error"
     }
@@ -3629,13 +3670,38 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         window.setTimeout(resolve, 0)
       })
       const latest = stateRef.current
-      const savedAt = persistDraftFromState(latest)
-      if (!savedAt) {
+      let persisted: { savedAt: string; draft: PersistedSurveyDraft } | null = null
+      try {
+        persisted = persistDraftFromState(latest)
+      } catch {
+        persisted = null
+      }
+      if (!persisted && latest.school && latest.session) {
+        const campusAssessor = resolveCampusAssessor(latest.assessorByType, latest.surveyType)
+        const session = campusAssessor
+          ? { ...latest.session, ...assessorSessionFields(campusAssessor) }
+          : latest.session
+        const savedAt = new Date().toISOString()
+        persisted = {
+          savedAt,
+          draft: {
+            version: 1,
+            schoolId: latest.school.id,
+            surveyType: latest.surveyType,
+            session,
+            selectedLevelId: latest.selectedLevelId,
+            selectedRoomId: latest.selectedRoomId,
+            lastSubmission: latest.submission,
+            savedAt,
+          },
+        }
+      }
+      if (!persisted) {
         setCloudSaveStatus("error")
         return "error"
       }
-      dispatch({ type: "MARK_SAVED", savedAt })
-      return await pushLoadedDraftToCloud()
+      dispatch({ type: "MARK_SAVED", savedAt: persisted.savedAt })
+      return await pushLoadedDraftToCloud(persisted.draft)
     } finally {
       explicitFlushInFlightRef.current = false
     }
