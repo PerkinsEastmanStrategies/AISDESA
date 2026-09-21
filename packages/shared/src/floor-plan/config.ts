@@ -120,11 +120,11 @@ function roomDisplayName(id: string): string {
   if (/^COR(?!E)/.test(upper)) return `Corridor ${id}`
   if (/^[A-E]-\d/.test(upper)) return id
   // Building + digits (with optional sub-room): A100, B101A, A101.1
-  if (/^[A-Z]\d{2,4}(\.\d+)?[A-Z]?$/.test(upper)) return id
+  if (/^[A-Z]\d{1,4}(\.\d+)?[A-Z]?$/.test(upper)) return id
   // Wing-style elementary IDs (Cowan ES: E1, N12, W8).
   if (/^[ENW]\d{1,2}$/.test(upper)) return id
   if (/^CORE\d*$/.test(upper)) return `Core ${id}`
-  if (/^\d{2,4}(\.\d+)?[A-Z]?$/.test(upper)) return id
+  if (/^\d{1,4}(\.\d+)?[A-Z]?$/.test(upper)) return id
   if (/(RR|HRR|BRR|GRR|FRR)$/.test(upper) || upper.includes("RR")) return `Restroom ${id}`
   if (/(STO)$/.test(upper) || upper.includes("STO")) return `Storage ${id}`
   return id.replace(/_/g, " ")

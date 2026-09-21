@@ -588,7 +588,7 @@ function findSchoolData(
 
 /** Room numbers embedded in sheet/display names (e.g. "KINDERGARTEN A107", "Room A112.1"). */
 function embeddedRoomNumbersInName(name: string): string[] {
-  const matches = name.match(/\b([A-Z]\d{2,4}(?:\.\d+)?[A-Z]?|\d{2,4}(?:\.\d+)?[A-Z]?)\b/gi)
+  const matches = name.match(/\b([A-Z]\d{1,4}(?:\.\d+)?[A-Z]?|\d{1,4}(?:\.\d+)?[A-Z]?)\b/gi)
   if (!matches) return []
   return [...new Set(matches.map((m) => m.trim().toUpperCase()).filter(Boolean))]
 }
@@ -602,7 +602,7 @@ export function floorPlanRoomLookupIds(room: {
   const name = room.name?.trim()
   if (name) {
     for (const key of roomLookupKeys(name)) keys.add(key)
-    const tail = name.match(/\b([A-Z]?\d{2,4}(?:\.\d+)?[A-Z]?)\s*$/i)?.[1]
+    const tail = name.match(/\b([A-Z]?\d{1,4}(?:\.\d+)?[A-Z]?)\s*$/i)?.[1]
     if (tail) {
       for (const key of roomLookupKeys(tail)) keys.add(key)
     }

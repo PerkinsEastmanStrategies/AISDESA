@@ -503,9 +503,9 @@ const IGNORED_GENERIC_LABELS = new Set([
   "MECHACCS",
 ]);
 
-/** Room labels on non-CAFM exports (e.g. 101, 101RR, 102COM). */
+/** Room labels on non-CAFM exports (e.g. 1, 101, 101RR, 102COM). */
 const GENERIC_ROOM_LABEL_PATTERN =
-  /^(?:\d{3}[A-Z]{0,6}|\d{2}[A-Z]{2,6})$/;
+  /^(?:\d{1,4}[A-Z]{0,6}|\d{2}[A-Z]{2,6})$/;
 
 function isGenericRoomLabel(text: string): boolean {
   const normalized = text.trim().toUpperCase().replace(/\s+/g, "");
@@ -523,7 +523,9 @@ function isGenericRoomLabel(text: string): boolean {
 
 function isValidCafmLabelText(text: string): boolean {
   if (IGNORED_CAFM_LABELS.has(text)) return false;
-  if (text.length < 2 || text.length > 24) return false;
+  if (!text || text.length > 24) return false;
+  // Lone letters (A, B) are building tags; lone digits (1–9) are real CAFM ids.
+  if (text.length === 1 && !/^\d$/.test(text)) return false;
   // Allow hyphens (S1-G1) and dots (Eastside A101.1 sub-rooms).
   return /^[A-Z0-9][A-Z0-9.-]*$/.test(text);
 }
@@ -555,16 +557,16 @@ const CAFM_SERVICE_SUFFIXES = new Set([
 function cafmRoomKeyFromLabel(rawText: string): { key: string; kind: "room" | "tag" } {
   const text = rawText.trim().toUpperCase().replace(/\s+/g, "");
 
-  // 2–4 digit room numbers, optional sub-room letter.
-  if (/^\d{2,4}[A-Z]?$/.test(text)) {
+  // 1–4 digit room numbers, optional sub-room letter (1, 10, 101, 101A).
+  if (/^\d{1,4}[A-Z]?$/.test(text)) {
     return { key: text, kind: "room" };
   }
 
-  // Dotted sub-rooms (Eastside ECHS: A101.1)
-  if (/^[A-Z]\d{2,4}\.\d+[A-Z]?$/.test(text)) {
+  // Dotted sub-rooms (Eastside ECHS: A101.1, or 1.1)
+  if (/^[A-Z]\d{1,4}\.\d+[A-Z]?$/.test(text)) {
     return { key: text, kind: "room" };
   }
-  if (/^\d{2,4}\.\d+[A-Z]?$/.test(text)) {
+  if (/^\d{1,4}\.\d+[A-Z]?$/.test(text)) {
     return { key: text, kind: "room" };
   }
 
@@ -578,18 +580,18 @@ function cafmRoomKeyFromLabel(rawText: string): { key: string; kind: "room" | "t
     return { key: text, kind: "room" };
   }
 
-  // Building + digits (Brentwood / Casey / Eastside base rooms: A100, B101A)
-  if (/^[A-Z]\d{2,4}[A-Z]?$/.test(text)) {
+  // Building + digits (Brentwood / Casey / Eastside base rooms: A1, A100, B101A)
+  if (/^[A-Z]\d{1,4}[A-Z]?$/.test(text)) {
     return { key: text, kind: "room" };
   }
 
-  // Hyphenated building rooms (Lively: A-101)
-  if (/^[A-Z]-\d{2,4}[A-Z]?$/.test(text)) {
+  // Hyphenated building rooms (Lively: A-101, A-1)
+  if (/^[A-Z]-\d{1,4}[A-Z]?$/.test(text)) {
     return { key: text, kind: "room" };
   }
 
   // Numeric + trailing letters — collapse only soft / inventory suffixes, not service spaces
-  const numericSuffixed = text.match(/^(\d{2,4}[A-Z]?)([A-Z]{2,})$/);
+  const numericSuffixed = text.match(/^(\d{1,4}[A-Z]?)([A-Z]{2,})$/);
   if (numericSuffixed) {
     if (CAFM_SERVICE_SUFFIXES.has(numericSuffixed[2])) {
       return { key: text, kind: "tag" };
@@ -598,7 +600,7 @@ function cafmRoomKeyFromLabel(rawText: string): { key: string; kind: "room" | "t
   }
 
   // Building room + trailing letters
-  const buildingSuffixed = text.match(/^([A-Z]\d{2,4}[A-Z]?)([A-Z]{2,})$/);
+  const buildingSuffixed = text.match(/^([A-Z]\d{1,4}[A-Z]?)([A-Z]{2,})$/);
   if (buildingSuffixed) {
     if (CAFM_SERVICE_SUFFIXES.has(buildingSuffixed[2])) {
       return { key: text, kind: "tag" };

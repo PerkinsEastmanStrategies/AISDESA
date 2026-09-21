@@ -12,13 +12,13 @@ function roomDisplayName(id: string, label?: string): string {
   if (/^COR(?!E)/.test(upper)) return `Corridor ${id}`
   if (/^[A-E]-\d/.test(upper)) return id
   // Building + digits / dotted sub-rooms (A100, B101A, A101.1)
-  if (/^[A-Z]\d{2,4}(\.\d+)?[A-Z]?$/.test(upper)) return id
+  if (/^[A-Z]\d{1,4}(\.\d+)?[A-Z]?$/.test(upper)) return id
   // Studio-style IDs (Lively / Bryker: S1-G1) — not stair landings S1-1.
   if (/^S\d+-[A-Z]/.test(upper)) return id
   // Wing-style elementary IDs (Cowan ES: E1, N12, W8).
   if (/^[ENW]\d{1,2}$/.test(upper)) return id
   if (/^CORE\d*$/.test(upper)) return `Core ${id}`
-  if (/^\d{2,4}(\.\d+)?[A-Z]?$/.test(upper)) return id
+  if (/^\d{1,4}(\.\d+)?[A-Z]?$/.test(upper)) return id
   if (upper === "ART") return "Art"
   if (upper === "MUSIC" || upper.startsWith("MUSIC")) return "Music"
   if (upper === "SPEECH") return "Speech"
