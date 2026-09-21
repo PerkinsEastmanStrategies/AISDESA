@@ -4,7 +4,9 @@ import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { Camera, Check, ExternalLink, ImagePlus, Trash2, X } from "lucide-react"
 import PhotoPrivacyReminderModal from "@/components/photo-privacy-reminder-modal"
 import {
+  buildSurveyPhotoStoragePath,
   deleteSurveyPhoto,
+  generateSurveyPhotoId,
   isLocalPhotoDataUrl,
   isPhotoStorageEnabled,
   isSupabasePhotoUrl,
@@ -12,7 +14,7 @@ import {
   type SurveyPhotoUploadContext,
 } from "@/lib/photo-storage"
 import { photosAfterCloudUpload } from "@/lib/response-photos"
-import { compressImageFile } from "@/lib/photo-utils"
+import { compressImageFile, downloadSurveyPhotoLocalBackup } from "@/lib/photo-utils"
 
 interface QuestionPhotoProps {
   /** All photos for this slot — Supabase URLs and/or local data URLs. */
@@ -83,6 +85,7 @@ export default function QuestionPhoto({
   const [pendingPreview, setPendingPreview] = useState<string | null>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
+  const pendingPhotoIdRef = useRef<string | null>(null)
   const fieldId = useId()
   const cameraId = `${fieldId}-camera`
   const galleryId = `${fieldId}-gallery`
@@ -102,6 +105,7 @@ export default function QuestionPhoto({
   }, [startExpanded])
 
   useEffect(() => {
+    pendingPhotoIdRef.current = null
     setPendingPreview(null)
     setError(null)
     setPrivacyReminderOpen(false)
@@ -112,13 +116,14 @@ export default function QuestionPhoto({
   }, [uploadScopeKey, startExpanded])
 
   const uploadToCloud = useCallback(
-    async (imageDataUrl: string) => {
+    async (imageDataUrl: string, photoId: string) => {
       if (!uploadContext || !isPhotoStorageEnabled()) return false
       setLoading(true)
       setUploading(true)
       setError(null)
       try {
-        const uploaded = await uploadSurveyPhoto(uploadContext, imageDataUrl)
+        const uploaded = await uploadSurveyPhoto({ ...uploadContext, photoId }, imageDataUrl)
+        pendingPhotoIdRef.current = null
         onChange(photosAfterCloudUpload(photos, uploaded.url))
         setPendingPreview(null)
         setOpen(false)
@@ -153,6 +158,7 @@ export default function QuestionPhoto({
     try {
       const compressed = await compressImageFile(file)
       if (canUploadToCloud) {
+        pendingPhotoIdRef.current = generateSurveyPhotoId()
         setPendingPreview(compressed)
         setOpen(true)
         return
@@ -167,11 +173,20 @@ export default function QuestionPhoto({
   }
 
   const handleConfirmSubmission = () => {
-    if (!pendingPreview) return
-    void uploadToCloud(pendingPreview)
+    if (!pendingPreview || !uploadContext) return
+    const photoId = pendingPhotoIdRef.current || generateSurveyPhotoId()
+    pendingPhotoIdRef.current = photoId
+    try {
+      const storagePath = buildSurveyPhotoStoragePath({ ...uploadContext, photoId })
+      downloadSurveyPhotoLocalBackup(pendingPreview, storagePath)
+    } catch {
+      // Device backup is best-effort; cloud upload still proceeds.
+    }
+    void uploadToCloud(pendingPreview, photoId)
   }
 
   const handleDiscardPending = () => {
+    pendingPhotoIdRef.current = null
     setPendingPreview(null)
     setError(null)
   }
@@ -324,7 +339,7 @@ export default function QuestionPhoto({
             />
             {uploading && (
               <div className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-1 text-center text-[10px] font-medium text-white">
-                Uploading to Supabase…
+                Uploading to Supabase and saving a copy on this device…
               </div>
             )}
             {!uploading && (
@@ -364,6 +379,11 @@ export default function QuestionPhoto({
             </button>
           </div>
         )}
+        {pendingPreview && canUploadToCloud && !uploading && (
+          <p className="mb-2 text-[10px] text-slate-500">
+            Also saves a backup JPEG on this device with the same Supabase filename.
+          </p>
+        )}
 
         {canAddMore && !pendingPreview && (
           <div className="flex gap-2">
@@ -390,7 +410,7 @@ export default function QuestionPhoto({
 
         {loading && (
           <p className="mt-1 text-[10px] text-[var(--color-muted-foreground)]">
-            {uploading ? "Uploading to Supabase…" : "Processing…"}
+            {uploading ? "Uploading to Supabase and saving a copy on this device…" : "Processing…"}
           </p>
         )}
         {error && <p className="mt-1 text-[10px] text-amber-700">{error}</p>}

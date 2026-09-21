@@ -85,6 +85,13 @@ export function buildSurveyPhotoStoragePath(context: SurveyPhotoUploadContext): 
   return `${campus}/${school}/${survey}/${room}/${questionId}.jpg`
 }
 
+/** Filesystem-safe name that still maps 1:1 to the Supabase object path (`/` → `--`). */
+export function surveyPhotoLocalBackupFilename(storagePath: string): string {
+  const trimmed = storagePath.trim().replace(/^\/+/, "").replace(/\\/g, "/")
+  const withJpg = trimmed.toLowerCase().endsWith(".jpg") ? trimmed : `${trimmed}.jpg`
+  return withJpg.replace(/\//g, "--")
+}
+
 export function getSupabasePhotoPublicUrl(path: string): string | null {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
   const bucket = photosBucketName()
@@ -270,10 +277,7 @@ export async function uploadSurveyPhoto(
   context: SurveyPhotoUploadContext,
   imageDataUrl: string,
 ): Promise<SurveyPhotoUploadResult> {
-  const photoId =
-    context.replaceExisting && context.photoId?.trim()
-      ? context.photoId.trim()
-      : generateSurveyPhotoId()
+  const photoId = context.photoId?.trim() || generateSurveyPhotoId()
 
   const response = await fetch("/api/photos/upload", {
     method: "POST",
