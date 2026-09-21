@@ -460,12 +460,7 @@ async function syncPrewalk(
   }
 
   // Explicit removals only (so one device clearing a room does not erase others' work).
-  for (const deletion of deletions ?? []) {
-    await supabaseRestDelete(
-      "esa_prewalk_mappings",
-      `school_id=eq.${encodeURIComponent(school.id)}&survey_type=eq.${encodeURIComponent(deletion.surveyType)}&room_id=eq.${encodeURIComponent(deletion.roomId)}`,
-    )
-  }
+  await deletePrewalkMappingRows(school.id, deletions)
 
   await syncPrewalkExistence(school, preWalk.spaceTypeExists)
 }
@@ -777,9 +772,40 @@ type DbSubmissionSnapshot = {
   floor_plan_rooms: SurveySubmission["floorPlanRooms"]
 }
 
+function restFilterValue(value: string): string {
+  if (/^[A-Za-z0-9._-]+$/.test(value)) return encodeURIComponent(value)
+  return encodeURIComponent(`"${value.replace(/"/g, '\\"')}"`)
+}
+
 function restInFilter(column: string, values: string[]): string {
   if (values.length === 0) return `${column}=eq.__none__`
-  return `${column}=in.(${values.map((v) => encodeURIComponent(v)).join(",")})`
+  return `${column}=in.(${values.map(restFilterValue).join(",")})`
+}
+
+const PREWALK_DELETE_CHUNK = 40
+
+async function deletePrewalkMappingRows(
+  schoolId: string,
+  deletions: Array<{ surveyType: string; roomId: string }> | undefined,
+): Promise<void> {
+  if (!deletions?.length) return
+  const bySurvey = new Map<string, string[]>()
+  for (const deletion of deletions) {
+    if (!deletion.surveyType?.trim() || !deletion.roomId?.trim()) continue
+    const list = bySurvey.get(deletion.surveyType) ?? []
+    list.push(deletion.roomId)
+    bySurvey.set(deletion.surveyType, list)
+  }
+  for (const [surveyType, roomIds] of bySurvey) {
+    const unique = [...new Set(roomIds)]
+    for (let i = 0; i < unique.length; i += PREWALK_DELETE_CHUNK) {
+      const chunk = unique.slice(i, i + PREWALK_DELETE_CHUNK)
+      await supabaseRestDelete(
+        "esa_prewalk_mappings",
+        `school_id=eq.${encodeURIComponent(schoolId)}&survey_type=eq.${encodeURIComponent(surveyType)}&${restInFilter("room_id", chunk)}`,
+      )
+    }
+  }
 }
 
 async function loadSchoolSharedDraftData(schoolId: string): Promise<{

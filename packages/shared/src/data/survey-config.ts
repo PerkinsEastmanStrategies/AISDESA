@@ -1474,6 +1474,23 @@ export function isAbsentSpaceTypeRoomId(roomId: string | null | undefined): bool
   return !!roomId?.startsWith(ABSENT_SPACE_TYPE_ROOM_PREFIX)
 }
 
+/** Stored labels from older builds used “not present”; current copy is “not at school”. */
+const ABSENT_SPACE_LABEL_RE = /(?:—|-|–)?\s*not (?:at school|present)\b/i
+
+export function labelLooksLikeAbsentSpace(label: string | null | undefined): boolean {
+  return !!label?.trim() && ABSENT_SPACE_LABEL_RE.test(label.trim())
+}
+
+/** True when this session room is the “does not exist / not at school” placeholder. */
+export function roomLooksMarkedAbsent(
+  roomId: string | null | undefined,
+  room?: Pick<RoomSurveySession, "spaceTypeMarkedAbsent" | "roomNumber"> | null,
+): boolean {
+  if (isAbsentSpaceTypeRoomId(roomId)) return true
+  if (room?.spaceTypeMarkedAbsent) return true
+  return labelLooksLikeAbsentSpace(room?.roomNumber)
+}
+
 export function parseAbsentSpaceTypeRoomId(
   roomId: string,
 ): { spaceType: string; neighborhood?: string } | null {
@@ -1495,8 +1512,8 @@ export function absentSpaceTypeRoomDisplayName(
 ): string {
   const nh = neighborhood?.trim()
   return nh
-    ? `${spaceType} — not present (Neighborhood ${nh})`
-    : `${spaceType} — not present`
+    ? `${spaceType} — not at school (Neighborhood ${nh})`
+    : `${spaceType} — not at school`
 }
 
 /** Write the existence answer onto a session, including the synthetic absent room when marked No. */
@@ -1703,7 +1720,7 @@ export function spaceTypeExistsAtSchoolFromRooms(
   const absent = new Set<string>()
   for (const room of Object.values(rooms)) {
     const parsed = parseAbsentSpaceTypeRoomId(room.roomId)
-    const isAbsent = !!(room.spaceTypeMarkedAbsent || parsed)
+    const isAbsent = roomLooksMarkedAbsent(room.roomId, room)
     const spaceType = (parsed?.spaceType || room.roomType || "").trim()
     if (!spaceType) continue
     const neighborhood =

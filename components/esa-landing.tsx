@@ -89,6 +89,25 @@ export default function EsaLanding() {
               </p>
 
               <div className="mt-8 grid gap-6 text-left sm:grid-cols-2">
+                <div className="rounded-2xl border-2 border-amber-300 bg-white/80 px-4 py-5 sm:px-5 sm:col-span-2">
+                  <h2 className="text-2xl font-black text-amber-950 sm:text-3xl">Computer</h2>
+                  <ol className="mt-3 list-decimal space-y-2 pl-6 text-lg font-semibold leading-snug text-slate-800 sm:text-xl">
+                    <li>
+                      Quick check: open an Incognito/InPrivate window (Ctrl+Shift+N, or
+                      Command+Shift+N on a Mac) and go to this site again.
+                    </li>
+                    <li>
+                      If that works, this browser is stuck on an old copy. Click the lock or tune
+                      icon left of the address, open Cookies and site data, and delete data for
+                      this site.
+                    </li>
+                    <li>
+                      Press Ctrl+Shift+R (Command+Shift+R on a Mac) to hard refresh. If it still
+                      fails, press Ctrl+Shift+Delete, clear cached images and files, close the
+                      browser, and reopen this page.
+                    </li>
+                  </ol>
+                </div>
                 <div className="rounded-2xl border-2 border-amber-300 bg-white/80 px-4 py-5 sm:px-5">
                   <h2 className="text-2xl font-black text-amber-950 sm:text-3xl">iPhone</h2>
                   <ol className="mt-3 list-decimal space-y-2 pl-6 text-lg font-semibold leading-snug text-slate-800 sm:text-xl">

@@ -1,5 +1,5 @@
 import type { RoomSurveySession, SurveyType } from "@aisd/shared"
-import { surveyTypeLabel } from "@aisd/shared"
+import { roomLooksMarkedAbsent, surveyTypeLabel } from "@aisd/shared"
 import { buildCampusScoringSnapshot, isSubmittedCampusRoom } from "@/lib/campus-scoring-tree"
 import { loadDraftsForSchool, type PersistedSurveyDraft } from "@/lib/survey-persistence"
 import type { RoomScoreResult, SurveySession } from "@aisd/shared"
@@ -26,7 +26,7 @@ export function roomHasAssessmentProgress(
   }
   if (!roomSession) return false
   return (
-    roomSession.spaceTypeMarkedAbsent ||
+    roomLooksMarkedAbsent(roomSession.roomId, roomSession) ||
     roomSession.responses.length > 0 ||
     !!roomSession.gradeType ||
     !!roomSession.deferredToCloseOut

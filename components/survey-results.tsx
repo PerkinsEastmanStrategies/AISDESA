@@ -91,6 +91,7 @@ export default function SurveyResults() {
     if (!snapshot) return {}
     const map: Record<string, number | null> = {}
     for (const room of snapshot.allRooms) {
+      if (room.spaceTypeDoesNotExist) continue
       if (room.overallScore !== null) {
         map[room.roomId] = room.overallScore
       } else if (!(room.roomId in map)) {
@@ -123,16 +124,20 @@ export default function SurveyResults() {
   const filteredRooms = useMemo(() => {
     if (!snapshot) return []
     const q = roomQuery.trim().toLowerCase()
-    if (!q) return snapshot.allRooms.filter((r) => r.overallScore !== null)
-    return snapshot.allRooms.filter(
+    const listed = snapshot.allRooms.filter(
+      (r) => r.spaceTypeDoesNotExist || r.complete || r.overallScore !== null,
+    )
+    if (!q) return listed
+    return listed.filter(
       (r) =>
-        r.overallScore !== null &&
-        (r.roomName.toLowerCase().includes(q) ||
-          r.roomId.toLowerCase().includes(q) ||
-          (r.schoolRoomNumber?.toLowerCase().includes(q) ?? false) ||
-          (r.neighborhood?.toLowerCase().includes(q) ?? false) ||
-          r.spaceType.toLowerCase().includes(q) ||
-          (r.gradeType?.toLowerCase().includes(q) ?? false)),
+        r.roomName.toLowerCase().includes(q) ||
+        r.roomId.toLowerCase().includes(q) ||
+        (r.schoolRoomNumber?.toLowerCase().includes(q) ?? false) ||
+        (r.neighborhood?.toLowerCase().includes(q) ?? false) ||
+        r.spaceType.toLowerCase().includes(q) ||
+        (r.gradeType?.toLowerCase().includes(q) ?? false) ||
+        (!!r.spaceTypeDoesNotExist &&
+          ("not at school".includes(q) || "not present".includes(q))),
     )
   }, [snapshot, roomQuery])
 
@@ -238,7 +243,7 @@ export default function SurveyResults() {
               score={snapshot.campusOverallScore}
               label="Campus ESA"
               compact
-              detail="Not-present spaces count as 0%"
+              detail="Spaces not at school count as 0%"
             />
             <OverallScoreDisplay
               score={snapshot.campusOverallScoreExistingOnly}
@@ -246,8 +251,8 @@ export default function SurveyResults() {
               compact
               detail={
                 snapshot.absentSpaceCount > 0
-                  ? `Leaves out ${snapshot.absentSpaceCount} space${snapshot.absentSpaceCount === 1 ? "" : "s"} marked not present`
-                  : "Same as Campus ESA — none marked not present"
+                  ? `Leaves out ${snapshot.absentSpaceCount} space${snapshot.absentSpaceCount === 1 ? "" : "s"} not at school`
+                  : "Same as Campus ESA — every space is at the school"
               }
             />
           </div>

@@ -530,6 +530,30 @@ export function applyPreWalkMappingDeletes(
   return { ...preWalk, mappings }
 }
 
+export function queuePreWalkMappingDeletes(
+  existing: PreWalkMappingRef[],
+  next: PreWalkMappingRef[],
+): PreWalkMappingRef[] {
+  const seen = new Set(existing.map((entry) => preWalkMappingKey(entry.surveyType, entry.roomId)))
+  const out = [...existing]
+  for (const deletion of next) {
+    const key = preWalkMappingKey(deletion.surveyType, deletion.roomId)
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(deletion)
+  }
+  return out
+}
+
+export function dropPushedPreWalkDeletes(
+  existing: PreWalkMappingRef[],
+  pushed: PreWalkMappingRef[],
+): PreWalkMappingRef[] {
+  if (!pushed.length) return existing
+  const done = new Set(pushed.map((entry) => preWalkMappingKey(entry.surveyType, entry.roomId)))
+  return existing.filter((entry) => !done.has(preWalkMappingKey(entry.surveyType, entry.roomId)))
+}
+
 /** Show the yes/no pre-walk prompt after the user picks a school. */
 export function shouldPromptPreWalkOnSchoolSelect(
   preWalk?: PreWalkState | null,

@@ -39,7 +39,7 @@ const ROLLUP_LEVELS = [
     label: "Space types & rooms",
     summary: "Category scores form each room’s overall score.",
     detail:
-      "Every assessed room (Traditional studio, Gym, Media Center, etc.) gets one overall %. Rooms are grouped by space type for reporting.",
+      "Every surveyed room (Traditional studio, Gym, Media Center, etc.) gets one overall %. Space types marked not at school are listed as Not at school, not as a failed 0% room. Rooms are grouped by space type for reporting.",
     tone: "bg-amber-50 border-amber-200 text-amber-950",
     width: "w-[70%]",
   },
@@ -57,7 +57,7 @@ const ROLLUP_LEVELS = [
     label: "Campus score",
     summary: "Focus areas combine using Focus Area Weight.",
     detail:
-      "Campus ESA is a weighted average of focus-area scores, with space types marked as not present counted as 0%. Existing spaces is the same rollup with those rooms left out. Focus Area Weight in the Table of Surveys sets how much each focus area counts. Use the drill-down on this page to trace any score back to its questions.",
+      "Campus ESA is a weighted average of focus-area scores, with space types marked as not at school counted as 0%. Existing spaces is the same rollup with those rooms left out. Focus Area Weight in the Table of Surveys sets how much each focus area counts. Use the drill-down on this page to trace any score back to its questions.",
     tone: "bg-white border-slate-300 text-slate-900 shadow-sm",
     width: "w-[58%]",
   },

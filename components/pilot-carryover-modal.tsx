@@ -76,7 +76,7 @@ function CarryOverGroupList({
                         <p className="text-sm font-semibold text-slate-900">{room.label}</p>
                         <p className="mt-0.5 text-xs text-slate-500">
                           {absent
-                            ? "Marked not present on campus"
+                            ? "Marked not at school on campus"
                             : `${room.percent}% complete${
                                 room.complete
                                   ? " · complete"
@@ -203,7 +203,7 @@ export default function PilotCarryOverModal({
             </h2>
             <p className="mt-1 text-sm text-slate-600">
               Keep a room to finish unanswered questions, or remove it so it is not carried over.
-              Spaces marked not present need the same confirmation.
+              Spaces marked not at school need the same confirmation.
             </p>
           </div>
         </div>
@@ -224,10 +224,10 @@ export default function PilotCarryOverModal({
               <div className="mb-3 flex items-end justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                    Marked not present
+                    Marked not at school
                   </p>
                   <p className="mt-0.5 text-sm text-slate-600">
-                    Keep leaves this space marked not present. Remove it from this campus copy if it
+                    Keep leaves this space marked not at school. Remove it from this campus copy if it
                     should be surveyed.
                   </p>
                 </div>

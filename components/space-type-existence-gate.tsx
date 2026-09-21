@@ -70,8 +70,8 @@ export default function SpaceTypeExistenceGate({
       {value === false && (
         <p className="mt-3 text-xs font-medium text-slate-700">
           {scopedToNeighborhood
-            ? `Marked as not present — this scores 0 for ${spaceType} in Neighborhood ${neighborhoodLabel}. Tap Yes if you find it, or use Save and Complete Another Survey to keep this answer.`
-            : `Marked as not present — this scores 0 for ${spaceType}. Tap Yes if you find it, or use Save and Complete Another Survey to keep this answer.`}
+            ? `Marked as not at school — Campus ESA counts ${spaceType} in Neighborhood ${neighborhoodLabel} as 0%. Tap Yes if you find it.`
+            : `Marked as not at school — Campus ESA counts ${spaceType} as 0%. Tap Yes if you find it.`}
         </p>
       )}
     </div>

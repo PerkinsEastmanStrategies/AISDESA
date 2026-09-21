@@ -213,7 +213,7 @@ export default function StudioSurvey() {
         <div className="flex min-h-[40vh] items-center justify-center px-6 py-8 text-center">
           <p className="text-sm text-[var(--color-muted-foreground)]">
             {spaceTypeAbsent
-              ? `${selectedSpaceType} is marked as not present${isNeighborhoodsSurvey && pendingNeighborhood ? ` in Neighborhood ${pendingNeighborhood}` : ""}. Tap Yes above if you find it, or Save and Complete Another Survey to keep a score of 0.`
+              ? `${selectedSpaceType} is marked as not at school${isNeighborhoodsSurvey && pendingNeighborhood ? ` in Neighborhood ${pendingNeighborhood}` : ""}. Tap Yes above if you find it.`
               : isCloseOut
               ? closeOutPendingCount > 0
                 ? "Select a room from the list or open the floor plan to answer deferred questions."

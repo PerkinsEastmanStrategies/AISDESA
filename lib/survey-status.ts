@@ -8,6 +8,7 @@ import {
   isSpaceTypeMarkedAbsentAtSchool,
   isStudioType,
   isSpaceTypeRoomsComplete,
+  collectIdentifiedNeighborhoods,
   OUTDOOR_SURVEY_ROOM_ID,
   outdoorSurveyRoomDisplayName,
   spaceTypesForSurveyModule,
@@ -85,8 +86,16 @@ function isRequiredSpaceTypeSatisfied(
   if (ofType.some((room) => room.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(room.roomId))) {
     return true
   }
-  return isSpaceTypeRoomsComplete(spaceType, ofType, schoolClass, (room) =>
-    isRoomSurveyFilledOut(room, surveyType, schoolClass),
+  const identifiedNeighborhoods = collectIdentifiedNeighborhoods({
+    planRooms,
+    sessionRooms: Object.values(session.rooms),
+  })
+  return isSpaceTypeRoomsComplete(
+    spaceType,
+    ofType,
+    schoolClass,
+    (room) => isRoomSurveyFilledOut(room, surveyType, schoolClass),
+    identifiedNeighborhoods,
   )
 }
 

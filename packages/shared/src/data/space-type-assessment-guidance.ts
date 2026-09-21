@@ -4,6 +4,8 @@ import {
   schoolLevelFromSchoolClass,
   TABLE_OF_SURVEY_ENTRIES,
 } from "./table-of-surveys"
+import { NEIGHBORHOOD_OPTIONS } from "../types/survey"
+import { isAbsentSpaceTypeRoomId, labelLooksLikeAbsentSpace } from "./survey-config"
 
 export interface SpaceTypeAssessmentGuidanceEntry {
   spaceType: string
@@ -277,13 +279,14 @@ export function spaceTypeCompletionRule(
   spaceType: string,
   schoolClass: string | null | undefined,
 ): SpaceTypeCompletionRule {
+  // Traditional studios are 2 per identified neighborhood, not the Ed Spec 8/12/16.
+  if (isTraditionalStudioSpaceType(spaceType)) {
+    return { kind: "perNeighborhood", minPerNeighborhood: 2 }
+  }
+
   const table = lookupTableEntryBySpaceType(spaceType, schoolClass)
   if (table?.required && table.minimumSurveyCount > 0) {
     return { kind: "minRooms", count: table.minimumSurveyCount }
-  }
-
-  if (spaceType === "Traditional studio") {
-    return { kind: "perNeighborhood", minPerNeighborhood: 2 }
   }
 
   const entry = guidanceEntryForSpaceType(spaceType, schoolClass)
@@ -312,12 +315,46 @@ export function requiredCompletedRoomsForSpaceType(
 }
 
 export interface SpaceTypeRoomSession {
+  roomId?: string
+  roomNumber?: string | null
   neighborhood?: string | null
   spaceTypeMarkedAbsent?: boolean
 }
 
+function isTraditionalStudioSpaceType(spaceType: string): boolean {
+  return spaceType.trim().toLowerCase() === "traditional studio"
+}
+
 function neighborhoodKey(value: string | null | undefined): string {
-  return value?.trim().toUpperCase() ?? ""
+  const trimmed = value?.trim()
+  if (!trimmed || trimmed === "__unassigned__") return ""
+  return trimmed.toUpperCase()
+}
+
+function isGenericNeighborhoodFallback(values: readonly string[] | null | undefined): boolean {
+  if (!values?.length) return true
+  const normalized = new Set(values.map((value) => neighborhoodKey(value)).filter(Boolean))
+  if (normalized.size !== NEIGHBORHOOD_OPTIONS.length) return false
+  return NEIGHBORHOOD_OPTIONS.every((id) => normalized.has(id.toUpperCase()))
+}
+
+/** Distinct neighborhood labels found on the school (plan, session, or live sheet). */
+export function collectIdentifiedNeighborhoods(input: {
+  planRooms?: Array<{ neighborhood?: string | null }>
+  sessionRooms?: Array<{ neighborhood?: string | null }>
+  schoolNeighborhoods?: readonly string[] | null
+}): string[] {
+  const keys = new Set<string>()
+  const add = (value: string | null | undefined) => {
+    const key = neighborhoodKey(value)
+    if (key) keys.add(key)
+  }
+  for (const room of input.planRooms ?? []) add(room.neighborhood)
+  for (const room of input.sessionRooms ?? []) add(room.neighborhood)
+  if (!isGenericNeighborhoodFallback(input.schoolNeighborhoods)) {
+    for (const value of input.schoolNeighborhoods ?? []) add(value)
+  }
+  return [...keys]
 }
 
 /** Neighborhoods that already have a finished room — incomplete rooms do not raise the bar. */
@@ -325,8 +362,21 @@ function filledNeighborhoodKeys<T extends SpaceTypeRoomSession>(filled: T[]): st
   return [...new Set(filled.map((room) => neighborhoodKey(room.neighborhood)).filter(Boolean))]
 }
 
+function neighborhoodsForStudioQuota<T extends SpaceTypeRoomSession>(
+  filled: T[],
+  identifiedNeighborhoods?: readonly string[] | null,
+): string[] {
+  const identified = (identifiedNeighborhoods ?? []).map((value) => neighborhoodKey(value)).filter(Boolean)
+  return [...new Set([...identified, ...filledNeighborhoodKeys(filled)])]
+}
+
 function roomsMarkSpaceTypeAbsent<T extends SpaceTypeRoomSession>(rooms: T[]): boolean {
-  return rooms.some((room) => !!room.spaceTypeMarkedAbsent)
+  return rooms.some(
+    (room) =>
+      !!room.spaceTypeMarkedAbsent ||
+      isAbsentSpaceTypeRoomId(room.roomId) ||
+      labelLooksLikeAbsentSpace(room.roomNumber),
+  )
 }
 
 export function isSpaceTypeRoomsComplete<T extends SpaceTypeRoomSession>(
@@ -334,6 +384,7 @@ export function isSpaceTypeRoomsComplete<T extends SpaceTypeRoomSession>(
   rooms: T[],
   schoolClass: string | null | undefined,
   isFilledOut: (room: T) => boolean,
+  identifiedNeighborhoods?: readonly string[] | null,
 ): boolean {
   if (roomsMarkSpaceTypeAbsent(rooms)) return true
   const rule = spaceTypeCompletionRule(spaceType, schoolClass)
@@ -343,12 +394,12 @@ export function isSpaceTypeRoomsComplete<T extends SpaceTypeRoomSession>(
     return filled.length >= rule.count
   }
 
-  const identified = filledNeighborhoodKeys(filled)
-  if (identified.length === 0) {
+  const neighborhoods = neighborhoodsForStudioQuota(filled, identifiedNeighborhoods)
+  if (neighborhoods.length === 0) {
     return filled.length >= rule.minPerNeighborhood
   }
 
-  for (const neighborhood of identified) {
+  for (const neighborhood of neighborhoods) {
     const count = filled.filter((room) => neighborhoodKey(room.neighborhood) === neighborhood).length
     if (count < rule.minPerNeighborhood) return false
   }
@@ -360,6 +411,7 @@ export function spaceTypeCompletionProgress<T extends SpaceTypeRoomSession>(
   rooms: T[],
   schoolClass: string | null | undefined,
   isFilledOut: (room: T) => boolean,
+  identifiedNeighborhoods?: readonly string[] | null,
 ): { complete: number; required: number } {
   const filled = rooms.filter((room) => isFilledOut(room))
   if (roomsMarkSpaceTypeAbsent(rooms)) {
@@ -372,13 +424,13 @@ export function spaceTypeCompletionProgress<T extends SpaceTypeRoomSession>(
     return { complete: filled.length, required: rule.count }
   }
 
-  const identified = filledNeighborhoodKeys(filled)
-  if (identified.length === 0) {
+  const neighborhoods = neighborhoodsForStudioQuota(filled, identifiedNeighborhoods)
+  if (neighborhoods.length === 0) {
     return { complete: filled.length, required: rule.minPerNeighborhood }
   }
 
-  const required = identified.length * rule.minPerNeighborhood
-  const complete = identified.reduce((sum, neighborhood) => {
+  const required = neighborhoods.length * rule.minPerNeighborhood
+  const complete = neighborhoods.reduce((sum, neighborhood) => {
     const count = filled.filter((room) => neighborhoodKey(room.neighborhood) === neighborhood).length
     return sum + Math.min(count, rule.minPerNeighborhood)
   }, 0)

@@ -6,8 +6,64 @@ import DrilldownScoreList from "@/components/drilldown-score-list"
 import { ScoreBadge, ScoreBar } from "@/components/score-display"
 import { sumPositiveWeights } from "@/lib/weight-display"
 import { cn, scoreTextColor } from "@/lib/utils"
-import type { CampusScoringSnapshot } from "@/lib/campus-scoring-tree"
-import { neighborhoodGroupLabel, UNASSIGNED_NEIGHBORHOOD_ID } from "@aisd/shared"
+import { labelLooksLikeAbsentSpace, neighborhoodGroupLabel, UNASSIGNED_NEIGHBORHOOD_ID } from "@aisd/shared"
+import type { AssessedRoomRecord, CampusScoringSnapshot } from "@/lib/campus-scoring-tree"
+
+function NotAtSchoolLabel({ className }: { className?: string }) {
+  return (
+    <span className={cn("shrink-0 text-xs font-semibold tracking-wide text-slate-500", className)}>
+      Not at school
+    </span>
+  )
+}
+
+function roomIsNotAtSchool(
+  room: Pick<AssessedRoomRecord, "spaceTypeDoesNotExist" | "roomName">,
+): boolean {
+  return !!room.spaceTypeDoesNotExist || labelLooksLikeAbsentSpace(room.roomName)
+}
+
+function notAtSchoolNeighborhoodLabel(neighborhood: string | undefined): string | null {
+  const raw = neighborhood?.trim()
+  if (!raw || raw === UNASSIGNED_NEIGHBORHOOD_ID) return null
+  const label = neighborhoodGroupLabel(raw)
+  if (!label || label.toLowerCase() === "unassigned") return null
+  return label
+}
+
+function assessedRoomHeading(room: Pick<AssessedRoomRecord, "spaceTypeDoesNotExist" | "spaceType" | "schoolRoomNumber" | "roomName">) {
+  if (roomIsNotAtSchool(room)) return room.spaceType
+  return room.schoolRoomNumber ?? room.roomName
+}
+
+function assessedRoomMeta(
+  room: Pick<AssessedRoomRecord, "spaceTypeDoesNotExist" | "spaceType" | "neighborhood" | "gradeType" | "roomName">,
+  options?: { extras?: string[]; omitSpaceType?: boolean },
+) {
+  if (roomIsNotAtSchool(room)) {
+    const nh = notAtSchoolNeighborhoodLabel(room.neighborhood)
+    return nh ? `Not at school · ${nh}` : "Not at school"
+  }
+  const neighborhoodLabel = neighborhoodGroupLabel(
+    room.neighborhood?.trim() || UNASSIGNED_NEIGHBORHOOD_ID,
+  )
+  return [
+    options?.omitSpaceType ? "" : room.spaceType,
+    neighborhoodLabel,
+    room.gradeType,
+    ...(options?.extras ?? []),
+  ]
+    .filter(Boolean)
+    .join(" · ")
+}
+
+function NotAtSchoolNote() {
+  return (
+    <p className="px-3 py-2 text-xs leading-relaxed text-slate-600">
+      Not at school. Campus ESA counts this space type as 0%. Existing spaces leaves it out.
+    </p>
+  )
+}
 
 function spaceKey(focusAreaId: string, spaceType: string) {
   return `${focusAreaId}::${spaceType}`
@@ -91,6 +147,9 @@ export default function ScoringHierarchy({ snapshot }: { snapshot: CampusScoring
                       .map((st) => {
                         const sKey = spaceKey(area.id, st.spaceType)
                         const spaceOpen = openSpace.has(sKey)
+                        const spaceAbsent =
+                          st.rooms.length > 0 &&
+                          st.rooms.every((room) => roomIsNotAtSchool(room))
                         const spaceTypeWeightTotal = sumPositiveWeights(
                           area.spaceTypes.map((group) => group.spaceTypeWeight),
                         )
@@ -118,16 +177,26 @@ export default function ScoringHierarchy({ snapshot }: { snapshot: CampusScoring
                                 />
                               )}
                               <div className="min-w-0 flex-1">
-                                <ScoreBar
-                                  score={st.overallScore}
-                                  label={st.spaceType}
-                                  weight={st.spaceTypeWeight}
-                                  weightTotal={spaceTypeWeightTotal}
-                                  compact
-                                />
+                                {spaceAbsent ? (
+                                  <div className="flex items-center justify-between gap-3">
+                                    <p className="truncate text-sm font-medium text-slate-900">
+                                      {st.spaceType}
+                                    </p>
+                                    <NotAtSchoolLabel />
+                                  </div>
+                                ) : (
+                                  <ScoreBar
+                                    score={st.overallScore}
+                                    label={st.spaceType}
+                                    weight={st.spaceTypeWeight}
+                                    weightTotal={spaceTypeWeightTotal}
+                                    compact
+                                  />
+                                )}
                                 <p className="mt-0.5 text-[10px] text-slate-500">
-                                  {st.scoredRoomCount} of {st.roomCount} room
-                                  {st.roomCount === 1 ? "" : "s"}
+                                  {spaceAbsent
+                                    ? "Counts as 0% in Campus ESA"
+                                    : `${st.scoredRoomCount} of ${st.roomCount} room${st.roomCount === 1 ? "" : "s"}`}
                                 </p>
                               </div>
                             </button>
@@ -138,9 +207,7 @@ export default function ScoringHierarchy({ snapshot }: { snapshot: CampusScoring
                                   const rKey = roomKey(area.id, st.spaceType, room.roomId)
                                   const roomOpen = openRoom.has(rKey)
                                   const session = snapshot.sessionsBySurveyType[room.surveyType]
-                                  const neighborhoodLabel = neighborhoodGroupLabel(
-                                    room.neighborhood?.trim() || UNASSIGNED_NEIGHBORHOOD_ID,
-                                  )
+                                  const absent = roomIsNotAtSchool(room)
 
                                   return (
                                     <div
@@ -167,22 +234,35 @@ export default function ScoringHierarchy({ snapshot }: { snapshot: CampusScoring
                                           )}
                                           <div className="min-w-0">
                                             <p className="truncate text-sm font-medium text-slate-900">
-                                              {room.schoolRoomNumber ?? room.roomName}
+                                              {assessedRoomHeading(room)}
                                             </p>
                                             <p className="mt-0.5 text-[10px] text-slate-500">
-                                              {neighborhoodLabel}
-                                              {room.gradeType ? ` · ${room.gradeType}` : ""}
-                                              {room.complete ? " · complete" : ""}
-                                              {st.roomCount > 0
-                                                ? ` · ${Math.round(100 / st.roomCount)}% each`
-                                                : ""}
+                                              {assessedRoomMeta(room, {
+                                                omitSpaceType: true,
+                                                extras: absent
+                                                  ? []
+                                                  : [
+                                                      room.complete ? "complete" : "",
+                                                      st.roomCount > 0
+                                                        ? `${Math.round(100 / st.roomCount)}% each`
+                                                        : "",
+                                                    ],
+                                              })}
                                             </p>
                                           </div>
                                         </div>
-                                        <ScoreBadge score={room.overallScore} />
+                                        {absent ? (
+                                          <NotAtSchoolLabel />
+                                        ) : (
+                                          <ScoreBadge score={room.overallScore} />
+                                        )}
                                       </button>
 
-                                      {roomOpen && session && (
+                                      {roomOpen && absent ? (
+                                        <div className="border-t border-slate-100">
+                                          <NotAtSchoolNote />
+                                        </div>
+                                      ) : roomOpen && session ? (
                                         <div className="border-t border-slate-100 px-2 pb-2 pt-1">
                                           <DrilldownScoreList
                                             categories={room.categoryScores}
@@ -196,7 +276,7 @@ export default function ScoringHierarchy({ snapshot }: { snapshot: CampusScoring
                                             }
                                           />
                                         </div>
-                                      )}
+                                      ) : null}
                                     </div>
                                   )
                                 })}
@@ -240,9 +320,7 @@ export function RoomScoreCards({
       {rooms.map((room) => {
         const roomOpen = openRoom.has(room.roomId)
         const session = snapshot.sessionsBySurveyType[room.surveyType]
-        const neighborhoodLabel = neighborhoodGroupLabel(
-          room.neighborhood?.trim() || UNASSIGNED_NEIGHBORHOOD_ID,
-        )
+        const absent = roomIsNotAtSchool(room)
 
         return (
           <li
@@ -256,7 +334,7 @@ export function RoomScoreCards({
                 if (next.has(room.roomId)) next.delete(room.roomId)
                 else next.add(room.roomId)
                 setOpenRoom(next)
-                onSelectRoom?.(room.roomId)
+                if (!absent) onSelectRoom?.(room.roomId)
               }}
               className="flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left transition-colors active:bg-slate-50"
             >
@@ -268,25 +346,36 @@ export function RoomScoreCards({
                 )}
                 <div className="min-w-0">
                   <p className="truncate font-medium text-slate-900">
-                    {room.schoolRoomNumber ?? room.roomName}
+                    {assessedRoomHeading(room)}
                   </p>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {room.spaceType} · {neighborhoodLabel}
-                    {room.gradeType ? ` · ${room.gradeType}` : ""}
-                  </p>
+                  <p className="mt-0.5 text-xs text-slate-500">{assessedRoomMeta(room)}</p>
                 </div>
               </div>
-              <span
-                className={cn(
-                  "shrink-0 text-lg font-bold tabular-nums",
-                  scoreTextColor(room.overallScore),
-                )}
-              >
-                {room.overallScore !== null ? `${Math.round(room.overallScore)}%` : "—"}
-              </span>
+              {absent ? (
+                <NotAtSchoolLabel className="text-sm" />
+              ) : room.overallScore !== null ? (
+                <span
+                  className={cn(
+                    "shrink-0 text-lg font-bold tabular-nums",
+                    scoreTextColor(room.overallScore),
+                  )}
+                >
+                  {`${Math.round(room.overallScore)}%`}
+                </span>
+              ) : room.complete ? (
+                <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                  Complete
+                </span>
+              ) : (
+                <span className="shrink-0 text-lg font-bold tabular-nums text-slate-400">—</span>
+              )}
             </button>
 
-            {roomOpen && session && (
+            {roomOpen && absent ? (
+              <div className="border-t border-slate-100 pb-1">
+                <NotAtSchoolNote />
+              </div>
+            ) : roomOpen && session ? (
               <div className="border-t border-slate-100 px-3 pb-3 pt-1">
                 <DrilldownScoreList
                   categories={room.categoryScores}
@@ -296,7 +385,7 @@ export function RoomScoreCards({
                   roomScoreDetails={snapshot.roomScoreDetailsBySurveyType[room.surveyType]}
                 />
               </div>
-            )}
+            ) : null}
           </li>
         )
       })}
@@ -395,16 +484,24 @@ export function NeighborhoodScoreCards({
                               )}
                               <div className="min-w-0">
                                 <p className="truncate text-sm font-medium text-slate-900">
-                                  {room.schoolRoomNumber ?? room.roomName}
+                                  {assessedRoomHeading(assessed)}
                                 </p>
                                 <p className="mt-0.5 text-[10px] text-slate-500">
-                                  {assessed.spaceType}
+                                  {assessedRoomMeta(assessed)}
                                 </p>
                               </div>
                             </div>
-                            <ScoreBadge score={room.overallScore} />
+                            {roomIsNotAtSchool(assessed) ? (
+                              <NotAtSchoolLabel />
+                            ) : (
+                              <ScoreBadge score={room.overallScore} />
+                            )}
                           </button>
-                          {roomOpen && session && (
+                          {roomOpen && roomIsNotAtSchool(assessed) ? (
+                            <div className="border-t border-slate-100/80">
+                              <NotAtSchoolNote />
+                            </div>
+                          ) : roomOpen && session ? (
                             <div className="border-t border-slate-100/80 px-2 pb-2 pt-1">
                               <DrilldownScoreList
                                 categories={room.categoryScores}
@@ -416,7 +513,7 @@ export function NeighborhoodScoreCards({
                                 }
                               />
                             </div>
-                          )}
+                          ) : null}
                         </li>
                       )
                     })}

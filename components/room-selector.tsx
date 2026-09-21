@@ -14,12 +14,13 @@ import {
   isNeighborhoodSurveyRoomId,
   isOutdoorSurveyRoomId,
   isArrivalSurveyRoomId,
-  isAbsentSpaceTypeRoomId,
+  roomLooksMarkedAbsent,
   isSpaceTypeRequiredForSchool,
   isSpaceTypeRoomsComplete,
   isStudioType,
   NEIGHBORHOOD_OPTIONS,
   spaceTypeCompletionProgress,
+  collectIdentifiedNeighborhoods,
   spaceTypeOptionsForSurvey,
   readSpaceTypeExistsAtSchool,
   isSpaceTypeMarkedAbsentAtSchool,
@@ -213,6 +214,16 @@ export default function RoomSelector({
     })()
   }, [state.school?.id, state.school?.name])
 
+  const identifiedNeighborhoods = useMemo(
+    () =>
+      collectIdentifiedNeighborhoods({
+        planRooms: state.allRooms,
+        sessionRooms: state.session ? Object.values(state.session.rooms) : [],
+        schoolNeighborhoods: neighborhoodOptions,
+      }),
+    [state.allRooms, state.session, neighborhoodOptions],
+  )
+
   const gradeOptions = useMemo(
     () => gradeOptionsForSchool(state.school?.schoolClass),
     [state.school?.schoolClass],
@@ -384,7 +395,7 @@ export default function RoomSelector({
     if (preferWalkedRooms && state.session) {
       const walked = Object.values(state.session.rooms).filter((room) => {
         if (!room.roomType?.trim()) return false
-        if (isAbsentSpaceTypeRoomId(room.roomId) || room.spaceTypeMarkedAbsent) return false
+        if (roomLooksMarkedAbsent(room.roomId, room)) return false
         if (!spaceTypeBelongsToSurvey(state.surveyType, room.roomType, schoolClass)) return false
         if (!roomHasAssessmentProgress(room)) return false
         return true
@@ -534,14 +545,14 @@ export default function RoomSelector({
     for (const room of Object.values(state.session.rooms)) {
       if (!spaceTypeOptions.includes(room.roomType)) continue
       const started =
-        room.spaceTypeMarkedAbsent ||
+        roomLooksMarkedAbsent(room.roomId, room) ||
         room.responses.length > 0 ||
         !!room.gradeType ||
         !!room.deferredToCloseOut
       if (!started) continue
       map[room.roomType].started += 1
 
-      if (room.spaceTypeMarkedAbsent) {
+      if (roomLooksMarkedAbsent(room.roomId, room)) {
         map[room.roomType].complete += 1
         continue
       }
@@ -552,15 +563,14 @@ export default function RoomSelector({
     for (const type of spaceTypeOptions) {
       const absentRooms = state.session
         ? Object.values(state.session.rooms).filter(
-            (room) => room.spaceTypeMarkedAbsent && room.roomType === type,
+            (room) => roomLooksMarkedAbsent(room.roomId, room) && room.roomType === type,
           )
         : []
       const hasPresentRooms = state.session
         ? Object.values(state.session.rooms).some(
             (room) =>
               room.roomType === type &&
-              !room.spaceTypeMarkedAbsent &&
-              !isAbsentSpaceTypeRoomId(room.roomId),
+              !roomLooksMarkedAbsent(room.roomId, room),
           )
         : false
       if (
@@ -1130,8 +1140,6 @@ export default function RoomSelector({
                   type,
                   state.school?.schoolClass,
                 )
-                const absent = isSpaceTypeMarkedAbsentAtSchool(state.session, type)
-                const hasSaved = absent || progress.started > 0
                 const roomsOfType = roomsWithPlanNeighborhood(
                   state.session
                     ? Object.values(state.session.rooms).filter(
@@ -1140,11 +1148,23 @@ export default function RoomSelector({
                     : [],
                   state.allRooms,
                 )
+                const absent =
+                  isSpaceTypeMarkedAbsentAtSchool(state.session, type) ||
+                  (roomsOfType.length > 0 &&
+                    roomsOfType.every((room) => roomLooksMarkedAbsent(room.roomId, room)) &&
+                    !Object.values(state.session?.rooms ?? {}).some(
+                      (room) =>
+                        room.roomType === type &&
+                        !roomLooksMarkedAbsent(room.roomId, room) &&
+                        roomHasAssessmentProgress(room),
+                    ))
+                const hasSaved = absent || progress.started > 0
                 const completionProgress = spaceTypeCompletionProgress(
                   type,
                   roomsOfType,
                   state.school?.schoolClass,
                   (room) => roomSurveyComplete(room),
+                  identifiedNeighborhoods,
                 )
                 const typeComplete =
                   absent ||
@@ -1153,6 +1173,7 @@ export default function RoomSelector({
                     roomsOfType,
                     state.school?.schoolClass,
                     (room) => roomSurveyComplete(room),
+                    identifiedNeighborhoods,
                   )
                 const inProgress = hasSaved && !typeComplete
                 const showQuota = isRequired && !absent && completionProgress.required > 1
@@ -1196,8 +1217,10 @@ export default function RoomSelector({
                         ) : typeComplete ? (
                           <span
                             className={cn(
-                              "mt-0.5 block text-xs font-semibold uppercase tracking-wide",
-                              absent ? "text-slate-500" : "text-emerald-700",
+                              "mt-0.5 block text-xs font-semibold tracking-wide",
+                              absent
+                                ? "text-slate-500"
+                                : "uppercase text-emerald-700",
                             )}
                           >
                             {absent ? "Not at school · tap to edit" : "Complete"}

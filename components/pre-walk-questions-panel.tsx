@@ -70,7 +70,7 @@ export default function PreWalkQuestionsPanel({
                       prompt={question.prompt}
                       help={question.help}
                       value={exists}
-                      falseHint={`Marked as not present — ${type} will score 0. You can still open this space type in the survey and change the answer.`}
+                      falseHint={`Marked as not at school — ${type} counts as 0% in Campus ESA. You can still open this space type in the survey and change the answer.`}
                       onChange={(next) => onExistsChange(type, next)}
                     />
                   )
@@ -131,7 +131,7 @@ function YesNoQuestion({
         })}
       </div>
       {value === false && (
-        <p className="mt-2 text-[11px] font-medium leading-snug text-emerald-800">{falseHint}</p>
+        <p className="mt-2 text-[11px] font-medium leading-snug text-slate-700">{falseHint}</p>
       )}
     </div>
   )

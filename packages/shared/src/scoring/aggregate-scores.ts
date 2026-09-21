@@ -1,6 +1,12 @@
 import type { CategoryScore, RoomScoreResult, SurveySession } from "../types/survey"
 import type { FloorPlanRoom } from "../types/floor-plan-room"
-import { isArrivalSurveyRoomId, isOutdoorSurveyRoomId, studioTypeRequiresGrade } from "../data/survey-config"
+import {
+  isArrivalSurveyRoomId,
+  isOutdoorSurveyRoomId,
+  isAbsentSpaceTypeRoomId,
+  labelLooksLikeAbsentSpace,
+  studioTypeRequiresGrade,
+} from "../data/survey-config"
 import { isObservationalCategory } from "./score-units"
 
 export const UNASSIGNED_NEIGHBORHOOD_ID = "__unassigned__" as const
@@ -117,6 +123,12 @@ export function aggregateCampusScores(
   const byNeighborhood = new Map<string, ScoredRoomEntry[]>()
   for (const room of rooms) {
     const nid = neighborhoodGroupId(room.neighborhood, room.roomId)
+    if (
+      (isAbsentSpaceTypeRoomId(room.roomId) || labelLooksLikeAbsentSpace(room.roomName)) &&
+      nid === UNASSIGNED_NEIGHBORHOOD_ID
+    ) {
+      continue
+    }
     const list = byNeighborhood.get(nid) ?? []
     list.push(room)
     byNeighborhood.set(nid, list)

@@ -181,9 +181,9 @@ function availabilitySkipDisabledReason(
       continue
     }
     if (isDedicatedSpaceAvailabilityQuestion(question)) {
-      return "Skipped — this dedicated space is not present at the school."
+      return "Skipped — this dedicated space is not at the school."
     }
-    return "Skipped — this space type is not present at the school."
+    return "Skipped — this space type is not at the school."
   }
   return undefined
 }

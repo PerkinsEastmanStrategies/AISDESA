@@ -1,5 +1,5 @@
 import type { RoomSurveySession, SurveyType } from "@aisd/shared"
-import { getRoomSurveyRubric, isAbsentSpaceTypeRoomId } from "@aisd/shared"
+import { getRoomSurveyRubric, roomLooksMarkedAbsent } from "@aisd/shared"
 import { roomNeedsCloseOut } from "@/lib/closeout"
 import { validateRoomSession } from "@/lib/survey-validation"
 
@@ -20,7 +20,7 @@ export function isRoomSurveyFilledOut(
   surveyType: SurveyType,
   schoolClass?: string | null,
 ): boolean {
-  if (room.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(room.roomId)) return true
+  if (roomLooksMarkedAbsent(room.roomId, room)) return true
   const started =
     room.responses.length > 0 || !!room.gradeType || !!room.deferredToCloseOut
   if (!started) return false

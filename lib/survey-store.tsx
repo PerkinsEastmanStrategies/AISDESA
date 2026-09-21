@@ -47,6 +47,7 @@ import {
   isArrivalSurveyRoomId,
   isCampusScopedSurveyRoomId,
   isAbsentSpaceTypeRoomId,
+  roomLooksMarkedAbsent,
   absentSpaceTypeRoomId,
   absentSpaceTypeRoomDisplayName,
   parseAbsentSpaceTypeRoomId,
@@ -145,7 +146,24 @@ import {
   withPendingUpdatedForResponse,
 } from "@/lib/closeout"
 import { buildCampusScoringSnapshot, patchSubmissionWithSessionScores } from "@/lib/campus-scoring-tree"
-import { EMPTY_PREWALK, getPreWalkMappingForSurveyModule, mergePreWalkStates, migratePreWalkState, preWalkHasCloudState, preWalkMappingKey, preWalkRoomIdsForSurvey, preWalkRoomSpaceTypePhotoKey, preWalkSpaceTypeExistsKey, preWalkSpaceTypeForRoom, preWalkSpaceTypePhotoKey, preWalkSurveyAllowsSpaceTypeExists } from "@/lib/prewalk"
+import {
+  EMPTY_PREWALK,
+  applyPreWalkMappingDeletes,
+  dropPushedPreWalkDeletes,
+  getPreWalkMappingForSurveyModule,
+  mergePreWalkStates,
+  migratePreWalkState,
+  preWalkHasCloudState,
+  preWalkMappingKey,
+  preWalkRoomIdsForSurvey,
+  preWalkRoomSpaceTypePhotoKey,
+  preWalkSpaceTypeExistsKey,
+  preWalkSpaceTypeForRoom,
+  preWalkSpaceTypePhotoKey,
+  preWalkSurveyAllowsSpaceTypeExists,
+  queuePreWalkMappingDeletes,
+  type PreWalkMappingRef,
+} from "@/lib/prewalk"
 import {
   draftHasAutoCarryOverApplied,
   markPilotCarryOverReviewed,
@@ -256,7 +274,7 @@ type Action =
   | { type: "COMPLETE_PREWALK" }
   | { type: "SKIP_PREWALK" }
   | { type: "ANSWER_PREWALK_PROMPT"; choice: "map" | "skip" }
-  | { type: "MERGE_PREWALK"; preWalk: PreWalkState }
+  | { type: "MERGE_PREWALK"; preWalk: PreWalkState; deletions?: PreWalkMappingRef[] }
   | { type: "PREWALK_PULL_DONE" }
   | { type: "SET_ROOM_TYPE"; roomId: string; roomType: string }
   | { type: "SET_PENDING_STUDIO_TYPE"; roomType: string | null }
@@ -2328,7 +2346,10 @@ function reducer(state: SurveyState, action: Action): SurveyState {
     }
     case "MERGE_PREWALK": {
       const incoming = migratePreWalkState(action.preWalk, state.school?.schoolClass)
-      const preWalk = mergePreWalkStates(state.preWalk, incoming)
+      const preWalk = applyPreWalkMappingDeletes(
+        mergePreWalkStates(state.preWalk, incoming),
+        action.deletions,
+      )
       const unchanged =
         JSON.stringify(preWalk.mappings) === JSON.stringify(state.preWalk.mappings) &&
         JSON.stringify(preWalk.spaceTypePhotos ?? {}) ===
@@ -2490,7 +2511,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       for (const [roomId, roomSession] of Object.entries(state.session.rooms)) {
         const campusRoom = isCampusScopedSurveyRoomId(roomId)
         const neighborhoodSurveyRoom = isNeighborhoodSurveyRoomId(roomId)
-        const absentRoom = isAbsentSpaceTypeRoomId(roomId) || roomSession.spaceTypeMarkedAbsent
+        const absentRoom = roomLooksMarkedAbsent(roomId, roomSession)
         const parsed =
           campusRoom || neighborhoodSurveyRoom || absentRoom
             ? undefined
@@ -2876,7 +2897,7 @@ function roomSurveyComplete(
   roomId: string,
   roomSession: RoomSurveySession,
 ): boolean {
-  if (roomSession.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(roomId)) return true
+  if (roomLooksMarkedAbsent(roomId, roomSession)) return true
   const pendingDone = !roomNeedsCloseOut(roomSession)
   const rubric = getRoomSurveyRubric(
     state.surveyType,
@@ -2904,7 +2925,7 @@ function buildScoredRoomEntries(state: SurveyState): ScoredRoomEntry[] {
     .map(([roomId, roomSession]) => {
       const campusRoom = isCampusScopedSurveyRoomId(roomId)
       const neighborhoodSurveyRoom = isNeighborhoodSurveyRoomId(roomId)
-      const absentRoom = isAbsentSpaceTypeRoomId(roomId) || roomSession.spaceTypeMarkedAbsent
+      const absentRoom = roomLooksMarkedAbsent(roomId, roomSession)
       const parsed =
         campusRoom || neighborhoodSurveyRoom || absentRoom
           ? undefined
@@ -3123,8 +3144,11 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const roomsLoadAttemptedKeyRef = useRef<string | null>(null)
   const preWalkRef = useRef(EMPTY_PREWALK)
   const preWalkCloudReadySchoolIdRef = useRef<string | null>(null)
-  const preWalkPendingDeletesRef = useRef<Array<{ surveyType: SurveyType; roomId: string }>>([])
+  const preWalkPendingDeletesRef = useRef<PreWalkMappingRef[]>([])
   const preWalkPushInFlightRef = useRef(false)
+  const preWalkPushQueuedRef = useRef(false)
+  const preWalkPullEpochRef = useRef(0)
+  const flushPreWalkToCloudRef = useRef<() => Promise<"pushed" | "offline" | "error">>(async () => "error")
   const surveyTypeBeforeConflictRef = useRef<SurveyType>("studios")
   const [state, dispatch] = useReducer(reducer, {
     surveyType: "studios",
@@ -3188,34 +3212,39 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     if (state.hydrated) return
     if (schoolsLoading) return
 
-    runFieldDataResetIfNeeded()
+    try {
+      runFieldDataResetIfNeeded()
 
-    const assessors = loadAssessors()
+      const assessors = loadAssessors()
 
-    const resumable = loadResumableDraft()
-    if (resumable) {
-      markActiveVisit()
-      if (
-        isPilotResultsResetSchool({ id: resumable.meta.schoolId }) &&
-        shouldWipeLocalPilotResults(resumable.meta.schoolId)
-      ) {
-        wipeLocalPilotResultSnapshots(resumable.meta.schoolId)
+      const resumable = loadResumableDraft()
+      if (resumable) {
+        markActiveVisit()
+        if (
+          isPilotResultsResetSchool({ id: resumable.meta.schoolId }) &&
+          shouldWipeLocalPilotResults(resumable.meta.schoolId)
+        ) {
+          wipeLocalPilotResultSnapshots(resumable.meta.schoolId)
+        }
+        const draft =
+          loadDraft(resumable.meta.schoolId, resumable.meta.surveyType) ?? resumable.draft
+        const school =
+          schools.find((s) => s.id === resumable.meta.schoolId) ?? schoolFromDraft(draft)
+        dispatch({ type: "LOAD_ASSESSORS", assessors })
+        dispatch({
+          type: "RESTORE",
+          school,
+          draft,
+          showResumeBanner: false,
+        })
+        return
       }
-      const draft =
-        loadDraft(resumable.meta.schoolId, resumable.meta.surveyType) ?? resumable.draft
-      const school =
-        schools.find((s) => s.id === resumable.meta.schoolId) ?? schoolFromDraft(draft)
-      dispatch({ type: "LOAD_ASSESSORS", assessors })
-      dispatch({
-        type: "RESTORE",
-        school,
-        draft,
-        showResumeBanner: false,
-      })
-      return
-    }
 
-    dispatch({ type: "LOAD_ASSESSORS", assessors })
+      dispatch({ type: "LOAD_ASSESSORS", assessors })
+    } catch (error) {
+      console.error("Failed to restore the saved survey on this computer", error)
+      dispatch({ type: "LOAD_ASSESSORS", assessors: {} })
+    }
   }, [schoolsLoading, schools, state.hydrated])
 
   // Replace provisional school (fallback only) with the full option once the list loads.
@@ -3359,16 +3388,23 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!state.hydrated || !state.school) {
       preWalkCloudReadySchoolIdRef.current = null
+      preWalkPendingDeletesRef.current = []
       return
     }
     const schoolId = state.school.id
     preWalkCloudReadySchoolIdRef.current = null
+    preWalkPendingDeletesRef.current = []
+    preWalkPullEpochRef.current += 1
     let cancelled = false
     void pullPrewalkClient(schoolId).then((remote) => {
       if (cancelled) return
       preWalkCloudReadySchoolIdRef.current = schoolId
       if (remote && preWalkHasCloudState(remote)) {
-        dispatch({ type: "MERGE_PREWALK", preWalk: remote })
+        dispatch({
+          type: "MERGE_PREWALK",
+          preWalk: remote,
+          deletions: [...preWalkPendingDeletesRef.current],
+        })
       } else {
         dispatch({ type: "PREWALK_PULL_DONE" })
       }
@@ -3380,38 +3416,55 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
   const flushPreWalkToCloud = useCallback(async (): Promise<"pushed" | "offline" | "error"> => {
     if (!state.school) return "error"
-    if (preWalkPushInFlightRef.current) return "pushed"
+    if (preWalkPushInFlightRef.current) {
+      preWalkPushQueuedRef.current = true
+      return "pushed"
+    }
     const school = state.school
     const preWalk = preWalkRef.current
-    const deletions = preWalkPendingDeletesRef.current.splice(0)
+    const deletions = [...preWalkPendingDeletesRef.current]
     preWalkPushInFlightRef.current = true
     try {
       propagatePreWalkToSchoolDrafts(school.id, preWalk)
       const result = await pushPrewalkClient({ school, preWalk, deletions })
-      if (!result.ok) {
-        // Keep deletes queued so a later push can still apply them.
-        if (deletions.length) {
-          preWalkPendingDeletesRef.current = [...deletions, ...preWalkPendingDeletesRef.current]
-        }
-        return result.reason
-      }
-      dispatch({ type: "MERGE_PREWALK", preWalk: result.preWalk })
+      if (!result.ok) return result.reason
+      if (stateRef.current.school?.id !== school.id) return "pushed"
+      preWalkPendingDeletesRef.current = dropPushedPreWalkDeletes(
+        preWalkPendingDeletesRef.current,
+        deletions,
+      )
+      dispatch({
+        type: "MERGE_PREWALK",
+        preWalk: result.preWalk,
+        deletions: [...preWalkPendingDeletesRef.current],
+      })
       return "pushed"
     } finally {
       preWalkPushInFlightRef.current = false
+      if (preWalkPushQueuedRef.current) {
+        preWalkPushQueuedRef.current = false
+        void flushPreWalkToCloudRef.current()
+      }
     }
   }, [state.school])
+  flushPreWalkToCloudRef.current = flushPreWalkToCloud
 
   const refreshPreWalkFromCloud = useCallback(async (): Promise<boolean> => {
     if (!state.school || !isBrowserOnline()) return false
+    const epoch = preWalkPullEpochRef.current
     const remote = await pullPrewalkClient(state.school.id)
+    if (epoch !== preWalkPullEpochRef.current) return false
     preWalkCloudReadySchoolIdRef.current = state.school.id
     if (!remote) {
       dispatch({ type: "PREWALK_PULL_DONE" })
       return false
     }
     if (preWalkHasCloudState(remote) || Object.keys(preWalkRef.current.mappings).length > 0) {
-      dispatch({ type: "MERGE_PREWALK", preWalk: remote })
+      dispatch({
+        type: "MERGE_PREWALK",
+        preWalk: remote,
+        deletions: [...preWalkPendingDeletesRef.current],
+      })
     } else {
       dispatch({ type: "PREWALK_PULL_DONE" })
     }
@@ -4294,8 +4347,23 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     [],
   )
   const setPreWalkSpaceTypeExists = useCallback(
-    (surveyType: SurveyType, spaceType: string, exists: boolean) =>
-      dispatch({ type: "SET_PREWALK_SPACE_TYPE_EXISTS", surveyType, spaceType, exists }),
+    (surveyType: SurveyType, spaceType: string, exists: boolean) => {
+      if (
+        !exists &&
+        preWalkSurveyAllowsSpaceTypeExists(surveyType) &&
+        spaceTypeRequiresExistenceGate(spaceType)
+      ) {
+        const removed = Object.values(preWalkRef.current.mappings)
+          .filter((mapping) => mapping.surveyType === surveyType && mapping.spaceType === spaceType)
+          .map((mapping) => ({ surveyType, roomId: mapping.roomId }))
+        preWalkPendingDeletesRef.current = queuePreWalkMappingDeletes(
+          preWalkPendingDeletesRef.current,
+          removed,
+        )
+        preWalkPullEpochRef.current += 1
+      }
+      dispatch({ type: "SET_PREWALK_SPACE_TYPE_EXISTS", surveyType, spaceType, exists })
+    },
     [],
   )
   const updatePreWalkNotes = useCallback(
@@ -4305,21 +4373,25 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   )
   const removePreWalkMapping = useCallback(
     (surveyType: SurveyType, roomId: string) => {
-      preWalkPendingDeletesRef.current = [
-        ...preWalkPendingDeletesRef.current.filter(
+      preWalkPendingDeletesRef.current = queuePreWalkMappingDeletes(
+        preWalkPendingDeletesRef.current.filter(
           (entry) => !(entry.surveyType === surveyType && entry.roomId === roomId),
         ),
-        { surveyType, roomId },
-      ]
+        [{ surveyType, roomId }],
+      )
+      preWalkPullEpochRef.current += 1
       dispatch({ type: "REMOVE_PREWALK_MAPPING", surveyType, roomId })
     },
     [],
   )
   const clearPreWalkMappingsForSurvey = useCallback((surveyType: SurveyType) => {
     const roomIds = preWalkRoomIdsForSurvey(preWalkRef.current.mappings, surveyType)
-    const nextDeletes = roomIds.map((roomId) => ({ surveyType, roomId }))
     const remaining = preWalkPendingDeletesRef.current.filter((entry) => entry.surveyType !== surveyType)
-    preWalkPendingDeletesRef.current = [...remaining, ...nextDeletes]
+    preWalkPendingDeletesRef.current = queuePreWalkMappingDeletes(
+      remaining,
+      roomIds.map((roomId) => ({ surveyType, roomId })),
+    )
+    preWalkPullEpochRef.current += 1
     dispatch({ type: "CLEAR_PREWALK_MAPPINGS_FOR_SURVEY", surveyType })
   }, [])
   const completePreWalk = useCallback(() => dispatch({ type: "COMPLETE_PREWALK" }), [])
@@ -4330,7 +4402,11 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       preWalkRef.current = preWalk
       preWalkCloudReadySchoolIdRef.current = state.school.id
       if (patch) {
-        dispatch({ type: "MERGE_PREWALK", preWalk })
+        dispatch({
+          type: "MERGE_PREWALK",
+          preWalk,
+          deletions: [...preWalkPendingDeletesRef.current],
+        })
       }
       return flushPreWalkToCloud()
     },

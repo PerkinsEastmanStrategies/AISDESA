@@ -14,10 +14,10 @@ import {
   getRoomSurveyRubric,
   isOutdoorSurveyRoomId,
   isArrivalSurveyRoomId,
-  isAbsentSpaceTypeRoomId,
   parseAbsentSpaceTypeRoomId,
   absentSpaceTypeRoomDisplayName,
   isRoomComplete,
+  isSpaceTypeMarkedAbsentAtSchool,
   neighborhoodFromSurveyRoomId,
   neighborhoodSurveyRoomDisplayName,
   outdoorSurveyRoomDisplayName,
@@ -29,6 +29,9 @@ import {
   spaceTypesForScoringFocusArea,
   surveyTypeForScoringFocusArea,
   isObservationalCategory,
+  labelLooksLikeAbsentSpace,
+  roomLooksMarkedAbsent,
+  spaceTypeExistsAtSchoolFromRooms,
   type ScoringFocusAreaId,
 } from "@aisd/shared"
 import {
@@ -41,6 +44,7 @@ import {
 import { scoreRoomSessionWithMetadata, scoreAbsentSpaceTypeRoom } from "@/lib/traditional-studio-room-score"
 import { loadDraftsForSchool, type PersistedSurveyDraft } from "@/lib/survey-persistence"
 import { syncCloseOutProgressToSource } from "@/lib/closeout"
+import { isRoomSurveyFilledOut } from "@/lib/room-survey-progress"
 
 /** True when a campus room should appear on Results (saved, scored, or deferred). */
 export function isSubmittedCampusRoom(entry: {
@@ -159,7 +163,7 @@ function scoreSessionRooms(
   const next: Record<string, RoomScoreResult> = { ...(existingDetails ?? {}) }
 
   for (const [roomId, roomSession] of Object.entries(session.rooms)) {
-    if (roomSession.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(roomId)) {
+    if (roomLooksMarkedAbsent(roomId, roomSession)) {
       next[roomId] = scoreAbsentSpaceTypeRoom(roomId)
       continue
     }
@@ -218,7 +222,14 @@ export function patchSubmissionWithSessionScores(
     const detail = details[roomId]
     if (!detail) continue
     const hasScore = detail.overallScore != null || detail.answeredCount > 0
-    if (!hasScore && !room.deferredToCloseOut && !room.spaceTypeMarkedAbsent) continue
+    if (
+      !hasScore &&
+      !room.deferredToCloseOut &&
+      !roomLooksMarkedAbsent(roomId, room) &&
+      !isRoomSurveyFilledOut(room, surveyType, schoolClass)
+    ) {
+      continue
+    }
 
     const prior = byId.get(roomId)
     // PILOT Test: Close Out may update rooms already Saved into Results, but
@@ -239,7 +250,8 @@ export function patchSubmissionWithSessionScores(
       complete:
         !!prior?.complete ||
         room.deferredToCloseOut ||
-        room.spaceTypeMarkedAbsent ||
+        roomLooksMarkedAbsent(roomId, room) ||
+        isRoomSurveyFilledOut(room, surveyType, schoolClass) ||
         (detail.totalCount > 0 && detail.answeredCount >= detail.totalCount),
     })
   }
@@ -267,25 +279,70 @@ function richerRoomSession(
 ): RoomSurveySession | undefined {
   if (!live) return submitted
   if (!submitted) return live
+  // Live “not at school” must not be overwritten by an older scored copy of the same id.
+  if (roomLooksMarkedAbsent(live.roomId, live)) return live
+  if (
+    roomLooksMarkedAbsent(submitted.roomId, submitted) &&
+    ((live.responses?.length ?? 0) > 0 || !!live.gradeType)
+  ) {
+    return live
+  }
   const liveAnswers = live.responses?.length ?? 0
   const submittedAnswers = submitted.responses?.length ?? 0
   return submittedAnswers > liveAnswers ? submitted : live
 }
 
+function liveSessionMarksTypeAbsent(session: SurveySession, spaceType: string): boolean {
+  const type = spaceType.trim()
+  if (!type) return false
+  if (isSpaceTypeMarkedAbsentAtSchool(session, type)) return true
+  return Object.values(session.rooms).some(
+    (room) => (room.roomType || "").trim() === type && roomLooksMarkedAbsent(room.roomId, room),
+  )
+}
+
+function liveSessionHasPresentType(session: SurveySession, spaceType: string): boolean {
+  const type = spaceType.trim()
+  if (!type) return false
+  return Object.values(session.rooms).some((room) => {
+    if ((room.roomType || "").trim() !== type) return false
+    if (roomLooksMarkedAbsent(room.roomId, room)) return false
+    return (
+      (room.responses?.length ?? 0) > 0 ||
+      !!room.gradeType ||
+      !!room.deferredToCloseOut
+    )
+  })
+}
+
 function mergeSessionWithSubmission(
   live: SurveySession | undefined,
   submitted: SurveySession | undefined,
+  surveyType: SurveyType,
 ): SurveySession | undefined {
   if (!live) return submitted
   if (!submitted) return live
   const rooms: Record<string, RoomSurveySession> = { ...live.rooms }
   for (const [roomId, submittedRoom] of Object.entries(submitted.rooms ?? {})) {
+    const liveRoom = rooms[roomId]
+    const spaceType = (liveRoom?.roomType || submittedRoom.roomType || "").trim()
+    // Assessor marked this space type not at school — don't restore leftover scored rooms.
+    if (
+      spaceType &&
+      liveSessionMarksTypeAbsent(live, spaceType) &&
+      !liveSessionHasPresentType(live, spaceType) &&
+      !liveRoom &&
+      !roomLooksMarkedAbsent(roomId, submittedRoom)
+    ) {
+      continue
+    }
     const merged = richerRoomSession(rooms[roomId], submittedRoom)
     if (merged) rooms[roomId] = merged
   }
   return {
     ...live,
     rooms,
+    spaceTypeExistsAtSchool: spaceTypeExistsAtSchoolFromRooms(rooms, surveyType),
     submittedAt: live.submittedAt ?? submitted.submittedAt,
   }
 }
@@ -364,7 +421,20 @@ function buildAssessedRoom(
   neighborhood?: string,
   assessmentOptions?: { allowScoreWithoutAnswers?: boolean },
 ): AssessedRoomRecord | null {
-  if (!roomHasAssessment(detail, assessmentOptions)) return null
+  const absent =
+    roomLooksMarkedAbsent(roomId, roomSession) ||
+    labelLooksLikeAbsentSpace(roomSession.roomNumber)
+  const filledOut = isRoomSurveyFilledOut(roomSession, surveyType, schoolClass)
+  const scoredDetail = absent ? (detail ?? scoreAbsentSpaceTypeRoom(roomId)) : detail
+
+  if (
+    !absent &&
+    !filledOut &&
+    !roomSession.deferredToCloseOut &&
+    !roomHasAssessment(scoredDetail, assessmentOptions)
+  ) {
+    return null
+  }
 
   const spaceType = resolveSpaceType(roomSession, surveyType, schoolClass)
   if (!spaceTypeCountsTowardCampusScore(surveyType, spaceType, schoolClass)) return null
@@ -379,37 +449,45 @@ function buildAssessedRoom(
 
   return {
     roomId,
-    roomName: roomDisplayName(roomId, roomSession),
+    roomName: absent
+      ? absentSpaceTypeRoomDisplayName(
+          spaceType,
+          parseAbsentSpaceTypeRoomId(roomId)?.neighborhood || roomSession.neighborhood,
+        )
+      : roomDisplayName(roomId, roomSession),
     schoolRoomNumber: roomSession.schoolRoomNumber?.trim() || undefined,
     neighborhood: resolvedNeighborhood,
     levelId: roomSession.levelId,
     gradeType: roomSession.gradeType,
-    overallScore: detail?.overallScore ?? null,
-    categoryScores: detail?.categoryScores ?? [],
-    answeredCount: detail?.answeredCount ?? 0,
-    totalCount: detail?.totalCount ?? 0,
-    complete: detail
-      ? isRoomComplete(detail, roomSession.gradeType, roomSession.roomType, schoolClass)
-      : false,
+    overallScore: scoredDetail?.overallScore ?? (absent ? 0 : null),
+    categoryScores: scoredDetail?.categoryScores ?? [],
+    answeredCount: scoredDetail?.answeredCount ?? (absent ? 1 : 0),
+    totalCount: scoredDetail?.totalCount ?? (absent ? 1 : 0),
+    complete:
+      absent ||
+      filledOut ||
+      !!roomSession.deferredToCloseOut ||
+      (scoredDetail
+        ? isRoomComplete(scoredDetail, roomSession.gradeType, roomSession.roomType, schoolClass)
+        : false),
     surveyType,
     spaceType,
     focusAreaId,
-    spaceTypeDoesNotExist:
-      !!roomSession.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(roomId),
+    spaceTypeDoesNotExist: absent,
   }
 }
 
-/** Drop “not present” placeholders when that space type was actually surveyed. */
+/** Drop “not at school” placeholders when that space type was actually surveyed. */
 export function omitAbsentPlaceholdersWhenSpaceTypeWasAssessed(
   rooms: AssessedRoomRecord[],
 ): AssessedRoomRecord[] {
   const assessedTypes = new Set(
     rooms
-      .filter((room) => !isAbsentSpaceTypeRoomId(room.roomId))
+      .filter((room) => !room.spaceTypeDoesNotExist)
       .map((room) => `${room.surveyType}::${room.spaceType}`),
   )
   return rooms.filter((room) => {
-    if (!isAbsentSpaceTypeRoomId(room.roomId)) return true
+    if (!room.spaceTypeDoesNotExist) return true
     return !assessedTypes.has(`${room.surveyType}::${room.spaceType}`)
   })
 }
@@ -495,6 +573,7 @@ export function buildCampusScoringSnapshot(input: {
     sessionsBySurveyType[draft.surveyType] = mergeSessionWithSubmission(
       sessionsBySurveyType[draft.surveyType],
       submittedSession,
+      draft.surveyType,
     )
   }
 
@@ -538,6 +617,15 @@ export function buildCampusScoringSnapshot(input: {
 
     for (const entry of sub.campus.rooms) {
       if (!isSubmittedCampusRoom(entry)) continue
+      const submittedRoom = sub.session.rooms[entry.roomId]
+      if (
+        roomLooksMarkedAbsent(entry.roomId, submittedRoom) ||
+        labelLooksLikeAbsentSpace(entry.roomName)
+      ) {
+        details[entry.roomId] = scoreAbsentSpaceTypeRoom(entry.roomId)
+        continue
+      }
+
       let existing = details[entry.roomId]
 
       // If live scoring lacked subcategory/question detail, rebuild from submitted answers.
@@ -590,6 +678,19 @@ export function buildCampusScoringSnapshot(input: {
       const roomSession = session.rooms[entry.roomId] ?? sub.session.rooms[entry.roomId]
       if (!roomSession) continue
 
+      const spaceType = resolveSpaceType(roomSession, surveyType, input.schoolClass)
+      const looksAbsent =
+        roomLooksMarkedAbsent(entry.roomId, roomSession) ||
+        labelLooksLikeAbsentSpace(roomSession.roomNumber) ||
+        labelLooksLikeAbsentSpace(entry.roomName)
+      if (
+        liveSessionMarksTypeAbsent(session, spaceType) &&
+        !liveSessionHasPresentType(session, spaceType) &&
+        !looksAbsent
+      ) {
+        continue
+      }
+
       if (!roomHasAssessment(details[entry.roomId], { allowScoreWithoutAnswers: true })) {
         details[entry.roomId] = {
           roomId: entry.roomId,
@@ -604,7 +705,9 @@ export function buildCampusScoringSnapshot(input: {
 
       const record = buildAssessedRoom(
         entry.roomId,
-        roomSession,
+        looksAbsent && !roomSession.spaceTypeMarkedAbsent
+          ? { ...roomSession, spaceTypeMarkedAbsent: true, roomNumber: roomSession.roomNumber || entry.roomName }
+          : roomSession,
         surveyType,
         details[entry.roomId],
         input.schoolClass,
@@ -631,13 +734,14 @@ export function buildCampusScoringSnapshot(input: {
     }
     for (const [roomId, roomSession] of Object.entries(session.rooms)) {
       if (seen.has(roomId)) continue
-      const absent =
-        roomSession.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(roomId)
+      const absent = roomLooksMarkedAbsent(roomId, roomSession)
+      const filledOut = isRoomSurveyFilledOut(roomSession, surveyType, input.schoolClass)
       if (!includeUnsavedSessionRooms && !absent) continue
       const detail = details[roomId]
       const assessable =
         absent ||
         roomSession.deferredToCloseOut ||
+        filledOut ||
         roomHasAssessment(detail, { allowScoreWithoutAnswers: true }) ||
         (detail
           ? isRoomComplete(detail, roomSession.gradeType, roomSession.roomType, input.schoolClass)
