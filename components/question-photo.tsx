@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useId, useRef, useState } from "react"
-import { Camera, Check, ExternalLink, ImagePlus, Trash2, X } from "lucide-react"
+import { Camera, Check, Download, ExternalLink, ImagePlus, Trash2, X } from "lucide-react"
 import PhotoPrivacyReminderModal from "@/components/photo-privacy-reminder-modal"
 import {
   buildSurveyPhotoStoragePath,
@@ -172,17 +172,29 @@ export default function QuestionPhoto({
     }
   }
 
+  const pendingStoragePath = () => {
+    if (!uploadContext) return null
+    const photoId = pendingPhotoIdRef.current || generateSurveyPhotoId()
+    pendingPhotoIdRef.current = photoId
+    return buildSurveyPhotoStoragePath({ ...uploadContext, photoId })
+  }
+
   const handleConfirmSubmission = () => {
     if (!pendingPreview || !uploadContext) return
     const photoId = pendingPhotoIdRef.current || generateSurveyPhotoId()
     pendingPhotoIdRef.current = photoId
+    void uploadToCloud(pendingPreview, photoId)
+  }
+
+  const handleSaveToDevice = () => {
+    if (!pendingPreview) return
     try {
-      const storagePath = buildSurveyPhotoStoragePath({ ...uploadContext, photoId })
+      const storagePath = pendingStoragePath()
+      if (!storagePath) return
       downloadSurveyPhotoLocalBackup(pendingPreview, storagePath)
     } catch {
-      // Device backup is best-effort; cloud upload still proceeds.
+      setError("Could not save photo to this device.")
     }
-    void uploadToCloud(pendingPreview, photoId)
   }
 
   const handleDiscardPending = () => {
@@ -339,7 +351,7 @@ export default function QuestionPhoto({
             />
             {uploading && (
               <div className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-1 text-center text-[10px] font-medium text-white">
-                Uploading to Supabase and saving a copy on this device…
+                Uploading to Supabase…
               </div>
             )}
             {!uploading && (
@@ -379,10 +391,16 @@ export default function QuestionPhoto({
             </button>
           </div>
         )}
-        {pendingPreview && canUploadToCloud && !uploading && (
-          <p className="mb-2 text-[10px] text-slate-500">
-            Also saves a backup JPEG on this device with the same Supabase filename.
-          </p>
+        {pendingPreview && canUploadToCloud && (
+          <button
+            type="button"
+            disabled={!pendingPreview}
+            onClick={handleSaveToDevice}
+            className="mb-2 inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 active:bg-slate-50"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Save to this device
+          </button>
         )}
 
         {canAddMore && !pendingPreview && (
@@ -410,7 +428,7 @@ export default function QuestionPhoto({
 
         {loading && (
           <p className="mt-1 text-[10px] text-[var(--color-muted-foreground)]">
-            {uploading ? "Uploading to Supabase and saving a copy on this device…" : "Processing…"}
+            {uploading ? "Uploading to Supabase…" : "Processing…"}
           </p>
         )}
         {error && <p className="mt-1 text-[10px] text-amber-700">{error}</p>}
