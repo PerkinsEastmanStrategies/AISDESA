@@ -610,14 +610,34 @@ export function mergeSurveySessions(
   for (const roomId of excluded) {
     const parsed = parseAbsentSpaceTypeRoomId(roomId)
     if (parsed) {
-      delete spaceTypeExistsAtSchool[
-        spaceTypeExistenceKey(parsed.spaceType, parsed.neighborhood)
-      ]
+      const key = spaceTypeExistenceKey(parsed.spaceType, parsed.neighborhood)
+      if (primary.spaceTypeExistsAtSchool?.[key] !== true) {
+        delete spaceTypeExistsAtSchool[key]
+      }
       continue
     }
     const room = secondary.rooms[roomId] ?? primary.rooms[roomId]
     if (room?.spaceTypeMarkedAbsent && room.roomType) {
-      delete spaceTypeExistsAtSchool[spaceTypeExistenceKey(room.roomType, room.neighborhood)]
+      const key = spaceTypeExistenceKey(room.roomType, room.neighborhood)
+      if (primary.spaceTypeExistsAtSchool?.[key] !== true) {
+        delete spaceTypeExistsAtSchool[key]
+      }
+    }
+  }
+
+  // Live “Yes it exists” (or discarded DNE) must not be overwritten by an old placeholder.
+  for (const [roomId, room] of Object.entries(rooms)) {
+    const parsed = parseAbsentSpaceTypeRoomId(roomId)
+    if (!parsed && !room.spaceTypeMarkedAbsent) continue
+    const spaceType = (parsed?.spaceType || room.roomType || "").trim()
+    if (!spaceType) continue
+    const key = spaceTypeExistenceKey(
+      spaceType,
+      parsed?.neighborhood ?? room.neighborhood,
+    )
+    const unscoped = spaceTypeExistenceKey(spaceType, null)
+    if (spaceTypeExistsAtSchool[key] === true || spaceTypeExistsAtSchool[unscoped] === true) {
+      delete rooms[roomId]
     }
   }
 

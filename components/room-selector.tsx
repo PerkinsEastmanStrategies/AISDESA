@@ -555,7 +555,18 @@ export default function RoomSelector({
             (room) => room.spaceTypeMarkedAbsent && room.roomType === type,
           )
         : []
-      if (absentRooms.length > 0 || isSpaceTypeMarkedAbsentAtSchool(state.session, type)) {
+      const hasPresentRooms = state.session
+        ? Object.values(state.session.rooms).some(
+            (room) =>
+              room.roomType === type &&
+              !room.spaceTypeMarkedAbsent &&
+              !isAbsentSpaceTypeRoomId(room.roomId),
+          )
+        : false
+      if (
+        !hasPresentRooms &&
+        (absentRooms.length > 0 || isSpaceTypeMarkedAbsentAtSchool(state.session, type))
+      ) {
         map[type] = { started: Math.max(1, absentRooms.length), complete: 1 }
       }
     }

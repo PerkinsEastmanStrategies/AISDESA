@@ -14,6 +14,7 @@ import {
 } from "@aisd/shared"
 import { normalizeResponsePhotos } from "@/lib/response-photos"
 import { preWalkMappingList } from "@/lib/prewalk"
+import { loadDraft, loadDraftsForSchool } from "@/lib/survey-persistence"
 
 const CSV_COLUMNS = [
   "record_type",
@@ -68,12 +69,14 @@ const CSV_COLUMNS = [
 type CsvColumn = (typeof CSV_COLUMNS)[number]
 type CsvRow = Partial<Record<CsvColumn, string | number | boolean | null | undefined>>
 
+export type SurveyCsvExportReason = "error" | "offline" | "backup"
+
 export interface SurveySaveCsvInput {
   school: AisdSchoolOption
   session: SurveySession
   preWalk?: PreWalkState
   allRooms?: ParsedPlanRoom[]
-  saveError: "error" | "offline"
+  saveError: SurveyCsvExportReason
   lastSavedAt?: string | null
 }
 
@@ -161,9 +164,7 @@ function roomFields(room: RoomSurveySession, allRooms: ParsedPlanRoom[] | undefi
   }
 }
 
-/** Build a CSV backup of the live survey that failed to save to the database. */
-export function buildSurveySaveFailureCsv(input: SurveySaveCsvInput): string {
-  const exportedAt = new Date().toISOString()
+function csvRowsForSurvey(input: SurveySaveCsvInput, exportedAt: string): CsvRow[] {
   const shared = baseRow(input, exportedAt)
   const rows: CsvRow[] = [
     {
@@ -251,20 +252,14 @@ export function buildSurveySaveFailureCsv(input: SurveySaveCsvInput): string {
     }
   }
 
+  return rows
+}
+
+function csvFromRows(rows: CsvRow[]): string {
   return `${CSV_COLUMNS.join(",")}\r\n${rows.map(rowLine).join("\r\n")}\r\n`
 }
 
-export function surveySaveFailureCsvFilename(input: SurveySaveCsvInput): string {
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-")
-  const school = safeFilenamePart(input.school.displayName || input.session.schoolName || "school")
-  const survey = safeFilenamePart(surveyTypeLabel(input.session.surveyType))
-  return `AISD-ESA-${school}-${survey}-unsaved-${stamp}.csv`
-}
-
-/** Download a local CSV backup when the database save cannot be confirmed. */
-export function downloadSurveySaveFailureCsv(input: SurveySaveCsvInput): string {
-  const csv = buildSurveySaveFailureCsv(input)
-  const filename = surveySaveFailureCsvFilename(input)
+function triggerCsvDownload(csv: string, filename: string): string {
   const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" })
   const url = URL.createObjectURL(blob)
   const link = document.createElement("a")
@@ -276,4 +271,93 @@ export function downloadSurveySaveFailureCsv(input: SurveySaveCsvInput): string 
   link.remove()
   window.setTimeout(() => URL.revokeObjectURL(url), 1500)
   return filename
+}
+
+function timestampStamp(): string {
+  return new Date().toISOString().replace(/[:.]/g, "-")
+}
+
+/** Build a CSV backup of the live survey that failed to save to the database. */
+export function buildSurveySaveFailureCsv(input: SurveySaveCsvInput): string {
+  return csvFromRows(csvRowsForSurvey(input, new Date().toISOString()))
+}
+
+export function buildSurveysCsv(inputs: SurveySaveCsvInput[]): string {
+  const exportedAt = new Date().toISOString()
+  const rows = inputs.flatMap((input) => csvRowsForSurvey(input, exportedAt))
+  return csvFromRows(rows)
+}
+
+export function surveySaveFailureCsvFilename(input: SurveySaveCsvInput): string {
+  const school = safeFilenamePart(input.school.displayName || input.session.schoolName || "school")
+  const survey = safeFilenamePart(surveyTypeLabel(input.session.surveyType))
+  return `AISD-ESA-${school}-${survey}-unsaved-${timestampStamp()}.csv`
+}
+
+export function schoolLocalBackupCsvFilename(school: AisdSchoolOption, session?: SurveySession): string {
+  const name = safeFilenamePart(school.displayName || session?.schoolName || "school")
+  return `AISD-ESA-${name}-local-backup-${timestampStamp()}.csv`
+}
+
+/** Download a local CSV backup when the database save cannot be confirmed. */
+export function downloadSurveySaveFailureCsv(input: SurveySaveCsvInput): string {
+  return triggerCsvDownload(buildSurveySaveFailureCsv(input), surveySaveFailureCsvFilename(input))
+}
+
+export function collectLocalSchoolBackupInputs(input: {
+  school: AisdSchoolOption
+  liveSession?: SurveySession | null
+  preWalk?: PreWalkState
+  allRooms?: ParsedPlanRoom[]
+  lastSavedAt?: string | null
+}): SurveySaveCsvInput[] {
+  const drafts = [...loadDraftsForSchool(input.school.id)]
+  const closeout = loadDraft(input.school.id, "closeout")
+  if (closeout) drafts.push(closeout)
+
+  const byType = new Map(
+    drafts.map((draft) => [
+      draft.surveyType,
+      {
+        session: draft.session,
+        preWalk: draft.preWalk,
+        savedAt: draft.savedAt,
+      },
+    ]),
+  )
+  if (input.liveSession) {
+    const existing = byType.get(input.liveSession.surveyType)
+    byType.set(input.liveSession.surveyType, {
+      session: input.liveSession,
+      preWalk: input.preWalk ?? existing?.preWalk,
+      savedAt: input.lastSavedAt ?? existing?.savedAt ?? new Date().toISOString(),
+    })
+  }
+
+  return [...byType.values()]
+    .sort((a, b) => a.session.surveyType.localeCompare(b.session.surveyType))
+    .map((draft) => ({
+      school: input.school,
+      session: draft.session,
+      preWalk: input.preWalk ?? draft.preWalk,
+      allRooms: input.allRooms,
+      saveError: "backup" as const,
+      lastSavedAt: draft.savedAt ?? input.lastSavedAt,
+    }))
+}
+
+/** Download every local module for this school from this device. */
+export function downloadSchoolLocalBackupCsv(input: {
+  school: AisdSchoolOption
+  liveSession?: SurveySession | null
+  preWalk?: PreWalkState
+  allRooms?: ParsedPlanRoom[]
+  lastSavedAt?: string | null
+}): string | null {
+  const surveys = collectLocalSchoolBackupInputs(input)
+  if (surveys.length === 0) return null
+  return triggerCsvDownload(
+    buildSurveysCsv(surveys),
+    schoolLocalBackupCsvFilename(input.school, input.liveSession ?? surveys[0]?.session),
+  )
 }

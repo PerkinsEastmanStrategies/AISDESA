@@ -4,6 +4,7 @@ import { useState } from "react"
 import { ArrowRight, CheckCircle2, Circle, LoaderCircle, Map } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
 import PreWalkModal from "@/components/pre-walk-modal"
+import LocalCsvBackupButton from "@/components/local-csv-backup-button"
 import {
   surveyNavLabel,
   surveyNavTypesForSchool,
@@ -142,6 +143,7 @@ export default function SurveyCampusHome() {
         >
           View results
         </button>
+        <LocalCsvBackupButton variant="labeled" />
         <button
           type="button"
           onClick={() => setView("landing")}

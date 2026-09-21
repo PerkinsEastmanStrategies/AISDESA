@@ -2585,35 +2585,37 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       const roomScores = { ...state.roomScores }
       const roomScoreDetails = { ...state.roomScoreDetails }
       const spaceTypeExistsAtSchool = { ...(state.session.spaceTypeExistsAtSchool ?? {}) }
+      const spaceTypeExists = { ...(state.preWalk.spaceTypeExists ?? {}) }
+
+      const removeRoom = (roomId: string) => {
+        delete rooms[roomId]
+        delete roomScores[roomId]
+        delete roomScoreDetails[roomId]
+      }
 
       if (state.selectedRoomId) {
-        delete rooms[state.selectedRoomId]
-        delete roomScores[state.selectedRoomId]
-        delete roomScoreDetails[state.selectedRoomId]
+        removeRoom(state.selectedRoomId)
       }
 
       if (spaceType) {
-        const absentId = absentSpaceTypeRoomId(spaceType, neighborhood || null)
-        if (rooms[absentId]) {
-          delete rooms[absentId]
-          delete roomScores[absentId]
-          delete roomScoreDetails[absentId]
+        for (const [roomId, room] of Object.entries(rooms)) {
+          const parsed = parseAbsentSpaceTypeRoomId(roomId)
+          const type = (parsed?.spaceType || room.roomType || "").trim()
+          if (type !== spaceType) continue
+          if (neighborhood) {
+            const roomNeighborhood = (parsed?.neighborhood || room.neighborhood || "").trim()
+            if (roomNeighborhood !== neighborhood) continue
+          }
+          removeRoom(roomId)
         }
         delete spaceTypeExistsAtSchool[spaceTypeExistenceKey(spaceType, neighborhood || null)]
-        if (neighborhood && isNeighborhoodOnlySpaceType(state.surveyType, spaceType)) {
-          const nhId = neighborhoodSurveyRoomId(neighborhood, spaceType)
-          delete rooms[nhId]
-          delete roomScores[nhId]
-          delete roomScoreDetails[nhId]
-        }
+        delete spaceTypeExists[preWalkSpaceTypeExistsKey(state.surveyType, spaceType)]
       }
 
       if (state.surveyType === "outdoor") {
         for (const roomId of Object.keys(rooms)) {
           if (!isOutdoorSurveyRoomId(roomId)) continue
-          delete rooms[roomId]
-          delete roomScores[roomId]
-          delete roomScoreDetails[roomId]
+          removeRoom(roomId)
         }
       }
 
@@ -2634,6 +2636,10 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         roomScores,
         roomScoreDetails,
         submitValidation: null,
+        preWalk: {
+          ...state.preWalk,
+          spaceTypeExists,
+        },
       })
     }
     case "SET_VIEW":
@@ -2969,14 +2975,14 @@ function persistDraftFromState(state: SurveyState): string | null {
     state.surveyType === "closeout"
       ? state.session
       : clearStaleDeferredOnCompleteRooms(state.session, state.school.schoolClass)
+  const discardedRoomIds = nextDiscardedRoomIds(previous, liveSession)
+  const discardedPinIds = nextDiscardedPinIds(previous, liveSession)
   const sessionToSave = previous?.session
     ? mergeSurveySessions(liveSession, previous.session, true, {
         includeOtherOnlyRooms: true,
-        excludeRoomIds: previous.discardedRoomIds,
+        excludeRoomIds: discardedRoomIds,
       })
     : liveSession
-  const discardedRoomIds = nextDiscardedRoomIds(previous, sessionToSave)
-  const discardedPinIds = nextDiscardedPinIds(previous, sessionToSave)
   const ownedRoomIds = Object.keys(liveSession.rooms).filter((roomId) =>
     roomHasAssessmentProgress(liveSession.rooms[roomId]),
   )

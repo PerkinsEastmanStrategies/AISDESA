@@ -4059,7 +4059,7 @@ export const PLC_QUESTIONS: (EsaQuestion & {
     assessmentArea: "Administration",
     category: "Infrastructure",
     subcategory: "Utilities and Technology",
-    question: "How many general-use outlets are provided? (count each wall plate as one, regardless of the number of plugs.)",
+    question: "Are there any visible workarounds accommodating a lack of power outlets?",
     questionType: "YesNoNA",
     weight: 12,
     required: true,

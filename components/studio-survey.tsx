@@ -116,19 +116,11 @@ export default function StudioSurvey() {
   const pendingNeighborhood = state.pendingNeighborhood?.trim() ?? ""
   const spaceTypeAbsent =
     !!selectedSpaceType &&
-    (isSpaceTypeMarkedAbsentAtSchool(
+    isSpaceTypeMarkedAbsentAtSchool(
       state.session,
       selectedSpaceType,
       isNeighborhoodsSurvey ? pendingNeighborhood : null,
-    ) ||
-      Object.values(state.session?.rooms ?? {}).some(
-        (room) =>
-          room.spaceTypeMarkedAbsent &&
-          room.roomType === selectedSpaceType &&
-          (!isNeighborhoodsSurvey ||
-            !pendingNeighborhood ||
-            room.neighborhood?.trim() === pendingNeighborhood),
-      ))
+    )
   const showQuestions = !!state.selectedRoomId && !spaceTypeAbsent
   const outdoorSelectedType =
     selectedSpaceType === "Outdoor Athletics" ? "Outdoor Athletics" : "Outdoor Spaces"

@@ -7,6 +7,7 @@ import { surveyTypeLabel } from "@aisd/shared"
 import { useSurvey } from "@/lib/survey-store"
 import { countIncompleteItems } from "@/lib/closeout"
 import { downloadSurveySaveFailureCsv } from "@/lib/survey-save-csv"
+import LocalCsvBackupButton from "@/components/local-csv-backup-button"
 import type { SubmitValidationResult } from "@/lib/survey-validation"
 import { cn } from "@/lib/utils"
 
@@ -420,6 +421,7 @@ export default function SurveyActionBar() {
           >
             Save and Complete Another Survey
           </button>
+          <LocalCsvBackupButton disabled={saveAck === "saving"} />
         </div>
       </div>
       {incompleteDialog}

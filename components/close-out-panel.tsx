@@ -5,6 +5,7 @@ import { createPortal } from "react-dom"
 import { AlertTriangle, CheckCircle2, ClipboardCheck, Send, X } from "lucide-react"
 import { useSurvey } from "@/lib/survey-store"
 import { countCloseOutPendingItems, isCloseOutSurveyComplete } from "@/lib/closeout"
+import LocalCsvBackupButton from "@/components/local-csv-backup-button"
 import { cn } from "@/lib/utils"
 
 export default function CloseOutPanel() {
@@ -176,29 +177,35 @@ export default function CloseOutPanel() {
       />
 
       {campusSubmittedAt ? (
-        <div className="mb-5 flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-800">
-          <CheckCircle2 className="h-4 w-4" />
-          Campus submitted {new Date(campusSubmittedAt).toLocaleString()}
+        <div className="mb-5 flex gap-2">
+          <div className="flex min-h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-800">
+            <CheckCircle2 className="h-4 w-4" />
+            Campus submitted {new Date(campusSubmittedAt).toLocaleString()}
+          </div>
+          <LocalCsvBackupButton />
         </div>
       ) : (
         <>
           <p className="mb-2 text-center text-xs leading-snug text-[var(--color-muted-foreground)]">
             {submitCampusHint}
           </p>
-          <button
-            type="button"
-            disabled={!canSubmitCampus}
-            onClick={handleSubmitClick}
-            className={cn(
-              "mb-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-white transition-opacity sm:min-h-[48px]",
-              canSubmitCampus
-                ? "bg-[var(--color-primary)] active:opacity-90"
-                : "cursor-not-allowed bg-slate-300",
-            )}
-          >
-            <Send className="h-4 w-4" />
-            Submit campus assessment
-          </button>
+          <div className="mb-5 flex flex-row gap-2">
+            <button
+              type="button"
+              disabled={!canSubmitCampus}
+              onClick={handleSubmitClick}
+              className={cn(
+                "flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-white transition-opacity sm:min-h-[48px]",
+                canSubmitCampus
+                  ? "bg-[var(--color-primary)] active:opacity-90"
+                  : "cursor-not-allowed bg-slate-300",
+              )}
+            >
+              <Send className="h-4 w-4" />
+              Submit campus assessment
+            </button>
+            <LocalCsvBackupButton />
+          </div>
         </>
       )}
       {confirmDialog}

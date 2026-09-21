@@ -1570,6 +1570,16 @@ export function applyPreWalkSpaceTypeExistsToSession(
       ) {
         continue
       }
+    } else {
+      const absentId = absentSpaceTypeRoomId(spaceType)
+      const hasPresentRooms = Object.values(next.rooms).some((room) => {
+        if (room.roomId === absentId || room.spaceTypeMarkedAbsent) return false
+        if (isAbsentSpaceTypeRoomId(room.roomId)) return false
+        return (room.roomType || "").trim() === spaceType
+      })
+      if (hasPresentRooms || isSpaceTypeConfirmedAtSchool(next, spaceType)) {
+        continue
+      }
     }
     next = applySpaceTypeExistsToSession(next, spaceType, exists)
   }
@@ -1689,9 +1699,11 @@ export function spaceTypeExistsAtSchoolFromRooms(
   surveyType: SurveyType,
 ): Record<string, boolean> {
   const result: Record<string, boolean> = {}
+  const present = new Set<string>()
+  const absent = new Set<string>()
   for (const room of Object.values(rooms)) {
     const parsed = parseAbsentSpaceTypeRoomId(room.roomId)
-    const absent = !!(room.spaceTypeMarkedAbsent || parsed)
+    const isAbsent = !!(room.spaceTypeMarkedAbsent || parsed)
     const spaceType = (parsed?.spaceType || room.roomType || "").trim()
     if (!spaceType) continue
     const neighborhood =
@@ -1702,11 +1714,14 @@ export function spaceTypeExistsAtSchoolFromRooms(
           null
         : parsed?.neighborhood || null
     const key = spaceTypeExistenceKey(spaceType, neighborhood)
-    if (absent) {
-      result[key] = false
-      continue
-    }
-    if (result[key] !== false) result[key] = true
+    if (isAbsent) absent.add(key)
+    else present.add(key)
+  }
+  // Real rooms win. A leftover “does not exist” placeholder must not hide a survey
+  // that was later marked Yes and actually scored.
+  for (const key of present) result[key] = true
+  for (const key of absent) {
+    if (result[key] !== true) result[key] = false
   }
   return result
 }
