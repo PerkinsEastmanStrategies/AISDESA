@@ -485,6 +485,45 @@ function mappingTimestamp(mapping: PreWalkRoomMapping | undefined): number {
   return Number.isFinite(ms) ? ms : 0
 }
 
+export function parsePreWalkMappingKey(key: string): PreWalkMappingRef | null {
+  const sep = key.indexOf("::")
+  if (sep <= 0) return null
+  const surveyType = key.slice(0, sep) as SurveyType
+  const roomId = key.slice(sep + 2).trim()
+  if (!surveyType || !roomId) return null
+  return { surveyType, roomId }
+}
+
+const PREWALK_ACK_STORAGE_PREFIX = "aisd-esa:prewalk-acked:"
+/** Unacked local-only rows older than this are treated as stale copies of a cloud delete. */
+const LOCAL_PREWALK_ADD_GRACE_MS = 20_000
+
+function preWalkAckStorageKey(schoolId: string): string {
+  return `${PREWALK_ACK_STORAGE_PREFIX}${schoolId}`
+}
+
+export function loadPreWalkAckedMappingKeys(schoolId: string): Set<string> {
+  if (typeof window === "undefined" || !schoolId) return new Set()
+  try {
+    const raw = window.localStorage.getItem(preWalkAckStorageKey(schoolId))
+    if (!raw) return new Set()
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return new Set()
+    return new Set(parsed.filter((value): value is string => typeof value === "string" && value.includes("::")))
+  } catch {
+    return new Set()
+  }
+}
+
+export function savePreWalkAckedMappingKeys(schoolId: string, keys: Iterable<string>): void {
+  if (typeof window === "undefined" || !schoolId) return
+  try {
+    window.localStorage.setItem(preWalkAckStorageKey(schoolId), JSON.stringify([...new Set(keys)]))
+  } catch {
+    // Private mode / quota — in-memory reconcile still runs for this session.
+  }
+}
+
 /** Union mappings/photos for multi-user sync; newer mappedAt wins on conflicts. */
 export function mergePreWalkStates(
   base: PreWalkState | null | undefined,
@@ -515,6 +554,70 @@ export function mergePreWalkStates(
     },
     completedAt: left.completedAt ?? right.completedAt ?? null,
     skippedAt: left.skippedAt ?? right.skippedAt ?? null,
+  }
+}
+
+/**
+ * Cloud pull: keep remote rows, keep very recent unpushed local adds, drop
+ * local rows the cloud no longer has (another device removed them).
+ */
+export function reconcileLocalPreWalkWithCloud(
+  local: PreWalkState | null | undefined,
+  remote: PreWalkState | null | undefined,
+  ackedKeys: ReadonlySet<string>,
+  deletions?: PreWalkMappingRef[],
+): { preWalk: PreWalkState; droppedKeys: string[]; nextAckedKeys: Set<string> } {
+  const left = local ?? EMPTY_PREWALK
+  const right = remote ?? EMPTY_PREWALK
+  const deleteKeys = new Set(
+    (deletions ?? []).map((entry) => preWalkMappingKey(entry.surveyType, entry.roomId)),
+  )
+  const now = Date.now()
+  const mappings: Record<string, PreWalkRoomMapping> = {}
+  const remoteMappings = right.mappings ?? {}
+  const localMappings = left.mappings ?? {}
+
+  for (const [key, remoteMapping] of Object.entries(remoteMappings)) {
+    if (deleteKeys.has(key)) continue
+    const localMapping = localMappings[key]
+    mappings[key] =
+      localMapping && mappingTimestamp(localMapping) > mappingTimestamp(remoteMapping)
+        ? localMapping
+        : remoteMapping
+  }
+
+  const droppedKeys: string[] = []
+  for (const [key, localMapping] of Object.entries(localMappings)) {
+    if (mappings[key] || deleteKeys.has(key)) continue
+    const mappedAt = mappingTimestamp(localMapping)
+    const recentUnackedAdd =
+      !ackedKeys.has(key) && mappedAt > 0 && now - mappedAt < LOCAL_PREWALK_ADD_GRACE_MS
+    if (recentUnackedAdd) {
+      mappings[key] = localMapping
+      continue
+    }
+    droppedKeys.push(key)
+  }
+
+  const nextAckedKeys = new Set(Object.keys(remoteMappings))
+  for (const key of deleteKeys) nextAckedKeys.delete(key)
+
+  return {
+    preWalk: {
+      mappings,
+      spaceTypePhotos: {
+        ...(left.spaceTypePhotos ?? {}),
+        ...(right.spaceTypePhotos ?? {}),
+      },
+      spaceTypeExists: {
+        ...(right.spaceTypeExists ?? {}),
+        ...(left.spaceTypeExists ?? {}),
+      },
+      completedAt: left.completedAt ?? right.completedAt ?? null,
+      skippedAt: left.skippedAt ?? right.skippedAt ?? null,
+    },
+    droppedKeys,
+    nextAckedKeys,
   }
 }
 

@@ -31,6 +31,7 @@ interface PrewalkBody {
   school: AisdSchoolOption
   preWalk: PreWalkState
   deletions?: Array<{ surveyType: string; roomId: string }>
+  ackedMappingKeys?: string[]
 }
 
 export async function POST(request: Request) {
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
       school: body.school,
       preWalk: body.preWalk,
       deletions: body.deletions,
+      ackedMappingKeys: body.ackedMappingKeys,
     })
     return NextResponse.json({ configured: true, action: "pushed" as const, ...result })
   } catch (error) {

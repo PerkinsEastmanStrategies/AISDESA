@@ -170,6 +170,7 @@ export async function pushPrewalkClient(input: {
   school: AisdSchoolOption
   preWalk: PreWalkState
   deletions?: Array<{ surveyType: SurveyType; roomId: string }>
+  ackedMappingKeys?: string[]
 }): Promise<{ ok: true; preWalk: PreWalkState } | { ok: false; reason: "offline" | "error" }> {
   if (!isBrowserOnline()) return { ok: false, reason: "offline" }
 

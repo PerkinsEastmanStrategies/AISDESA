@@ -24,7 +24,7 @@ import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
 import { roomAssessmentWeight } from "@/lib/survey-persistence"
 import { cloneDraftWithCompatibleAnswers, mergeLinkedPhotosIntoDestDraft } from "@/lib/remap-compatible-survey-answers"
 import { sessionHasRegisteredAssessor } from "@/lib/assessor"
-import { applyPreWalkMappingDeletes, mergePreWalkStates, parsePreWalkSpaceTypeExistsKey, preWalkSpaceTypeExistsKey } from "@/lib/prewalk"
+import { applyPreWalkMappingDeletes, mergePreWalkStates, parsePreWalkMappingKey, parsePreWalkSpaceTypeExistsKey, preWalkMappingKey, preWalkSpaceTypeExistsKey } from "@/lib/prewalk"
 import {
   isSupabaseServerConfigured,
   supabaseRestDelete,
@@ -1437,6 +1437,7 @@ export async function pushPrewalkOnly(input: {
   school: AisdSchoolOption
   preWalk: PreWalkState
   deletions?: Array<{ surveyType: string; roomId: string }>
+  ackedMappingKeys?: string[]
 }): Promise<{ updatedAt: string; preWalk: PreWalkState }> {
   if (!isSupabaseServerConfigured()) {
     return { updatedAt: new Date().toISOString(), preWalk: input.preWalk }
@@ -1444,15 +1445,35 @@ export async function pushPrewalkOnly(input: {
 
   await upsertSchool(input.school)
   const remote = await pullPrewalkForSchool(input.school.id)
-  const merged = applyPreWalkMappingDeletes(
-    mergePreWalkStates(input.preWalk, remote),
-    input.deletions?.map((d) => ({
-      surveyType: d.surveyType as SurveyType,
-      roomId: d.roomId,
+  const deletions = [
+    ...(input.deletions ?? []).map((entry) => ({
+      surveyType: entry.surveyType as SurveyType,
+      roomId: entry.roomId,
     })),
-  )
+  ]
+  const seen = new Set(deletions.map((entry) => preWalkMappingKey(entry.surveyType, entry.roomId)))
+  const addDeletion = (key: string) => {
+    if (seen.has(key)) return
+    const parsed = parsePreWalkMappingKey(key)
+    if (!parsed) return
+    seen.add(key)
+    deletions.push(parsed)
+  }
 
-  await syncPrewalk(input.school, merged, input.deletions)
+  const acked = new Set(input.ackedMappingKeys ?? [])
+  const localKeys = new Set(Object.keys(input.preWalk.mappings ?? {}))
+  const remoteKeys = new Set(Object.keys(remote?.mappings ?? {}))
+  for (const key of acked) {
+    if (!localKeys.has(key) && remoteKeys.has(key)) addDeletion(key)
+  }
+  for (const key of localKeys) {
+    if (acked.has(key) && !remoteKeys.has(key)) addDeletion(key)
+  }
+
+  const local = applyPreWalkMappingDeletes(input.preWalk, deletions)
+  const merged = applyPreWalkMappingDeletes(mergePreWalkStates(local, remote), deletions)
+
+  await syncPrewalk(input.school, merged, deletions)
   return { updatedAt: new Date().toISOString(), preWalk: merged }
 }
 

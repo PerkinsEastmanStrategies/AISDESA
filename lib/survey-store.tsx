@@ -151,8 +151,10 @@ import {
   applyPreWalkMappingDeletes,
   dropPushedPreWalkDeletes,
   getPreWalkMappingForSurveyModule,
+  loadPreWalkAckedMappingKeys,
   mergePreWalkStates,
   migratePreWalkState,
+  parsePreWalkMappingKey,
   preWalkHasCloudState,
   preWalkMappingKey,
   preWalkRoomIdsForSurvey,
@@ -162,6 +164,8 @@ import {
   preWalkSpaceTypePhotoKey,
   preWalkSurveyAllowsSpaceTypeExists,
   queuePreWalkMappingDeletes,
+  reconcileLocalPreWalkWithCloud,
+  savePreWalkAckedMappingKeys,
   type PreWalkMappingRef,
 } from "@/lib/prewalk"
 import {
@@ -274,7 +278,7 @@ type Action =
   | { type: "COMPLETE_PREWALK" }
   | { type: "SKIP_PREWALK" }
   | { type: "ANSWER_PREWALK_PROMPT"; choice: "map" | "skip" }
-  | { type: "MERGE_PREWALK"; preWalk: PreWalkState; deletions?: PreWalkMappingRef[] }
+  | { type: "MERGE_PREWALK"; preWalk: PreWalkState; deletions?: PreWalkMappingRef[]; fromCloud?: boolean; ackedKeys?: string[] }
   | { type: "PREWALK_PULL_DONE" }
   | { type: "SET_ROOM_TYPE"; roomId: string; roomType: string }
   | { type: "SET_PENDING_STUDIO_TYPE"; roomType: string | null }
@@ -2346,10 +2350,17 @@ function reducer(state: SurveyState, action: Action): SurveyState {
     }
     case "MERGE_PREWALK": {
       const incoming = migratePreWalkState(action.preWalk, state.school?.schoolClass)
-      const preWalk = applyPreWalkMappingDeletes(
-        mergePreWalkStates(state.preWalk, incoming),
-        action.deletions,
-      )
+      const preWalk = action.fromCloud
+        ? reconcileLocalPreWalkWithCloud(
+            state.preWalk,
+            incoming,
+            new Set(action.ackedKeys ?? []),
+            action.deletions,
+          ).preWalk
+        : applyPreWalkMappingDeletes(
+            mergePreWalkStates(state.preWalk, incoming),
+            action.deletions,
+          )
       const unchanged =
         JSON.stringify(preWalk.mappings) === JSON.stringify(state.preWalk.mappings) &&
         JSON.stringify(preWalk.spaceTypePhotos ?? {}) ===
@@ -3384,6 +3395,34 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     }
   }, [state.hydrated, state.school?.id, refreshRemoteSchoolDrafts])
 
+  const applyRemotePreWalk = useCallback((schoolId: string, remote: PreWalkState) => {
+    const acked = loadPreWalkAckedMappingKeys(schoolId)
+    const reconciled = reconcileLocalPreWalkWithCloud(
+      preWalkRef.current,
+      remote,
+      acked,
+      preWalkPendingDeletesRef.current,
+    )
+    if (reconciled.droppedKeys.length > 0) {
+      const dropped = reconciled.droppedKeys
+        .map(parsePreWalkMappingKey)
+        .filter((entry): entry is PreWalkMappingRef => !!entry)
+      preWalkPendingDeletesRef.current = queuePreWalkMappingDeletes(
+        preWalkPendingDeletesRef.current,
+        dropped,
+      )
+      preWalkPullEpochRef.current += 1
+    }
+    savePreWalkAckedMappingKeys(schoolId, reconciled.nextAckedKeys)
+    dispatch({
+      type: "MERGE_PREWALK",
+      preWalk: remote,
+      deletions: [...preWalkPendingDeletesRef.current],
+      fromCloud: true,
+      ackedKeys: [...acked],
+    })
+  }, [])
+
   // Load school pre-walk assignments from Supabase (shared across devices/modules).
   useEffect(() => {
     if (!state.hydrated || !state.school) {
@@ -3399,12 +3438,8 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     void pullPrewalkClient(schoolId).then((remote) => {
       if (cancelled) return
       preWalkCloudReadySchoolIdRef.current = schoolId
-      if (remote && preWalkHasCloudState(remote)) {
-        dispatch({
-          type: "MERGE_PREWALK",
-          preWalk: remote,
-          deletions: [...preWalkPendingDeletesRef.current],
-        })
+      if (remote && (preWalkHasCloudState(remote) || Object.keys(preWalkRef.current.mappings).length > 0)) {
+        applyRemotePreWalk(schoolId, remote)
       } else {
         dispatch({ type: "PREWALK_PULL_DONE" })
       }
@@ -3412,7 +3447,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [state.school?.id, state.hydrated])
+  }, [state.school?.id, state.hydrated, applyRemotePreWalk])
 
   const flushPreWalkToCloud = useCallback(async (): Promise<"pushed" | "offline" | "error"> => {
     if (!state.school) return "error"
@@ -3426,13 +3461,19 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     preWalkPushInFlightRef.current = true
     try {
       propagatePreWalkToSchoolDrafts(school.id, preWalk)
-      const result = await pushPrewalkClient({ school, preWalk, deletions })
+      const result = await pushPrewalkClient({
+        school,
+        preWalk,
+        deletions,
+        ackedMappingKeys: [...loadPreWalkAckedMappingKeys(school.id)],
+      })
       if (!result.ok) return result.reason
       if (stateRef.current.school?.id !== school.id) return "pushed"
       preWalkPendingDeletesRef.current = dropPushedPreWalkDeletes(
         preWalkPendingDeletesRef.current,
         deletions,
       )
+      savePreWalkAckedMappingKeys(school.id, Object.keys(result.preWalk.mappings ?? {}))
       dispatch({
         type: "MERGE_PREWALK",
         preWalk: result.preWalk,
@@ -3460,16 +3501,12 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       return false
     }
     if (preWalkHasCloudState(remote) || Object.keys(preWalkRef.current.mappings).length > 0) {
-      dispatch({
-        type: "MERGE_PREWALK",
-        preWalk: remote,
-        deletions: [...preWalkPendingDeletesRef.current],
-      })
+      applyRemotePreWalk(state.school.id, remote)
     } else {
       dispatch({ type: "PREWALK_PULL_DONE" })
     }
     return true
-  }, [state.school])
+  }, [state.school, applyRemotePreWalk])
 
   // Keep pulling shared pre-walk assignments while a school is open (multi-assessor).
   useEffect(() => {
