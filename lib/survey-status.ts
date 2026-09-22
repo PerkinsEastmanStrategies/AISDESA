@@ -179,7 +179,7 @@ export function isOutdoorSurveyComplete(
   return isSpaceTypeSurveyComplete("outdoor", session, schoolClass, planRooms)
 }
 
-function isSurveyModuleComplete(
+export function isSurveyModuleComplete(
   surveyType: SurveyType,
   session: SurveySession,
   schoolClass?: string | null,
@@ -189,6 +189,35 @@ function isSurveyModuleComplete(
   if (surveyType === "outdoor") return isOutdoorSurveyComplete(session, schoolClass, planRooms)
   if (surveyType === "closeout") return isCloseOutSurveyComplete(session)
   return isSpaceTypeSurveyComplete(surveyType, session, schoolClass, planRooms)
+}
+
+/**
+ * Completion is a saved fact, not something mutable rubric code may revoke.
+ * Legacy submission snapshots were already treated as complete by Admin, so
+ * retain that behavior while versioned new saves can explicitly remain partial.
+ */
+function persistedModuleCompletionAt(
+  session: SurveySession,
+  draft: ReturnType<typeof loadDraft>,
+): string | null {
+  if (session.moduleCompletedAt) return session.moduleCompletedAt
+
+  const submittedSession = draft?.lastSubmission?.session
+  if (submittedSession?.moduleCompletedAt) return submittedSession.moduleCompletedAt
+
+  if (
+    session.completionSemanticsVersion === 1 ||
+    submittedSession?.completionSemanticsVersion === 1
+  ) {
+    return null
+  }
+
+  return (
+    draft?.lastSubmission?.submittedAt ??
+    submittedSession?.submittedAt ??
+    session.submittedAt ??
+    null
+  )
 }
 
 /** True when every classroom room for the school has a fully complete survey session. */
@@ -306,6 +335,10 @@ export function getSurveyTypeInfo(
       return { status: "in_progress", assessor }
     }
     return { status: "not_started", assessor }
+  }
+
+  if (persistedModuleCompletionAt(session, draft)) {
+    return { status: "complete", assessor }
   }
 
   if (surveyTypeHasDedicatedCompletion(surveyType)) {

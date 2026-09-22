@@ -101,8 +101,9 @@ export function buildAdminSurveyRecords(
     const assessor = resolveAssessor(draft)
 
     let status: AdminSurveyStatus = "in_progress"
-    if (submission) status = "submitted"
-    else if (info.status === "complete") status = "complete"
+    if (info.status === "complete") {
+      status = submission ? "submitted" : "complete"
+    }
 
     return {
       key: `${draft.schoolId}:${draft.surveyType}`,

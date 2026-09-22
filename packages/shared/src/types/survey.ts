@@ -220,6 +220,16 @@ export interface SurveySession {
   startedAt: string
   updatedAt: string
   submittedAt?: string
+  /**
+   * Immutable module-completion marker. Once set, later rubric changes must not
+   * silently turn a completed module back into "in progress".
+   */
+  moduleCompletedAt?: string
+  /**
+   * Version 1 distinguishes new incomplete saves from legacy snapshots, which
+   * historically represented completed modules.
+   */
+  completionSemanticsVersion?: 1
   /** Assessor closing remarks submitted with the campus assessment from Close Out. */
   finalComment?: string
   /** Set when the assessor submits the full campus assessment from Close Out. */

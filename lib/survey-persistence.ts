@@ -709,6 +709,9 @@ export function mergeSurveySessions(
     spaceTypeExistsAtSchool:
       Object.keys(spaceTypeExistsAtSchool).length > 0 ? spaceTypeExistsAtSchool : undefined,
     submittedAt: primary.submittedAt ?? secondary.submittedAt,
+    moduleCompletedAt: primary.moduleCompletedAt ?? secondary.moduleCompletedAt,
+    completionSemanticsVersion:
+      primary.completionSemanticsVersion ?? secondary.completionSemanticsVersion,
     updatedAt: updatedAt || primary.updatedAt,
   }
 }

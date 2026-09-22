@@ -117,7 +117,11 @@ import {
   shouldStampSessionAssessor,
   withCampusAssessorOnSession,
 } from "@/lib/assessor"
-import { getSurveyTypeInfo, type SurveyTypeInfo } from "@/lib/survey-status"
+import {
+  getSurveyTypeInfo,
+  isSurveyModuleComplete,
+  type SurveyTypeInfo,
+} from "@/lib/survey-status"
 import { SURVEY_TYPES } from "@aisd/shared"
 import { validateSurveyBeforeDeferral, validateRoomSession, type SubmitValidationResult } from "@/lib/survey-validation"
 import {
@@ -1196,8 +1200,30 @@ function buildSubmission(state: SurveyState): SurveySubmission | null {
   })
 
   const submittedAt = new Date().toISOString()
+  const legacyCompletedAt =
+    state.session.completionSemanticsVersion == null
+      ? (state.submission?.submittedAt ?? state.session.submittedAt)
+      : undefined
+  const moduleCompletedAt =
+    state.session.moduleCompletedAt ??
+    legacyCompletedAt ??
+    (isSurveyModuleComplete(
+      state.surveyType,
+      state.session,
+      state.school.schoolClass,
+      state.allRooms,
+    )
+      ? submittedAt
+      : undefined)
+
   return {
-    session: { ...state.session, submittedAt, updatedAt: submittedAt },
+    session: {
+      ...state.session,
+      submittedAt,
+      updatedAt: submittedAt,
+      moduleCompletedAt,
+      completionSemanticsVersion: 1,
+    },
     submittedAt,
     campus,
     floorPlanRooms: Object.values(state.floorPlanRooms),

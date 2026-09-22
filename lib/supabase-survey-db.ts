@@ -21,7 +21,11 @@ import {
   canonicalStudioType,
 } from "@aisd/shared"
 import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
-import { draftForCloudSync, roomAssessmentWeight } from "@/lib/survey-persistence"
+import {
+  draftForCloudSync,
+  mergeSurveySessions,
+  roomAssessmentWeight,
+} from "@/lib/survey-persistence"
 import { cloneDraftWithCompatibleAnswers, mergeLinkedPhotosIntoDestDraft } from "@/lib/remap-compatible-survey-answers"
 import { sessionHasRegisteredAssessor } from "@/lib/assessor"
 import { applyPreWalkMappingDeletes, mergePreWalkStates, parsePreWalkMappingKey, parsePreWalkSpaceTypeExistsKey, preWalkMappingKey, preWalkSpaceTypeExistsKey } from "@/lib/prewalk"
@@ -919,7 +923,7 @@ function buildDraftFromSessionRow(
     placedAt: pin.placed_at,
   }))
 
-  const surveySession: SurveySession = applyPreWalkSpaceTypeExistsToSession(
+  let surveySession: SurveySession = applyPreWalkSpaceTypeExistsToSession(
     {
       surveyId: sessionRow.survey_id,
       surveyType: sessionRow.survey_type,
@@ -952,6 +956,32 @@ function buildDraftFromSessionRow(
         floorPlanRooms: snapshot.floor_plan_rooms ?? [],
       }
     : null
+
+  if (snapshot && lastSubmission) {
+    const snapshotSession = lastSubmission.session
+    const legacyCompletedAt =
+      snapshotSession.completionSemanticsVersion == null
+        ? (snapshotSession.submittedAt ?? snapshot.submitted_at)
+        : undefined
+    const moduleCompletedAt = snapshotSession.moduleCompletedAt ?? legacyCompletedAt
+
+    // Some older saves wrote a complete JSON snapshot but only part of the
+    // normalized response rows. Restore richer answers for rooms that still
+    // exist without resurrecting rooms deliberately removed after submission.
+    surveySession = mergeSurveySessions(
+      surveySession,
+      {
+        ...snapshotSession,
+        moduleCompletedAt,
+        completionSemanticsVersion: 1,
+      },
+      true,
+      { includeOtherOnlyRooms: false },
+    )
+    surveySession.moduleCompletedAt = moduleCompletedAt
+    surveySession.completionSemanticsVersion = 1
+  }
+
   if (lastSubmission?.session.autoCarryOverAppliedAt) {
     surveySession.autoCarryOverAppliedAt = lastSubmission.session.autoCarryOverAppliedAt
   }

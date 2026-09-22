@@ -435,18 +435,49 @@ export function spaceTypesForSurveyModule(
   })
 }
 
-const SPACE_TYPE_ALIASES = {
+const SPACE_TYPE_ALIASES: Record<string, string> = {
   Gym: "ES Gymnasium",
   "Main Office": "Entry Experience",
   "Main Entry/Reception": "Entry Experience",
   "Sped flex studio": "SPED Flex Studio",
+  "SPED Flex Room": "SPED Flex Studio",
+  "Sped Flex Room": "SPED Flex Studio",
   "Sensory Lab": "Sensory Motor Lab",
   "Life Skills Room": "Life Skills Studio",
   Music: "Music Studio",
   "Small Group Room": "Group Room",
   "Digital Arts Studio": "Digital Art Studio",
   "Open Collaboration": "Open Collaboration Space",
-} as const
+  "Early Childhood Special Education studio": "Early childhood special education studio",
+  "Early Childhood Special Education Studio": "Early childhood special education studio",
+  "Early Childhood Sped Flex Room": "Early childhood special education studio",
+  "Early Childhood SPED Flex Room": "Early childhood special education studio",
+  "Early Childhood Sped Flex Studio": "Early childhood special education studio",
+  "Early Childhood SPED Flex Studio": "Early childhood special education studio",
+}
+
+function spaceTypeLookupCandidates(spaceType: string): string[] {
+  const trimmed = spaceType.trim()
+  if (!trimmed) return []
+  const candidates = [trimmed]
+  const lower = trimmed.toLowerCase()
+  const exactAlias = SPACE_TYPE_ALIASES[trimmed]
+  if (exactAlias) candidates.push(exactAlias)
+  for (const [from, to] of Object.entries(SPACE_TYPE_ALIASES)) {
+    if (from.toLowerCase() === lower && !candidates.includes(to)) candidates.push(to)
+  }
+  const tableMatch = TABLE_OF_SURVEY_ENTRIES.find((entry) => entry.spaceType.toLowerCase() === lower)
+  if (tableMatch && !candidates.includes(tableMatch.spaceType)) candidates.push(tableMatch.spaceType)
+  if (
+    lower.includes("early childhood") &&
+    (lower.includes("sped") || lower.includes("special education"))
+  ) {
+    if (!candidates.includes("Early childhood special education studio")) {
+      candidates.push("Early childhood special education studio")
+    }
+  }
+  return candidates
+}
 
 export function lookupTableEntry(
   surveyType: SurveyType,
@@ -457,9 +488,7 @@ export function lookupTableEntry(
   const normalized = spaceType?.trim()
   if (!normalized) return null
 
-  const candidates = [normalized]
-  const alias = SPACE_TYPE_ALIASES[normalized as keyof typeof SPACE_TYPE_ALIASES]
-  if (alias) candidates.push(alias)
+  const candidates = spaceTypeLookupCandidates(normalized)
 
   for (const candidate of candidates) {
     const match = TABLE_OF_SURVEY_ENTRIES.find(
@@ -629,9 +658,7 @@ export function lookupTableEntryBySpaceType(
   const normalized = spaceType?.trim()
   if (!normalized) return null
 
-  const candidates = [normalized]
-  const alias = SPACE_TYPE_ALIASES[normalized as keyof typeof SPACE_TYPE_ALIASES]
-  if (alias) candidates.push(alias)
+  const candidates = spaceTypeLookupCandidates(normalized)
 
   for (const candidate of candidates) {
     const match = TABLE_OF_SURVEY_ENTRIES.find(
