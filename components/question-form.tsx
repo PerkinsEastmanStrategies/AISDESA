@@ -21,7 +21,7 @@ import {
   type RoomQuestionResponse,
   surveyTypeLabel,
 } from "@aisd/shared"
-import { getPreWalkRoomSpaceTypePhoto, getPreWalkRoomSpaceTypePhotoOnly } from "@/lib/prewalk"
+import { getPreWalkRoomSpaceTypePhoto } from "@/lib/prewalk"
 import { isSupabasePhotoUrl, type SurveyPhotoUploadContext } from "@/lib/photo-storage"
 import { mergeResponsePhotoFields, normalizeResponsePhotos } from "@/lib/response-photos"
 import { SURVEY_SPACE_TYPE_PHOTO_PROMPT } from "@/lib/photo-privacy"
@@ -139,7 +139,7 @@ export default function QuestionForm() {
     currentRoomSession,
     flaggedQuestionIds,
     acknowledgeTraditionalStudioCopyReview,
-    setPreWalkSpaceTypePhoto,
+    setRoomGeneralPhotos,
     completeCloseOutRoom,
   } = useSurvey()
   const [showContext, setShowContext] = useState(readShowContextPreference)
@@ -227,14 +227,16 @@ export default function QuestionForm() {
     !!spaceType &&
     surveyModuleUsesSpaceTypePicker(state.surveyType, state.school?.schoolClass) &&
     isSpaceTypeForSurveyModule(state.surveyType, spaceType, state.school?.schoolClass)
-  const spaceTypePhoto = showSpaceTypePhoto
+  // Photos taken before the general photo moved onto the room survey still live in pre-walk
+  // state; the room's own copy takes over as soon as this room records one.
+  const legacyPreWalkPhoto = showSpaceTypePhoto
     ? getPreWalkRoomSpaceTypePhoto(state.preWalk, state.surveyType, roomId, spaceType)
     : undefined
-  const roomSpaceTypePhotoOnly = showSpaceTypePhoto
-    ? getPreWalkRoomSpaceTypePhotoOnly(state.preWalk, state.surveyType, roomId, spaceType)
-    : undefined
-  const spaceTypePhotoSubmitted = isSupabasePhotoUrl(roomSpaceTypePhotoOnly ?? spaceTypePhoto)
-  const showSpaceTypePhotoCapture = showSpaceTypePhoto && !isSupabasePhotoUrl(roomSpaceTypePhotoOnly)
+  const generalPhotos = currentRoomSession?.generalPhotosUpdatedAt
+    ? currentRoomSession.generalPhotos ?? []
+    : legacyPreWalkPhoto
+      ? [legacyPreWalkPhoto]
+      : []
   const photoUploadBase: Pick<SurveyPhotoUploadContext, "campusId" | "schoolId" | "surveyType"> | null =
     state.school
       ? {
@@ -268,7 +270,7 @@ export default function QuestionForm() {
         />
       )}
       <div className="min-w-0 bg-gradient-to-b from-slate-200 to-slate-300/90 px-3 py-5 pb-10">
-      {showSpaceTypePhotoCapture && (
+      {showSpaceTypePhoto && (
         <div className="mb-4 rounded-2xl border border-slate-200/80 bg-white/95 px-4 py-3 shadow-sm">
           <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400">
             General space photo
@@ -277,7 +279,7 @@ export default function QuestionForm() {
           <div className="mt-3 [&>button]:w-full">
             <QuestionPhoto
               key={`space-photo:${state.surveyType}:${spaceType}:${roomId}`}
-              photos={spaceTypePhotoSubmitted ? [] : spaceTypePhoto ? [spaceTypePhoto] : []}
+              photos={generalPhotos}
               maxPhotos={1}
               label="General photo"
               privacyContextNote={`General photo of ${spaceType}.`}
@@ -286,9 +288,7 @@ export default function QuestionForm() {
                   ? { ...photoUploadBase, kind: "prewalk-space-type", spaceType, roomId }
                   : null
               }
-              onChange={(photos) =>
-                setPreWalkSpaceTypePhoto(state.surveyType, spaceType, photos[0], roomId)
-              }
+              onChange={(photos) => setRoomGeneralPhotos(roomId, photos)}
             />
           </div>
         </div>

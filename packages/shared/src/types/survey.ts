@@ -173,6 +173,16 @@ export interface RoomSurveySession {
   traditionalStudioCopyReviewPending?: boolean
   /** Space type marked not present at school/neighborhood — scores as 0 without room questions. */
   spaceTypeMarkedAbsent?: boolean
+  /**
+   * General overview photo of the space, captured during the room survey. Saved and synced
+   * with the answers rather than with pre-walk state, because no photos are taken on the walk.
+   */
+  generalPhotos?: string[]
+  /**
+   * Device clock time of the last general-photo change, so merges resolve it by recency the
+   * same way answers do. Absent on rooms whose general photo still lives in pre-walk state.
+   */
+  generalPhotosUpdatedAt?: string
 }
 
 /** Room → space type assignment from a building walk-through before scoring. */
@@ -188,7 +198,10 @@ export interface PreWalkRoomMapping {
 
 export interface PreWalkState {
   mappings: Record<string, PreWalkRoomMapping>
-  /** General overview photo per survey space type (Supabase URL or local data URL). */
+  /**
+   * Legacy general space photos, from when they were captured against the pre-walk instead of
+   * the room survey. Read-only now: new ones are stored on `RoomSurveySession.generalPhotos`.
+   */
   spaceTypePhotos?: Record<string, string>
   /**
    * Pre-answered “does this space type exist?” keyed by `surveyType::spaceType`.

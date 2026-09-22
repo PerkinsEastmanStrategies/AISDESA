@@ -227,6 +227,15 @@ function collectFromSession(
   schoolClass?: string | null,
 ): void {
   for (const [roomId, roomSession] of Object.entries(session.rooms)) {
+    for (const photo of roomSession.generalPhotos ?? []) {
+      const spaceType = roomSession.roomType?.trim()
+      if (!spaceType) continue
+      const url = resolveSurveyPhotoPublicUrl(
+        { kind: "prewalk-space-type", campusId, schoolId, surveyType, roomId, spaceType },
+        photo,
+      )
+      if (url) addSpaceTypePhotoForRoom(map, { surveyType, roomId, spaceType, url })
+    }
     for (const response of roomSession.responses) {
       const photoUrls = normalizeResponsePhotos(response)
       for (const photo of photoUrls) {

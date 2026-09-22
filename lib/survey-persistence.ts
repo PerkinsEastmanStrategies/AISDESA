@@ -480,7 +480,10 @@ function stripInlinePhotosFromSession(session: SurveySession): SurveySession {
         photoRaw && !isInlineSurveyPhoto(photoRaw) ? photoRaw : photos[0]
       return { ...response, photos, photo }
     })
-    rooms[roomId] = { ...room, responses }
+    const generalPhotos = (room.generalPhotos ?? [])
+      .map((photo) => String(photo ?? "").trim())
+      .filter((photo) => photo.length > 0 && !isInlineSurveyPhoto(photo))
+    rooms[roomId] = { ...room, responses, generalPhotos }
   }
   return { ...session, rooms }
 }
@@ -600,6 +603,7 @@ export function roomAssessmentWeight(room: RoomSurveySession): number {
     count += response.photos?.length ?? 0
     if (response.photo) count += 1
   }
+  count += room.generalPhotos?.length ?? 0
   if (room.gradeType) count += 1
   if (room.deferredToCloseOut) count += 1
   if (room.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(room.roomId)) count += 1
@@ -646,12 +650,37 @@ export function pickNewerResponse(
 
 /** Latest per-answer edit in a room, or "" when this copy predates per-answer stamps. */
 export function roomLastEditedAt(room: RoomSurveySession | null | undefined): string {
-  let latest = ""
+  let latest = room?.generalPhotosUpdatedAt ?? ""
   for (const response of room?.responses ?? []) {
     const at = response.updatedAt ?? ""
     if (at > latest) latest = at
   }
   return latest
+}
+
+/**
+ * Pick one room's general photo, preferring the more recent change so that removing it is
+ * not mistaken for a stale device holding less. Copies with no stamp fall back to whichever
+ * actually has a photo, which keeps pre-stamp drafts from blanking a synced one.
+ */
+export function pickRoomGeneralPhotos(
+  a: RoomSurveySession,
+  b: RoomSurveySession,
+): Pick<RoomSurveySession, "generalPhotos" | "generalPhotosUpdatedAt"> {
+  const aAt = a.generalPhotosUpdatedAt ?? ""
+  const bAt = b.generalPhotosUpdatedAt ?? ""
+  const winner =
+    aAt || bAt
+      ? aAt >= bAt
+        ? a
+        : b
+      : (a.generalPhotos?.length ?? 0) >= (b.generalPhotos?.length ?? 0)
+        ? a
+        : b
+  return {
+    generalPhotos: winner.generalPhotos,
+    generalPhotosUpdatedAt: winner.generalPhotosUpdatedAt,
+  }
 }
 
 /**
@@ -712,9 +741,15 @@ export function mergeSurveySessions(
       const missing = (room.responses ?? []).filter(
         (response) => !answered.has(response.questionId),
       )
-      rooms[roomId] = missing.length
-        ? { ...existing, responses: [...(existing.responses ?? []), ...missing] }
+      // An untouched general photo slot is a gap the snapshot may fill; a recorded one is not.
+      const generalPhotoIsGap =
+        !existing.generalPhotosUpdatedAt && !(existing.generalPhotos?.length ?? 0)
+      const filled = generalPhotoIsGap
+        ? { ...existing, ...pickRoomGeneralPhotos(existing, room) }
         : existing
+      rooms[roomId] = missing.length
+        ? { ...filled, responses: [...(existing.responses ?? []), ...missing] }
+        : filled
       continue
     }
     const existingAt = roomLastEditedAt(existing)
@@ -723,7 +758,10 @@ export function mergeSurveySessions(
       // Neither copy carries per-answer edit times, so keep the legacy size comparison.
       const preferred = roomAssessmentWeight(room) > roomAssessmentWeight(existing) ? room : existing
       const other = preferred === room ? existing : room
-      rooms[roomId] = mergeRoomLinkedPhotos(preferred, other)
+      rooms[roomId] = {
+        ...mergeRoomLinkedPhotos(preferred, other),
+        ...pickRoomGeneralPhotos(preferred, other),
+      }
       continue
     }
     const preferred = roomAt > existingAt ? room : existing
@@ -731,6 +769,7 @@ export function mergeSurveySessions(
     rooms[roomId] = {
       ...preferred,
       responses: mergeResponsesByRecency(preferred.responses, other.responses),
+      ...pickRoomGeneralPhotos(preferred, other),
     }
   }
 
@@ -811,10 +850,13 @@ export function sessionCoversLocalProgress(
       if ((response.photos ?? []).some(Boolean)) return true
       return !!response.photo
     })
+    const localGeneralPhotos = (room.generalPhotos ?? []).filter(Boolean)
     const absent = !!room.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(roomId)
-    if (localAnswers.length === 0 && !absent) continue
+    if (localAnswers.length === 0 && !localGeneralPhotos.length && !absent) continue
     const other = cover.rooms[roomId]
     if (!other) return false
+    const coveredGeneralPhotos = new Set(other.generalPhotos ?? [])
+    if (localGeneralPhotos.some((photo) => !coveredGeneralPhotos.has(photo))) return false
     if (absent) continue
     const remoteIds = new Set((other.responses ?? []).map((response) => response.questionId))
     for (const response of localAnswers) {

@@ -25,6 +25,7 @@ import {
   draftForCloudSync,
   mergeSurveySessions,
   pickNewerResponse,
+  pickRoomGeneralPhotos,
   roomAssessmentWeight,
   roomLastEditedAt,
 } from "@/lib/survey-persistence"
@@ -84,6 +85,9 @@ interface DbSurveyRoom {
   deferred_to_closeout: boolean
   traditional_studio_copied_from_room_id: string | null
   traditional_studio_copy_review_pending: boolean
+  general_photos?: string[]
+  /** Device clock time of the assessor's change. Null on rooms saved before the column. */
+  general_photos_updated_at?: string | null
 }
 
 interface DbQuestionResponse {
@@ -156,6 +160,7 @@ function sessionHasProgress(session: SurveySession): boolean {
   return Object.values(session.rooms).some(
     (room) =>
       room.responses.length > 0 ||
+      (room.generalPhotos?.length ?? 0) > 0 ||
       !!room.gradeType ||
       (room.pendingQuestionIds?.length ?? 0) > 0 ||
       !!room.pendingGrade ||
@@ -288,7 +293,20 @@ function roomToDb(sessionId: string, room: RoomSurveySession): DbSurveyRoom {
     deferred_to_closeout: !!room.deferredToCloseOut,
     traditional_studio_copied_from_room_id: room.traditionalStudioCopiedFromRoomId ?? null,
     traditional_studio_copy_review_pending: !!room.traditionalStudioCopyReviewPending,
+    general_photos: generalPhotosForDb(room),
+    general_photos_updated_at: room.generalPhotosUpdatedAt ?? null,
   }
+}
+
+/** Cloud URLs only — a photo still sitting on the device has nothing to store here yet. */
+function generalPhotosForDb(room: RoomSurveySession): string[] {
+  return [
+    ...new Set(
+      (room.generalPhotos ?? [])
+        .map((photo) => String(photo ?? "").trim())
+        .filter((photo) => photo.length > 0 && !photo.startsWith("data:")),
+    ),
+  ]
 }
 
 function photoUrlsForDb(response: RoomQuestionResponse): string[] {
@@ -328,6 +346,8 @@ function mergeRoomForCloudPush(
   const localType = spaceTypeKey(local.roomType)
   const remoteType = spaceTypeKey(remote.roomType)
   if (localType && remoteType && localType !== remoteType) {
+    // A different space type is a different assessment, so the remote general photo is of
+    // something else and must not follow the answers across.
     return { ...local, roomType: local.roomType, responses: localResponses }
   }
 
@@ -346,6 +366,7 @@ function mergeRoomForCloudPush(
     ...local,
     roomType: local.roomType || remote.roomType,
     responses: [...merged.values()],
+    ...pickRoomGeneralPhotos(local, remote),
   }
 }
 
@@ -393,6 +414,8 @@ function dbRoomToSession(row: DbSurveyRoom, responses: DbQuestionResponse[]): Ro
       updatedAt: r.client_updated_at ?? undefined,
     })),
     spaceTypeMarkedAbsent: isAbsentSpaceTypeRoomId(row.room_id) || undefined,
+    generalPhotos: row.general_photos?.length ? row.general_photos : undefined,
+    generalPhotosUpdatedAt: row.general_photos_updated_at ?? undefined,
   }
 }
 
@@ -684,6 +707,10 @@ export async function pushSurveyDraft(input: {
     const localQuestionIds = new Set((room.responses ?? []).map((response) => response.questionId))
     const remoteQuestionIds = new Set((remoteRoom?.responses ?? []).map((response) => response.questionId))
     const hasUniqueLocalAnswers = [...localQuestionIds].some((id) => !remoteQuestionIds.has(id))
+    const remoteGeneralPhotos = new Set(remoteRoom?.generalPhotos ?? [])
+    const hasUnsyncedGeneralPhoto = (room.generalPhotos ?? []).some(
+      (photo) => !!photo && !remoteGeneralPhotos.has(photo),
+    )
     const localEditedAt = roomLastEditedAt(room)
     const remoteEditedAt = roomLastEditedAt(remoteRoom)
     // Deliberately clearing a note or photo shrinks this copy without making it stale, so
@@ -693,7 +720,13 @@ export async function pushSurveyDraft(input: {
       localEditedAt || remoteEditedAt
         ? remoteEditedAt > localEditedAt
         : remoteWeight > localWeight
-    if (remoteRoom && remoteIsAhead && !typeChanged && !hasUniqueLocalAnswers) {
+    if (
+      remoteRoom &&
+      remoteIsAhead &&
+      !typeChanged &&
+      !hasUniqueLocalAnswers &&
+      !hasUnsyncedGeneralPhoto
+    ) {
       if (localWeight > 0) {
         sameRoomConflicts.push(room.roomNumber || room.roomType || room.roomId)
       }

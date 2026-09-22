@@ -106,7 +106,7 @@ insert into esa_submission_snapshots (
 | Table | Maps to app type | Key fields |
 |-------|------------------|------------|
 | `esa_survey_sessions` | `SurveySession` | `survey_id`, `school_id`, `survey_type`, assessor, `started_at`, `submitted_at`, `final_comment`, `campus_submitted_at` |
-| `esa_survey_rooms` | `RoomSurveySession` | room metadata, closeout/deferral fields, traditional studio copy flags |
+| `esa_survey_rooms` | `RoomSurveySession` | room metadata, closeout/deferral fields, traditional studio copy flags, `general_photos` (text[]) |
 | `esa_question_responses` | `RoomQuestionResponse` | `question_id`, `value` (jsonb), `comment`, `photos` (text[]) |
 | `esa_outdoor_pins` | `OutdoorElementPin` | `element_type`, `lng`, `lat`, `placed_at` |
 
@@ -116,7 +116,7 @@ insert into esa_submission_snapshots (
 |-------|------------------|------------|
 | `esa_prewalk_state` | `PreWalkState` (top) | `completed_at`, `skipped_at` |
 | `esa_prewalk_mappings` | `PreWalkRoomMapping` | `space_type`, `note1`, `note2`, `mapped_at` |
-| `esa_prewalk_photos` | `PreWalkState.spaceTypePhotos` | `storage_path`, `public_url`, room-scoped or school-scoped |
+| `esa_prewalk_photos` | `PreWalkState.spaceTypePhotos` (legacy) | general space photos now live on `esa_survey_rooms.general_photos` |
 | `esa_manual_rooms` | `ParsedPlanRoom` (manual) | rooms not on floor plan SVG |
 
 ### History & admin

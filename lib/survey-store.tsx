@@ -101,6 +101,7 @@ import {
   type AssessorBySurveyType,
   type PersistedSurveyDraft,
 } from "@/lib/survey-persistence"
+import { stripLocalPhotosWhenCloudPresent } from "@/lib/response-photos"
 import { runFieldDataResetIfNeeded } from "@/lib/clear-field-survey-data"
 import { applyQuestionDependencies, isSkippedDependentQuestion } from "@/lib/question-dependencies"
 import {
@@ -162,10 +163,8 @@ import {
   preWalkHasCloudState,
   preWalkMappingKey,
   preWalkRoomIdsForSurvey,
-  preWalkRoomSpaceTypePhotoKey,
   preWalkSpaceTypeExistsKey,
   preWalkSpaceTypeForRoom,
-  preWalkSpaceTypePhotoKey,
   preWalkSurveyAllowsSpaceTypeExists,
   queuePreWalkMappingDeletes,
   reconcileLocalPreWalkWithCloud,
@@ -273,7 +272,7 @@ type Action =
   | { type: "SET_GRADE"; roomId: string; gradeType: string }
   | { type: "SET_NEIGHBORHOOD"; roomId: string; neighborhood: string }
   | { type: "SET_SCHOOL_ROOM_NUMBER"; roomId: string; schoolRoomNumber: string }
-  | { type: "SET_PREWALK_SPACE_TYPE_PHOTO"; surveyType: SurveyType; spaceType: string; roomId?: string; photo?: string }
+  | { type: "SET_ROOM_GENERAL_PHOTOS"; roomId: string; photos: string[] }
   | { type: "SET_PREWALK_MAPPING"; surveyType: SurveyType; roomId: string; spaceType: string }
   | { type: "SET_PREWALK_SPACE_TYPE_EXISTS"; surveyType: SurveyType; spaceType: string; exists: boolean }
   | { type: "UPDATE_PREWALK_NOTES"; surveyType: SurveyType; roomId: string; note1: string; note2: string }
@@ -2105,18 +2104,25 @@ function reducer(state: SurveyState, action: Action): SurveyState {
         },
       }
     }
-    case "SET_PREWALK_SPACE_TYPE_PHOTO": {
-      const photoKey = action.roomId
-        ? preWalkRoomSpaceTypePhotoKey(action.surveyType, action.roomId, action.spaceType)
-        : preWalkSpaceTypePhotoKey(action.surveyType, action.spaceType)
-      const spaceTypePhotos = { ...(state.preWalk.spaceTypePhotos ?? {}) }
-      if (action.photo) spaceTypePhotos[photoKey] = action.photo
-      else delete spaceTypePhotos[photoKey]
+    case "SET_ROOM_GENERAL_PHOTOS": {
+      if (!state.session) return state
+      const existing = state.session.rooms[action.roomId]
+      const base = ensureRoomSession(state, action.roomId, existing)
+      const photos = stripLocalPhotosWhenCloudPresent(action.photos)
+      const changedAt = new Date().toISOString()
       return {
         ...state,
-        preWalk: {
-          ...state.preWalk,
-          spaceTypePhotos,
+        session: {
+          ...state.session,
+          updatedAt: changedAt,
+          rooms: {
+            ...state.session.rooms,
+            [action.roomId]: {
+              ...base,
+              generalPhotos: photos,
+              generalPhotosUpdatedAt: changedAt,
+            },
+          },
         },
       }
     }
@@ -2840,12 +2846,8 @@ interface SurveyContextValue {
   setGrade: (roomId: string, grade: string) => void
   setNeighborhood: (roomId: string, neighborhood: string) => void
   setSchoolRoomNumber: (roomId: string, schoolRoomNumber: string) => void
-  setPreWalkSpaceTypePhoto: (
-    surveyType: SurveyType,
-    spaceType: string,
-    photo: string | undefined,
-    roomId?: string,
-  ) => void
+  /** General overview photo of the space, saved with the room's answers. */
+  setRoomGeneralPhotos: (roomId: string, photos: string[]) => void
   setPreWalkMapping: (surveyType: SurveyType, roomId: string, spaceType: string) => void
   setPreWalkSpaceTypeExists: (surveyType: SurveyType, spaceType: string, exists: boolean) => void
   updatePreWalkNotes: (surveyType: SurveyType, roomId: string, note1: string, note2: string) => void
@@ -4471,9 +4473,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       dispatch({ type: "SET_SCHOOL_ROOM_NUMBER", roomId, schoolRoomNumber }),
     [],
   )
-  const setPreWalkSpaceTypePhoto = useCallback(
-    (surveyType: SurveyType, spaceType: string, photo: string | undefined, roomId?: string) =>
-      dispatch({ type: "SET_PREWALK_SPACE_TYPE_PHOTO", surveyType, spaceType, roomId, photo }),
+  const setRoomGeneralPhotos = useCallback(
+    (roomId: string, photos: string[]) =>
+      dispatch({ type: "SET_ROOM_GENERAL_PHOTOS", roomId, photos }),
     [],
   )
   const setPreWalkMapping = useCallback(
@@ -4913,7 +4915,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         setSchoolRoomNumber,
         setPreWalkMapping,
         setPreWalkSpaceTypeExists,
-        setPreWalkSpaceTypePhoto,
+        setRoomGeneralPhotos,
         updatePreWalkNotes,
         removePreWalkMapping,
         clearPreWalkMappingsForSurvey,

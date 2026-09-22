@@ -92,15 +92,14 @@ function formatAnswer(value: RoomQuestionResponse["value"] | undefined): string 
   return Array.isArray(canonical) ? canonical.join("; ") : canonical
 }
 
-function formatPhotos(response: RoomQuestionResponse | undefined): string {
-  const photos = normalizeResponsePhotos(response)
-  if (photos.length === 0) return ""
+function formatPhotoUrls(photos: string[]): string {
   return photos
-    .map((photo) => {
-      if (photo.startsWith("data:")) return "[photo on this device — not uploaded]"
-      return photo
-    })
+    .map((photo) => (photo.startsWith("data:") ? "[photo on this device — not uploaded]" : photo))
     .join("; ")
+}
+
+function formatPhotos(response: RoomQuestionResponse | undefined): string {
+  return formatPhotoUrls(normalizeResponsePhotos(response))
 }
 
 function safeFilenamePart(value: string): string {
@@ -161,6 +160,8 @@ function roomFields(room: RoomSurveySession, allRooms: ParsedPlanRoom[] | undefi
     source_survey: room.sourceSurveyType ?? "",
     prewalk_note1: room.preWalkNote1 ?? "",
     prewalk_note2: room.preWalkNote2 ?? "",
+    // Answer rows overwrite this with their own photos; only the room row keeps it.
+    photo_urls: formatPhotoUrls(room.generalPhotos ?? []),
   }
 }
 
