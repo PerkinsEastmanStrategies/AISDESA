@@ -541,7 +541,35 @@ async function deleteStaleQuestionResponses(
   }
 }
 
-async function upsertRoomsAndResponses(sessionId: string, rooms: RoomSurveySession[]): Promise<void> {
+const RESPONSE_DELETE_CHUNK = 40
+
+async function deleteQuestionResponsesByIds(
+  sessionId: string,
+  roomId: string,
+  questionIds: string[],
+): Promise<void> {
+  const unique = [...new Set(questionIds.filter(Boolean))]
+  for (let i = 0; i < unique.length; i += RESPONSE_DELETE_CHUNK) {
+    await supabaseRestDelete(
+      "esa_question_responses",
+      `survey_session_id=eq.${encodeURIComponent(sessionId)}&room_id=eq.${encodeURIComponent(roomId)}&${restInFilter(
+        "question_id",
+        unique.slice(i, i + RESPONSE_DELETE_CHUNK),
+      )}`,
+    )
+  }
+}
+
+/**
+ * @param staleResponseIdsByRoom Answers the push already knows are obsolete, from the
+ * remote rooms it read before merging. Passing this skips a per-room lookup that costs
+ * one request per room on every save; null falls back to reading the remote state here.
+ */
+async function upsertRoomsAndResponses(
+  sessionId: string,
+  rooms: RoomSurveySession[],
+  staleResponseIdsByRoom: Map<string, string[]> | null,
+): Promise<void> {
   if (rooms.length === 0) return
   for (let i = 0; i < rooms.length; i += 80) {
     const chunk = rooms.slice(i, i + 80)
@@ -564,11 +592,16 @@ async function upsertRoomsAndResponses(sessionId: string, rooms: RoomSurveySessi
     }
     for (const room of chunk) {
       try {
-        await deleteStaleQuestionResponses(
-          sessionId,
-          room.roomId,
-          room.responses.map((response) => response.questionId),
-        )
+        if (staleResponseIdsByRoom) {
+          const stale = staleResponseIdsByRoom.get(room.roomId)
+          if (stale?.length) await deleteQuestionResponsesByIds(sessionId, room.roomId, stale)
+        } else {
+          await deleteStaleQuestionResponses(
+            sessionId,
+            room.roomId,
+            room.responses.map((response) => response.questionId),
+          )
+        }
       } catch {
         // Answers are already upserted; leftover stale rows must not fail Save.
       }
@@ -593,6 +626,9 @@ export async function pushSurveyDraft(input: {
 
   let existingSession: DbSurveySession | undefined
   let remoteRooms: Record<string, RoomSurveySession> = {}
+  // True once remoteRooms reflects the real cloud state. Obsolete answers can then be
+  // derived below instead of re-read once per room while writing.
+  let remoteRoomsKnown = false
   try {
     const remoteRows = await supabaseRestSelect<DbSurveySession>(
       "esa_survey_sessions",
@@ -606,10 +642,14 @@ export async function pushSurveyDraft(input: {
           includeSnapshots: false,
         }))[0] ?? null
       remoteRooms = existingDraft?.session.rooms ?? {}
+      remoteRoomsKnown = !!existingDraft
+    } else {
+      remoteRoomsKnown = true
     }
   } catch {
     existingSession = undefined
     remoteRooms = {}
+    remoteRoomsKnown = false
   }
 
   const ownedRoomIds = draft.ownedRoomIds
@@ -619,6 +659,7 @@ export async function pushSurveyDraft(input: {
 
   const roomsToUpsert: RoomSurveySession[] = []
   const sameRoomConflicts: string[] = []
+  const staleResponseIdsByRoom = new Map<string, string[]>()
   for (const room of candidateRooms) {
     const remoteRoom = remoteRooms[room.roomId]
     const merged = mergeRoomForCloudPush(room, remoteRoom)
@@ -638,6 +679,17 @@ export async function pushSurveyDraft(input: {
       continue
     }
     roomsToUpsert.push(merged)
+    if (remoteRoomsKnown) {
+      // The merge keeps every remote answer unless the space type changed, so this is
+      // normally empty and no delete is issued at all.
+      const keptIds = new Set((merged.responses ?? []).map((response) => response.questionId))
+      staleResponseIdsByRoom.set(
+        room.roomId,
+        (remoteRoom?.responses ?? [])
+          .map((response) => response.questionId)
+          .filter((questionId) => !keptIds.has(questionId)),
+      )
+    }
   }
 
   const upsertedRoomIds = new Set(roomsToUpsert.map((room) => room.roomId))
@@ -703,10 +755,11 @@ export async function pushSurveyDraft(input: {
     throw new Error("Survey session was written but no session id was returned")
   }
 
+  const staleResponses = remoteRoomsKnown ? staleResponseIdsByRoom : null
   try {
-    await upsertRoomsAndResponses(sessionId, roomsToUpsert)
+    await upsertRoomsAndResponses(sessionId, roomsToUpsert, staleResponses)
   } catch {
-    await upsertRoomsAndResponses(sessionId, roomsToUpsert)
+    await upsertRoomsAndResponses(sessionId, roomsToUpsert, staleResponses)
   }
 
   try {
