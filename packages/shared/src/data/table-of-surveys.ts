@@ -156,8 +156,6 @@ export const TABLE_OF_SURVEY_ENTRIES: TableOfSurveyEntry[] = [
   { surveyFocus: "Outdoor", surveyType: "outdoor", spaceType: "Outdoor Athletics", spaceTypeRaw: "Outdoor Athletics", schoolLevel: "HS", required: true, minimumSurveyCount: 1, scoringFocusLabel: "Athletics and Wellness", scoringFocusAreaId: "athletics_wellness", spaceTypeWeight: 12, focusAreaWeight: 9, scoreCode: "OA" },
   { surveyFocus: "Neighborhoods", surveyType: "neighborhoods", spaceType: "Large Group Room", spaceTypeRaw: "Large Group Room", schoolLevel: "MS", required: false, minimumSurveyCount: 0, scoringFocusLabel: "Neighborhoods", scoringFocusAreaId: "neighborhoods", spaceTypeWeight: 3, focusAreaWeight: 9, scoreCode: "LG" },
   { surveyFocus: "Neighborhoods", surveyType: "neighborhoods", spaceType: "Large Group Room", spaceTypeRaw: "Large Group Room", schoolLevel: "HS", required: true, minimumSurveyCount: 8, scoringFocusLabel: "Neighborhoods", scoringFocusAreaId: "neighborhoods", spaceTypeWeight: 9, focusAreaWeight: 9, scoreCode: "LG" },
-  { surveyFocus: "Special Education", surveyType: "studios", spaceType: "Life Skills Studio", spaceTypeRaw: "Life Skills Studio", schoolLevel: "MS", required: true, minimumSurveyCount: 1, scoringFocusLabel: "Special education", scoringFocusAreaId: "special_education", spaceTypeWeight: 12, focusAreaWeight: 12, scoreCode: "LS" },
-  { surveyFocus: "Special Education", surveyType: "studios", spaceType: "Life Skills Studio", spaceTypeRaw: "Life Skills Studio", schoolLevel: "HS", required: true, minimumSurveyCount: 1, scoringFocusLabel: "Special education", scoringFocusAreaId: "special_education", spaceTypeWeight: 12, focusAreaWeight: 12, scoreCode: "LS" },
 ]
 
 export const SCORING_FOCUS_AREAS_FROM_TABLE: ScoringFocusAreaDef[] = [
