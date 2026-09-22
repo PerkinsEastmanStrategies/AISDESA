@@ -82,6 +82,12 @@ export interface RoomQuestionResponse {
   photo?: string
   /** Supabase public URLs or local data URLs — optional field photos */
   photos?: string[]
+  /**
+   * Device clock time of the last edit to this answer. Merges keep the newer copy so that
+   * clearing a note or a photo is not mistaken for a stale device holding less data.
+   * Absent on answers saved before this field existed; those still resolve by size.
+   */
+  updatedAt?: string
 }
 
 export type GradeType = "PK" | "K" | "1" | "2" | "3" | "4" | "5" | "MS" | "HS"

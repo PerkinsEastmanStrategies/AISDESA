@@ -5,6 +5,7 @@ import type {
   SurveyType,
   AssessorInfo,
   ParsedPlanRoom,
+  RoomQuestionResponse,
   RoomSurveySession,
   PreWalkState,
 } from "@aisd/shared"
@@ -621,15 +622,73 @@ export function sessionAssessmentWeight(session: SurveySession | null | undefine
   return count
 }
 
+function responseContentWeight(response: RoomQuestionResponse): number {
+  let count = 1
+  if (response.comment?.trim()) count += 1
+  count += response.photos?.length ?? 0
+  if (response.photo) count += 1
+  return count
+}
+
+/**
+ * Keep the newer edit of one answer. Size only decides between two answers that both
+ * predate `updatedAt`, because a removal makes a copy smaller rather than older.
+ */
+export function pickNewerResponse(
+  a: RoomQuestionResponse,
+  b: RoomQuestionResponse,
+): RoomQuestionResponse {
+  const aAt = a.updatedAt ?? ""
+  const bAt = b.updatedAt ?? ""
+  if (aAt || bAt) return aAt >= bAt ? a : b
+  return responseContentWeight(a) >= responseContentWeight(b) ? a : b
+}
+
+/** Latest per-answer edit in a room, or "" when this copy predates per-answer stamps. */
+export function roomLastEditedAt(room: RoomSurveySession | null | undefined): string {
+  let latest = ""
+  for (const response of room?.responses ?? []) {
+    const at = response.updatedAt ?? ""
+    if (at > latest) latest = at
+  }
+  return latest
+}
+
+/**
+ * Union both copies' answers, keeping the newer copy of any answer present in both, so
+ * two assessors editing different questions in one room both keep their work.
+ */
+export function mergeResponsesByRecency(
+  primary: RoomQuestionResponse[] | undefined,
+  secondary: RoomQuestionResponse[] | undefined,
+): RoomQuestionResponse[] {
+  const merged = new Map<string, RoomQuestionResponse>()
+  for (const response of secondary ?? []) merged.set(response.questionId, response)
+  for (const response of primary ?? []) {
+    const other = merged.get(response.questionId)
+    merged.set(response.questionId, other ? pickNewerResponse(response, other) : response)
+  }
+  return [...merged.values()]
+}
+
 /**
  * Combine two sessions without dropping completed rooms or "does not exist" answers.
- * Rooms are unioned. The richer copy of the same room wins. Discarded rooms stay gone.
+ * Rooms are unioned. The more recently edited copy of the same room wins, falling back to
+ * the richer copy when neither has per-answer edit times. Discarded rooms stay gone.
  */
 export function mergeSurveySessions(
   local: SurveySession,
   remote: SurveySession,
   localNewer: boolean,
-  options?: { includeOtherOnlyRooms?: boolean; excludeRoomIds?: string[] },
+  options?: {
+    includeOtherOnlyRooms?: boolean
+    excludeRoomIds?: string[]
+    /**
+     * Only add answers the primary copy is missing, never replace one it already has.
+     * Lets an old submission snapshot repair gaps without undoing later edits.
+     */
+    fillGapsOnly?: boolean
+  },
 ): SurveySession {
   const primary = localNewer ? local : remote
   const secondary = localNewer ? remote : local
@@ -648,9 +707,31 @@ export function mergeSurveySessions(
       if (allowSecondaryOnly && roomHasAssessmentProgress(room)) rooms[roomId] = room
       continue
     }
-    const preferred = roomAssessmentWeight(room) > roomAssessmentWeight(existing) ? room : existing
+    if (options?.fillGapsOnly) {
+      const answered = new Set((existing.responses ?? []).map((response) => response.questionId))
+      const missing = (room.responses ?? []).filter(
+        (response) => !answered.has(response.questionId),
+      )
+      rooms[roomId] = missing.length
+        ? { ...existing, responses: [...(existing.responses ?? []), ...missing] }
+        : existing
+      continue
+    }
+    const existingAt = roomLastEditedAt(existing)
+    const roomAt = roomLastEditedAt(room)
+    if (!existingAt && !roomAt) {
+      // Neither copy carries per-answer edit times, so keep the legacy size comparison.
+      const preferred = roomAssessmentWeight(room) > roomAssessmentWeight(existing) ? room : existing
+      const other = preferred === room ? existing : room
+      rooms[roomId] = mergeRoomLinkedPhotos(preferred, other)
+      continue
+    }
+    const preferred = roomAt > existingAt ? room : existing
     const other = preferred === room ? existing : room
-    rooms[roomId] = mergeRoomLinkedPhotos(preferred, other)
+    rooms[roomId] = {
+      ...preferred,
+      responses: mergeResponsesByRecency(preferred.responses, other.responses),
+    }
   }
 
   const spaceTypeExistsAtSchool = {

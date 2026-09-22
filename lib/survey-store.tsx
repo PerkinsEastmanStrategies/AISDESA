@@ -2458,10 +2458,20 @@ function reducer(state: SurveyState, action: Action): SurveyState {
               value: asMultiSelectValues(action.response.value),
             }
           : action.response
+      const editedAt = new Date().toISOString()
+      const previousById = new Map(
+        base.responses.map((response) => [response.questionId, response]),
+      )
+      // applyQuestionDependencies reuses untouched answers and builds new objects for the
+      // edited and auto-answered ones, so reference identity marks exactly what changed.
       const responses = applyQuestionDependencies(
         base.responses,
         normalizedResponse,
         rubric?.questions,
+      ).map((response) =>
+        response === previousById.get(response.questionId)
+          ? response
+          : { ...response, updatedAt: editedAt },
       )
       let nextRoom: RoomSurveySession = { ...base, responses }
       if (state.surveyType !== "closeout" && rubric && (base.deferredQuestionIds?.length ?? 0) > 0) {

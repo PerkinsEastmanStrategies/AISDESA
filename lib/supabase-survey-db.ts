@@ -24,7 +24,9 @@ import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
 import {
   draftForCloudSync,
   mergeSurveySessions,
+  pickNewerResponse,
   roomAssessmentWeight,
+  roomLastEditedAt,
 } from "@/lib/survey-persistence"
 import { cloneDraftWithCompatibleAnswers, mergeLinkedPhotosIntoDestDraft } from "@/lib/remap-compatible-survey-answers"
 import { sessionHasRegisteredAssessor } from "@/lib/assessor"
@@ -91,6 +93,8 @@ interface DbQuestionResponse {
   value: unknown
   comment: string | null
   photos: string[]
+  /** Device clock time of the assessor's edit. Null on answers saved before the column. */
+  client_updated_at?: string | null
 }
 
 interface DbOutdoorPin {
@@ -330,7 +334,13 @@ function mergeRoomForCloudPush(
   const merged = new Map(
     dedupeRoomResponses(remote.responses ?? []).map((response) => [response.questionId, response]),
   )
-  for (const response of localResponses) merged.set(response.questionId, response)
+  for (const response of localResponses) {
+    const remoteResponse = merged.get(response.questionId)
+    merged.set(
+      response.questionId,
+      remoteResponse ? pickNewerResponse(response, remoteResponse) : response,
+    )
+  }
   return {
     ...remote,
     ...local,
@@ -351,6 +361,7 @@ function responseToDb(
     value: response.value ?? null,
     comment: response.comment ?? null,
     photos: photoUrlsForDb(response),
+    client_updated_at: response.updatedAt ?? null,
   }
 }
 
@@ -379,6 +390,7 @@ function dbRoomToSession(row: DbSurveyRoom, responses: DbQuestionResponse[]): Ro
       value: r.value as string | string[],
       comment: r.comment ?? undefined,
       photos: r.photos ?? undefined,
+      updatedAt: r.client_updated_at ?? undefined,
     })),
     spaceTypeMarkedAbsent: isAbsentSpaceTypeRoomId(row.room_id) || undefined,
   }
@@ -672,7 +684,16 @@ export async function pushSurveyDraft(input: {
     const localQuestionIds = new Set((room.responses ?? []).map((response) => response.questionId))
     const remoteQuestionIds = new Set((remoteRoom?.responses ?? []).map((response) => response.questionId))
     const hasUniqueLocalAnswers = [...localQuestionIds].some((id) => !remoteQuestionIds.has(id))
-    if (remoteRoom && remoteWeight > localWeight && !typeChanged && !hasUniqueLocalAnswers) {
+    const localEditedAt = roomLastEditedAt(room)
+    const remoteEditedAt = roomLastEditedAt(remoteRoom)
+    // Deliberately clearing a note or photo shrinks this copy without making it stale, so
+    // defer to the cloud only when it was genuinely edited later. Rooms with no per-answer
+    // edit times on either side keep the legacy size comparison.
+    const remoteIsAhead =
+      localEditedAt || remoteEditedAt
+        ? remoteEditedAt > localEditedAt
+        : remoteWeight > localWeight
+    if (remoteRoom && remoteIsAhead && !typeChanged && !hasUniqueLocalAnswers) {
       if (localWeight > 0) {
         sameRoomConflicts.push(room.roomNumber || room.roomType || room.roomId)
       }
@@ -1021,6 +1042,8 @@ function buildDraftFromSessionRow(
     // Some older saves wrote a complete JSON snapshot but only part of the
     // normalized response rows. Restore richer answers for rooms that still
     // exist without resurrecting rooms deliberately removed after submission.
+    // Gaps only: the snapshot predates every later edit, so letting it replace a
+    // live answer would undo edits that cleared a note or a photo.
     surveySession = mergeSurveySessions(
       surveySession,
       {
@@ -1029,7 +1052,7 @@ function buildDraftFromSessionRow(
         completionSemanticsVersion: 1,
       },
       true,
-      { includeOtherOnlyRooms: false },
+      { includeOtherOnlyRooms: false, fillGapsOnly: true },
     )
     surveySession.moduleCompletedAt = moduleCompletedAt
     surveySession.completionSemanticsVersion = 1
