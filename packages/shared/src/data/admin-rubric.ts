@@ -230,7 +230,7 @@ export const ADMIN_OFFICE_QUESTIONS: (EsaQuestion & {
     assessmentArea: "Administration",
     category: "Function",
     subcategory: "Adjacency and Access",
-    question: "Select all that apply (proximity to collaboration space or group room)",
+    question: "Which of the following spaces is the office in close proximity to?",
     questionType: "MultiSelect",
     weight: 12,
     required: true,

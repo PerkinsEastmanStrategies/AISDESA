@@ -277,7 +277,7 @@ export const MULTIPURPOSE_GYM_QUESTIONS: (EsaQuestion & {
     required: true,
     gradeApplicability: "MS+HS",
     parentScoringPattern: "RecordedOnly",
-    context: "MultiSelect (Y/N/DNA/UTA per item)",
+    context: "",
   },
 ]
 
@@ -1474,7 +1474,7 @@ export const COMPETITION_GYM_QUESTIONS: (EsaQuestion & {
     required: true,
     gradeApplicability: "HS",
     parentScoringPattern: "RecordedOnly",
-    context: "MultiSelect (Y/N/DNA/UTA per item)",
+    context: "",
   },
 ]
 
@@ -2651,12 +2651,12 @@ export const PRACTICE_GYM_QUESTIONS: (EsaQuestion & {
     category: "Function",
     subcategory: "Availability",
     question: "Are flexible spaces available to support daily PE classes, athletic team practices, and competitive events for all sports? (check all that apply)",
-    questionType: "SingleSelect",
+    questionType: "MultiSelect",
     weight: 0,
     required: true,
     gradeApplicability: "MS",
     parentScoringPattern: "RecordedOnly",
-    context: "MultiSelect (Y/N/DNA/UTA per item)",
+    context: "",
   },
 ]
 

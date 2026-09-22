@@ -1804,7 +1804,7 @@ export const MAIN_ADMIN_SUITE_QUESTIONS: (EsaQuestion & {
     questionType: "SingleSelect",
     weight: 12,
     required: true,
-    gradeApplicability: "ALL",
+    gradeApplicability: "HS",
     parentScoringPattern: "SingleResponse",
     context: "",
   },
