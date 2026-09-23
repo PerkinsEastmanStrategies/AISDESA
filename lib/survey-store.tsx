@@ -3403,7 +3403,12 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
                   draft.schoolId === latest.school!.id && draft.surveyType === latest.surveyType,
               )
             : undefined
-        if (latest.school && liveDraft) {
+        // Reseating identical answers still hands the reducer a new session object, which
+        // the autosave effect reads as a change and saves, which schedules another sync a
+        // few seconds later. Skipping the no-op keeps that from running all day.
+        const restoreChangesAnswers =
+          JSON.stringify(liveDraft?.session ?? null) !== JSON.stringify(latest.session ?? null)
+        if (latest.school && liveDraft && restoreChangesAnswers) {
           dispatch({
             type: "RESTORE",
             school: latest.school,

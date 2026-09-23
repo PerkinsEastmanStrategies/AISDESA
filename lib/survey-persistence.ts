@@ -599,6 +599,9 @@ function submittedRoomCount(draft: PersistedSurveyDraft | null | undefined): num
 export function roomAssessmentWeight(room: RoomSurveySession): number {
   let count = room.responses?.length ?? 0
   for (const response of room.responses ?? []) {
+    // Selected options count, so adding one to an answer the room already has makes this
+    // copy heavier. Without that, picking a second option left the room's size unchanged.
+    count += answerValueWeight(response.value)
     if (response.comment?.trim()) count += 1
     count += response.photos?.length ?? 0
     if (response.photo) count += 1
@@ -626,8 +629,19 @@ export function sessionAssessmentWeight(session: SurveySession | null | undefine
   return count
 }
 
+/** The chosen options, as one entry per selection regardless of how the answer is stored. */
+function answerValueTokens(value: RoomQuestionResponse["value"]): string[] {
+  const entries = Array.isArray(value) ? value : [value]
+  return entries.map((entry) => String(entry ?? "").trim()).filter(Boolean)
+}
+
+/** Selected options, or 1 for a filled single answer. An unanswered question weighs nothing. */
+function answerValueWeight(value: RoomQuestionResponse["value"]): number {
+  return answerValueTokens(value).length
+}
+
 function responseContentWeight(response: RoomQuestionResponse): number {
-  let count = 1
+  let count = answerValueWeight(response.value)
   if (response.comment?.trim()) count += 1
   count += response.photos?.length ?? 0
   if (response.photo) count += 1
@@ -635,48 +649,67 @@ function responseContentWeight(response: RoomQuestionResponse): number {
 }
 
 /**
- * Keep the newer edit of one answer. Size only decides between two answers that both
- * predate `updatedAt`, because a removal makes a copy smaller rather than older.
+ * Edit time as epoch ms, or 0 when absent. Parsed rather than string-compared because the
+ * device writes "...Z" while the same instant read back from Postgres is "...+00:00", and
+ * those two sort against each other by punctuation instead of by time.
  */
-export function pickNewerResponse(
-  a: RoomQuestionResponse,
-  b: RoomQuestionResponse,
-): RoomQuestionResponse {
-  const aAt = a.updatedAt ?? ""
-  const bAt = b.updatedAt ?? ""
-  if (aAt || bAt) return aAt >= bAt ? a : b
-  return responseContentWeight(a) >= responseContentWeight(b) ? a : b
+function editedAtMs(value: string | undefined): number {
+  if (!value) return 0
+  const ms = Date.parse(value)
+  return Number.isFinite(ms) ? ms : 0
 }
 
-/** Latest per-answer edit in a room, or "" when this copy predates per-answer stamps. */
-export function roomLastEditedAt(room: RoomSurveySession | null | undefined): string {
-  let latest = room?.generalPhotosUpdatedAt ?? ""
+/**
+ * Resolve one answer held by both this device and the cloud.
+ *
+ * The cloud only wins when it is provably newer, meaning both copies carry an edit time.
+ * Carrying a timestamp is not itself evidence of being newer: answers saved before edit
+ * times existed, or by a device still running an older build, have none, and treating the
+ * stamped side as the winner silently discards whatever the assessor just did.
+ *
+ * With no proof either way, keep the copy on this device — it is what the assessor is
+ * looking at — unless it holds nothing at all and the cloud does.
+ */
+export function pickSurvivingResponse(
+  local: RoomQuestionResponse,
+  remote: RoomQuestionResponse,
+): RoomQuestionResponse {
+  const localAt = editedAtMs(local.updatedAt)
+  const remoteAt = editedAtMs(remote.updatedAt)
+  if (localAt && remoteAt) return remoteAt > localAt ? remote : local
+  if (responseContentWeight(local) === 0 && responseContentWeight(remote) > 0) return remote
+  return local
+}
+
+/** Latest per-answer edit in a room as epoch ms, or 0 when this copy carries no edit times. */
+export function roomLastEditedAt(room: RoomSurveySession | null | undefined): number {
+  let latest = editedAtMs(room?.generalPhotosUpdatedAt)
   for (const response of room?.responses ?? []) {
-    const at = response.updatedAt ?? ""
+    const at = editedAtMs(response.updatedAt)
     if (at > latest) latest = at
   }
   return latest
 }
 
 /**
- * Pick one room's general photo, preferring the more recent change so that removing it is
- * not mistaken for a stale device holding less. Copies with no stamp fall back to whichever
- * actually has a photo, which keeps pre-stamp drafts from blanking a synced one.
+ * Pick one room's general photo. Like an answer, the cloud copy only wins when both sides
+ * carry a change time, so removing a photo is not mistaken for a stale device holding less.
+ * Without that proof this device keeps its copy unless it has no photo and the cloud does.
  */
 export function pickRoomGeneralPhotos(
-  a: RoomSurveySession,
-  b: RoomSurveySession,
+  local: RoomSurveySession,
+  remote: RoomSurveySession,
 ): Pick<RoomSurveySession, "generalPhotos" | "generalPhotosUpdatedAt"> {
-  const aAt = a.generalPhotosUpdatedAt ?? ""
-  const bAt = b.generalPhotosUpdatedAt ?? ""
+  const localAt = editedAtMs(local.generalPhotosUpdatedAt)
+  const remoteAt = editedAtMs(remote.generalPhotosUpdatedAt)
   const winner =
-    aAt || bAt
-      ? aAt >= bAt
-        ? a
-        : b
-      : (a.generalPhotos?.length ?? 0) >= (b.generalPhotos?.length ?? 0)
-        ? a
-        : b
+    localAt && remoteAt
+      ? remoteAt > localAt
+        ? remote
+        : local
+      : (local.generalPhotos?.length ?? 0) === 0 && (remote.generalPhotos?.length ?? 0) > 0
+        ? remote
+        : local
   return {
     generalPhotos: winner.generalPhotos,
     generalPhotosUpdatedAt: winner.generalPhotosUpdatedAt,
@@ -684,18 +717,18 @@ export function pickRoomGeneralPhotos(
 }
 
 /**
- * Union both copies' answers, keeping the newer copy of any answer present in both, so
- * two assessors editing different questions in one room both keep their work.
+ * Union both copies' answers, resolving any question they both hold, so two assessors
+ * editing different questions in one room each keep their work.
  */
-export function mergeResponsesByRecency(
-  primary: RoomQuestionResponse[] | undefined,
-  secondary: RoomQuestionResponse[] | undefined,
+export function mergeRoomResponses(
+  local: RoomQuestionResponse[] | undefined,
+  remote: RoomQuestionResponse[] | undefined,
 ): RoomQuestionResponse[] {
   const merged = new Map<string, RoomQuestionResponse>()
-  for (const response of secondary ?? []) merged.set(response.questionId, response)
-  for (const response of primary ?? []) {
+  for (const response of remote ?? []) merged.set(response.questionId, response)
+  for (const response of local ?? []) {
     const other = merged.get(response.questionId)
-    merged.set(response.questionId, other ? pickNewerResponse(response, other) : response)
+    merged.set(response.questionId, other ? pickSurvivingResponse(response, other) : response)
   }
   return [...merged.values()]
 }
@@ -752,25 +785,30 @@ export function mergeSurveySessions(
         : filled
       continue
     }
+    // Room fields other than the answers (space type, grade, deferral) come from whichever
+    // copy was edited last, falling back to the larger one when neither carries edit times.
     const existingAt = roomLastEditedAt(existing)
     const roomAt = roomLastEditedAt(room)
-    if (!existingAt && !roomAt) {
-      // Neither copy carries per-answer edit times, so keep the legacy size comparison.
-      const preferred = roomAssessmentWeight(room) > roomAssessmentWeight(existing) ? room : existing
-      const other = preferred === room ? existing : room
-      rooms[roomId] = {
-        ...mergeRoomLinkedPhotos(preferred, other),
-        ...pickRoomGeneralPhotos(preferred, other),
-      }
-      continue
-    }
-    const preferred = roomAt > existingAt ? room : existing
+    const preferred =
+      existingAt || roomAt
+        ? roomAt > existingAt
+          ? room
+          : existing
+        : roomAssessmentWeight(room) > roomAssessmentWeight(existing)
+          ? room
+          : existing
     const other = preferred === room ? existing : room
-    rooms[roomId] = {
+
+    // Answers resolve per question against this device's copy specifically, not against
+    // whichever copy won above, so a cloud row never replaces a local edit by default.
+    const localRoom = local.rooms[roomId] ?? existing
+    const remoteRoom = remote.rooms[roomId] ?? existing
+    const withAnswers: RoomSurveySession = {
       ...preferred,
-      responses: mergeResponsesByRecency(preferred.responses, other.responses),
-      ...pickRoomGeneralPhotos(preferred, other),
+      responses: mergeRoomResponses(localRoom.responses, remoteRoom.responses),
+      ...pickRoomGeneralPhotos(localRoom, remoteRoom),
     }
+    rooms[roomId] = mergeRoomLinkedPhotos(withAnswers, other)
   }
 
   const spaceTypeExistsAtSchool = {
@@ -858,9 +896,14 @@ export function sessionCoversLocalProgress(
     const coveredGeneralPhotos = new Set(other.generalPhotos ?? [])
     if (localGeneralPhotos.some((photo) => !coveredGeneralPhotos.has(photo))) return false
     if (absent) continue
-    const remoteIds = new Set((other.responses ?? []).map((response) => response.questionId))
+    const covered = new Map((other.responses ?? []).map((response) => [response.questionId, response]))
     for (const response of localAnswers) {
-      if (!remoteIds.has(response.questionId)) return false
+      const match = covered.get(response.questionId)
+      if (!match) return false
+      // The question being present is not enough: a second option picked on a multi-select
+      // leaves the question id unchanged, so only the values show whether it actually landed.
+      const coveredValues = new Set(answerValueTokens(match.value))
+      if (answerValueTokens(response.value).some((entry) => !coveredValues.has(entry))) return false
     }
   }
   for (const [key, exists] of Object.entries(local.spaceTypeExistsAtSchool ?? {})) {

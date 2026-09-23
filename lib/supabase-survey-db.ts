@@ -24,8 +24,8 @@ import type { PersistedSurveyDraft } from "@/lib/survey-persistence"
 import {
   draftForCloudSync,
   mergeSurveySessions,
-  pickNewerResponse,
   pickRoomGeneralPhotos,
+  pickSurvivingResponse,
   roomAssessmentWeight,
   roomLastEditedAt,
 } from "@/lib/survey-persistence"
@@ -358,7 +358,7 @@ function mergeRoomForCloudPush(
     const remoteResponse = merged.get(response.questionId)
     merged.set(
       response.questionId,
-      remoteResponse ? pickNewerResponse(response, remoteResponse) : response,
+      remoteResponse ? pickSurvivingResponse(response, remoteResponse) : response,
     )
   }
   return {
@@ -714,10 +714,11 @@ export async function pushSurveyDraft(input: {
     const localEditedAt = roomLastEditedAt(room)
     const remoteEditedAt = roomLastEditedAt(remoteRoom)
     // Deliberately clearing a note or photo shrinks this copy without making it stale, so
-    // defer to the cloud only when it was genuinely edited later. Rooms with no per-answer
-    // edit times on either side keep the legacy size comparison.
+    // defer to the cloud only when it was genuinely edited later. That needs edit times on
+    // both sides: a stamp on the cloud alone says the other device runs a newer build, not
+    // that its answers are newer. Otherwise fall back to comparing size.
     const remoteIsAhead =
-      localEditedAt || remoteEditedAt
+      localEditedAt && remoteEditedAt
         ? remoteEditedAt > localEditedAt
         : remoteWeight > localWeight
     if (
