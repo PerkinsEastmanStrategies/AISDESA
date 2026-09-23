@@ -805,6 +805,10 @@ export function mergeSurveySessions(
     const remoteRoom = remote.rooms[roomId] ?? existing
     const withAnswers: RoomSurveySession = {
       ...preferred,
+      // A blank space type is missing information, not a decision to clear one, and it
+      // picks the questions: an empty type falls back to the generic studios rubric, so
+      // letting it win flashes an older question set until the next sync puts it back.
+      roomType: preferred.roomType || other.roomType,
       responses: mergeRoomResponses(localRoom.responses, remoteRoom.responses),
       ...pickRoomGeneralPhotos(localRoom, remoteRoom),
     }
