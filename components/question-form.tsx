@@ -144,9 +144,23 @@ export default function QuestionForm() {
   } = useSurvey()
   const [showContext, setShowContext] = useState(readShowContextPreference)
   const roomId = state.selectedRoomId
+  // A sync merge reseats the session while the assessor is working, and for a render the room can
+  // come back without its space type. Every module except Studios then has no rubric, so the form
+  // below returns null and takes everything in flight with it, including a photo still uploading.
+  // Keep the type this room last showed until the assessor actually moves somewhere else.
+  const spaceTypeScope = `${state.surveyType}:${roomId ?? ""}`
+  const lastSpaceTypeRef = useRef<{ scope: string; spaceType: string } | null>(null)
+  if (currentRoomSession?.roomType) {
+    lastSpaceTypeRef.current = { scope: spaceTypeScope, spaceType: currentRoomSession.roomType }
+  }
+  const spaceType =
+    currentRoomSession?.roomType ||
+    (lastSpaceTypeRef.current?.scope === spaceTypeScope
+      ? lastSpaceTypeRef.current.spaceType
+      : undefined)
   const rubric = getRoomSurveyRubric(
     state.surveyType,
-    currentRoomSession?.roomType,
+    spaceType,
     currentRoomSession?.gradeType,
     state.school?.schoolClass,
     currentRoomSession?.sourceSurveyType,
@@ -221,7 +235,6 @@ export default function QuestionForm() {
 
   if (!rubric || !roomId) return null
 
-  const spaceType = currentRoomSession?.roomType
   const showSpaceTypePhoto =
     state.surveyType !== "closeout" &&
     !!spaceType &&
