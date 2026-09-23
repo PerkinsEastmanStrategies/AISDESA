@@ -453,6 +453,21 @@ export function applyCloseOutRoomToSource(
   }
 }
 
+/**
+ * Close Out holds rooms gathered from every module, so its progress belongs only to the
+ * module a room actually came from. Sending it everywhere copied one room, answers and
+ * all, into all nine drafts, which then pushed it to all nine sessions in the database.
+ */
+function closeOutRoomBelongsToSource(
+  room: RoomSurveySession,
+  sourceSession: SurveySession,
+): boolean {
+  if (room.sourceSurveyType) return room.sourceSurveyType === sourceSession.surveyType
+  // Origin unrecorded, which only happens on rooms saved before it was tracked: update the
+  // room where it already exists, but never introduce it to a module that does not have it.
+  return !!sourceSession.rooms[room.roomId]
+}
+
 export function syncCloseOutProgressToSource(
   closeOutSession: SurveySession,
   sourceSession: SurveySession,
@@ -460,6 +475,7 @@ export function syncCloseOutProgressToSource(
 ): SurveySession {
   let next = sourceSession
   for (const room of Object.values(closeOutSession.rooms)) {
+    if (!closeOutRoomBelongsToSource(room, sourceSession)) continue
     next = applyCloseOutRoomToSource(next, room)
   }
   return clearStaleDeferredOnCompleteRooms(next, schoolClass)
