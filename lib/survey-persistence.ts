@@ -42,6 +42,12 @@ export type AssessorBySurveyType = Partial<Record<SurveyType, AssessorInfo>>
 export interface PersistedSurveyDraft {
   version: typeof DRAFT_VERSION
   schoolId: string
+  /**
+   * ES / MS / HS band for the campus. Kept here because it decides which questions apply and
+   * which space types a module needs, and the campus record it comes from is fetched over the
+   * network. Absent on drafts saved before this was stored.
+   */
+  schoolClass?: string
   surveyType: SurveyType
   session: SurveySession
   selectedLevelId: string | null

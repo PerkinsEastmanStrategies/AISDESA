@@ -962,13 +962,16 @@ function hydrateCampusScopedState(state: SurveyState): SurveyState {
   return next
 }
 
+/** Stand-in campus for when the school list could not be fetched. */
 function schoolFromDraft(draft: PersistedSurveyDraft): AisdSchoolOption {
   return {
     id: draft.schoolId,
     campusId: draft.session.campusId,
     name: draft.session.schoolName,
     displayName: draft.session.schoolName,
-    schoolClass: "",
+    // Completion is measured against the questions and space types this band requires, so a
+    // blank one reports finished modules as not started.
+    schoolClass: draft.schoolClass ?? "",
     address: "",
     lat: 0,
     lng: 0,
@@ -1090,6 +1093,7 @@ function prepareCloseOutDraft(
   return {
     version: 1,
     schoolId: school.id,
+    schoolClass: school.schoolClass || undefined,
     surveyType: "closeout",
     session,
     selectedLevelId: existingDraft?.selectedLevelId ?? null,
@@ -3068,6 +3072,7 @@ function persistDraftFromState(
     ...(previous ?? {}),
     version: 1,
     schoolId: state.school.id,
+    schoolClass: state.school.schoolClass || undefined,
     surveyType: state.surveyType,
     session: sessionWithAssessor,
     selectedLevelId: state.selectedLevelId,
@@ -3730,6 +3735,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
           draft: {
             version: 1,
             schoolId: latest.school.id,
+            schoolClass: latest.school.schoolClass || undefined,
             surveyType: latest.surveyType,
             session,
             selectedLevelId: latest.selectedLevelId,
