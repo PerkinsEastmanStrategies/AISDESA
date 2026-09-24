@@ -121,6 +121,10 @@ interface DbPrewalkMapping {
   mapped_at: string | null
 }
 
+/** The subset of a mapping row that reads actually consume. */
+type PrewalkMappingRead = Omit<DbPrewalkMapping, "school_id" | "campus_id">
+
+
 interface DbPrewalkExistence {
   school_id: string
   campus_id: string
@@ -950,9 +954,11 @@ async function loadSchoolSharedDraftData(schoolId: string): Promise<{
       "esa_prewalk_state",
       `school_id=eq.${encodeURIComponent(schoolId)}&select=completed_at,skipped_at`,
     ),
-    supabaseRestSelect<DbPrewalkMapping>(
+    // Named columns rather than *: this runs on a poll, so school_id and campus_id would be
+    // resent on every row several times a minute for values the caller already knows.
+    supabaseRestSelect<PrewalkMappingRead>(
       "esa_prewalk_mappings",
-      `school_id=eq.${encodeURIComponent(schoolId)}&select=*`,
+      `school_id=eq.${encodeURIComponent(schoolId)}&select=survey_type,room_id,space_type,note1,note2,mapped_at`,
     ),
     supabaseRestSelect<DbManualRoom>(
       "esa_manual_rooms",
