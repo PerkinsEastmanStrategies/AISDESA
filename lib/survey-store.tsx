@@ -96,6 +96,7 @@ import {
   saveAssessors,
   saveDraft,
   saveDraftWithQuotaFallback,
+  sessionsHoldSameWork,
   markActiveVisit,
   hasActiveVisit,
   type AssessorBySurveyType,
@@ -3411,8 +3412,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         // Reseating identical answers still hands the reducer a new session object, which
         // the autosave effect reads as a change and saves, which schedules another sync a
         // few seconds later. Skipping the no-op keeps that from running all day.
-        const restoreChangesAnswers =
-          JSON.stringify(liveDraft?.session ?? null) !== JSON.stringify(latest.session ?? null)
+        const restoreChangesAnswers = !sessionsHoldSameWork(liveDraft?.session, latest.session)
         if (latest.school && liveDraft && restoreChangesAnswers) {
           dispatch({
             type: "RESTORE",

@@ -884,6 +884,44 @@ export function mergeSurveySessions(
   }
 }
 
+function valuesAreEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (a === null || b === null || typeof a !== "object" || typeof b !== "object") return false
+
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+    for (let i = 0; i < a.length; i += 1) {
+      if (!valuesAreEqual(a[i], b[i])) return false
+    }
+    return true
+  }
+
+  const left = a as Record<string, unknown>
+  const right = b as Record<string, unknown>
+  const leftKeys = Object.keys(left)
+  if (leftKeys.length !== Object.keys(right).length) return false
+  for (const key of leftKeys) {
+    if (!Object.prototype.hasOwnProperty.call(right, key)) return false
+    if (!valuesAreEqual(left[key], right[key])) return false
+  }
+  return true
+}
+
+/**
+ * Whether two sessions hold the same work, used to spot a cloud pull that changes nothing.
+ *
+ * Walks the pair and stops at the first difference rather than serialising them. A campus in
+ * progress carries several hundred kilobytes of answers, and comparing the text of both on
+ * every sync churned megabytes of short-lived strings on devices that are already tight on
+ * memory. Key order is not a difference here, where it would be in the serialised form.
+ */
+export function sessionsHoldSameWork(
+  a: SurveySession | null | undefined,
+  b: SurveySession | null | undefined,
+): boolean {
+  return valuesAreEqual(a ?? null, b ?? null)
+}
+
 /** True when `cover` already includes the answers from `local` that were actually saved. */
 export function sessionCoversLocalProgress(
   cover: SurveySession | null | undefined,
