@@ -2251,7 +2251,15 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       const mappingKey = preWalkMappingKey(action.surveyType, action.roomId)
       const prev = state.preWalk.mappings[mappingKey]
       if (!prev) return state
-      const mapping = { ...prev, note1: action.note1, note2: action.note2 }
+      // Sync resolves mapping conflicts on mappedAt alone, and a tie goes to the cloud copy.
+      // Leaving the timestamp untouched here let a poll that was already in flight hand back
+      // the pre-edit row and wipe the note the assessor had just typed.
+      const mapping = {
+        ...prev,
+        note1: action.note1,
+        note2: action.note2,
+        mappedAt: new Date().toISOString(),
+      }
       const preWalk = {
         ...state.preWalk,
         mappings: { ...state.preWalk.mappings, [mappingKey]: mapping },
