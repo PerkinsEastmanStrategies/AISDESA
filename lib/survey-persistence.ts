@@ -825,21 +825,23 @@ export function mergeSurveySessions(
     ...(secondary.spaceTypeExistsAtSchool ?? {}),
     ...(primary.spaceTypeExistsAtSchool ?? {}),
   }
+  // The exclusion list is this device's own record of placeholders it deleted, so it is
+  // resolved against this device's copy rather than whichever copy is newer. The cloud keeps
+  // the placeholder until the delete lands, and rebuilds its existence map from it, so asking
+  // the newer copy discards the Yes the assessor just entered whenever the upload is slow.
+  const keepExistence = (key: string) => {
+    if (local.spaceTypeExistsAtSchool?.[key] === true) spaceTypeExistsAtSchool[key] = true
+    else if (primary.spaceTypeExistsAtSchool?.[key] !== true) delete spaceTypeExistsAtSchool[key]
+  }
   for (const roomId of excluded) {
     const parsed = parseAbsentSpaceTypeRoomId(roomId)
     if (parsed) {
-      const key = spaceTypeExistenceKey(parsed.spaceType, parsed.neighborhood)
-      if (primary.spaceTypeExistsAtSchool?.[key] !== true) {
-        delete spaceTypeExistsAtSchool[key]
-      }
+      keepExistence(spaceTypeExistenceKey(parsed.spaceType, parsed.neighborhood))
       continue
     }
     const room = secondary.rooms[roomId] ?? primary.rooms[roomId]
     if (room?.spaceTypeMarkedAbsent && room.roomType) {
-      const key = spaceTypeExistenceKey(room.roomType, room.neighborhood)
-      if (primary.spaceTypeExistsAtSchool?.[key] !== true) {
-        delete spaceTypeExistsAtSchool[key]
-      }
+      keepExistence(spaceTypeExistenceKey(room.roomType, room.neighborhood))
     }
   }
 

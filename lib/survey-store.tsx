@@ -357,12 +357,15 @@ function emptyScoreState(): Pick<SurveyState, "roomScores" | "roomScoreDetails" 
 function sessionWithLiveSelectedRoom(
   remoteSession: SurveySession | null | undefined,
   live: SurveyState,
+  discardedRoomIds?: string[],
 ): SurveySession | null {
   if (!remoteSession) return live.session
   if (!live.session) return remoteSession
   const localNewer =
     Date.parse(live.session.updatedAt || "") >= Date.parse(remoteSession.updatedAt || "")
-  return mergeSurveySessions(live.session, remoteSession, localNewer)
+  return mergeSurveySessions(live.session, remoteSession, localNewer, {
+    excludeRoomIds: discardedRoomIds,
+  })
 }
 
 function lookupNeighborhoodFromPlan(
@@ -1297,7 +1300,11 @@ function reducer(state: SurveyState, action: Action): SurveyState {
           floorPlanLoading: state.floorPlanLoading || restored.floorPlanLoading,
         }
       }
-      const session = sessionWithLiveSelectedRoom(restored.session, state)
+      const session = sessionWithLiveSelectedRoom(
+        restored.session,
+        state,
+        action.draft.discardedRoomIds,
+      )
       return {
         ...restored,
         view: state.view,
