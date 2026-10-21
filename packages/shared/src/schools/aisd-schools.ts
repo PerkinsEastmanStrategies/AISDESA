@@ -211,6 +211,15 @@ export const TEST_CAMPUS_CLONES: readonly TestCampusClone[] = [
     campusId: "014-TEST-HS",
     pickerEndOrder: 3,
   },
+  {
+    id: "clayton-1021",
+    name: "CLAYTON - 1021",
+    displayName: "Clayton - 1021",
+    sourceName: "CLAYTON",
+    sourceCampusId: "184",
+    campusId: "184-1021",
+    schoolClass: "ELEM",
+  },
 ]
 
 export function sourceSchoolIdForTestClone(clone: TestCampusClone): string {
