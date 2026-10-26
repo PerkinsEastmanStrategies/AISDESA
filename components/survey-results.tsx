@@ -26,6 +26,7 @@ import CampusResultsInsights from "@/components/campus-results-insights"
 import { OverallScoreDisplay } from "@/components/score-display"
 import { cn } from "@/lib/utils"
 import { buildCampusScoringSnapshot } from "@/lib/campus-scoring-tree"
+import { applyRevisedResultsScoring } from "@/lib/qa-revised/apply-to-snapshot"
 import { useFloorPlanDisplay } from "@/lib/use-floor-plan-display"
 
 type ResultsTab = "campus" | "room" | "neighborhood" | "compare" | "photos"
@@ -75,7 +76,7 @@ export default function SurveyResults() {
 
   const snapshot = useMemo(() => {
     if (!state.school) return null
-    return buildCampusScoringSnapshot({
+    const built = buildCampusScoringSnapshot({
       schoolId: state.school.id,
       schoolName: state.school.displayName,
       campusId: state.school.campusId,
@@ -85,6 +86,12 @@ export default function SurveyResults() {
       liveSession: state.session,
       liveRoomScoreDetails: state.roomScoreDetails,
     })
+    try {
+      return applyRevisedResultsScoring(built, state.school.schoolClass)
+    } catch (error) {
+      console.error("Revised results scoring failed; showing assessment snapshot", error)
+      return built
+    }
   }, [state.school, scoringDrafts, state.surveyType, state.session, state.roomScoreDetails])
 
   const roomScoreById = useMemo(() => {

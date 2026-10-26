@@ -79,7 +79,7 @@ export interface SpaceTypeGroup {
 }
 
 export interface FocusAreaGroup {
-  id: ScoringFocusAreaId
+  id: string
   label: string
   focusAreaWeight: number
   roomCount: number

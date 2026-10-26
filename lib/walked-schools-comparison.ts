@@ -1,9 +1,10 @@
-import type { AisdSchoolOption, ScoringFocusAreaId } from "@aisd/shared"
+import type { AisdSchoolOption } from "@aisd/shared"
 import {
   buildCampusScoringSnapshot,
   type CampusScoringSnapshot,
   type FocusAreaGroup,
 } from "@/lib/campus-scoring-tree"
+import { applyRevisedResultsScoring } from "@/lib/qa-revised/apply-to-snapshot"
 import { loadDraftsForSchool } from "@/lib/survey-persistence"
 
 export interface WalkedSchoolSummary {
@@ -18,11 +19,11 @@ export interface FocusAreaComparisonSeries {
   label: string
   color: string
   dashed?: boolean
-  scores: Record<ScoringFocusAreaId, number | null>
+  scores: Record<string, number | null>
 }
 
 export interface FocusAreaComparisonAxis {
-  id: ScoringFocusAreaId
+  id: string
   label: string
   currentScore: number | null
   walkedAverage: number | null
@@ -68,19 +69,20 @@ export function listWalkedSchools(schools: AisdSchoolOption[]): WalkedSchoolSumm
 
 function snapshotForSchool(school: WalkedSchoolSummary): CampusScoringSnapshot | null {
   try {
-    return buildCampusScoringSnapshot({
+    const built = buildCampusScoringSnapshot({
       schoolId: school.schoolId,
       schoolName: school.schoolName,
       campusId: school.campusId,
       schoolClass: school.schoolClass,
     })
+    return applyRevisedResultsScoring(built, school.schoolClass)
   } catch {
     return null
   }
 }
 
-function focusAreaScoreMap(focusAreas: FocusAreaGroup[]): Record<ScoringFocusAreaId, number | null> {
-  const map = {} as Record<ScoringFocusAreaId, number | null>
+function focusAreaScoreMap(focusAreas: FocusAreaGroup[]): Record<string, number | null> {
+  const map: Record<string, number | null> = {}
   for (const area of focusAreas) {
     map[area.id] = area.overallScore
   }
@@ -149,7 +151,7 @@ export function buildFocusAreaComparison(params: {
   })
 
   const currentScores = focusAreaScoreMap(params.currentSnapshot.focusAreas)
-  const benchmarkScores = {} as Record<ScoringFocusAreaId, number | null>
+  const benchmarkScores: Record<string, number | null> = {}
   for (const axis of axes) {
     benchmarkScores[axis.id] = axis.walkedAverage
   }

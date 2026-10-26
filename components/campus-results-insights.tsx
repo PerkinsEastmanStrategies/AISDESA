@@ -2,7 +2,6 @@
 
 import { useMemo } from "react"
 import { TrendingUp } from "lucide-react"
-import type { ScoringFocusAreaId } from "@aisd/shared"
 import FocusAreaRadarChart from "@/components/focus-area-radar-chart"
 import { CategoryScoreList, ScoreBadge, ScoreBar } from "@/components/score-display"
 import { cn } from "@/lib/utils"
@@ -12,8 +11,8 @@ import { campusCategoryScoresFromSnapshot } from "@/lib/qa-peer-comparison"
 
 function focusAreaScoreMap(
   focusAreas: CampusScoringSnapshot["focusAreas"],
-): Record<ScoringFocusAreaId, number | null> {
-  const map = {} as Record<ScoringFocusAreaId, number | null>
+): Record<string, number | null> {
+  const map: Record<string, number | null> = {}
   for (const area of focusAreas) {
     map[area.id] = area.overallScore
   }

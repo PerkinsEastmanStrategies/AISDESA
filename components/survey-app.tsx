@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import dynamic from "next/dynamic"
 import { SurveyProvider, useSurvey } from "@/lib/survey-store"
 import SurveyHeader, { SurveyHeaderControls } from "@/components/survey-header"
 import SurveyTypeNav from "@/components/survey-type-nav"
@@ -9,7 +10,6 @@ import SurveyAssessorLanding from "@/components/survey-assessor-landing"
 import SurveyCampusHome from "@/components/survey-campus-home"
 import StudioSurvey from "@/components/studio-survey"
 import PlaceholderSurvey from "@/components/placeholder-survey"
-import SurveyResults from "@/components/survey-results"
 import AdminDashboard from "@/components/admin-dashboard"
 import EsaLanding from "@/components/esa-landing"
 import PreWalkPromptModal from "@/components/pre-walk-prompt-modal"
@@ -30,6 +30,15 @@ import {
   shouldWipeCloudPilotResults,
   shouldWipeLocalPilotResults,
 } from "@/lib/pilot-results-reset"
+
+const SurveyResults = dynamic(() => import("@/components/survey-results"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex min-h-[40vh] items-center justify-center p-8 text-sm text-slate-600">
+      Loading results…
+    </div>
+  ),
+})
 
 function SurveyActionBarHost() {
   const { state, hasAssessorRegistered } = useSurvey()

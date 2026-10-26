@@ -1,10 +1,9 @@
 "use client"
 
-import type { ScoringFocusAreaId } from "@aisd/shared"
 import type { FocusAreaComparisonSeries } from "@/lib/walked-schools-comparison"
 
 interface FocusAreaRadarChartProps {
-  axes: { id: ScoringFocusAreaId; label: string }[]
+  axes: { id: string; label: string }[]
   series: FocusAreaComparisonSeries[]
   size?: number
 }
@@ -27,8 +26,8 @@ function polarPoint(
 function polygonPoints(
   center: number,
   radius: number,
-  axes: { id: ScoringFocusAreaId }[],
-  scores: Record<ScoringFocusAreaId, number | null>,
+  axes: { id: string }[],
+  scores: Record<string, number | null>,
 ): string | null {
   const points = axes
     .map((axis, index) => {

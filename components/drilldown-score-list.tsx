@@ -42,17 +42,16 @@ export default function DrilldownScoreList({
     [roomIds, session.rooms],
   )
 
-  const details = useMemo(
-    () =>
-      ensureWalkthroughScoreDetails(
-        session,
-        roomScoreDetails ?? state.roomScoreDetails,
-        surveyType,
-        scoredRoomIds,
-        state.school?.schoolClass,
-      ),
-    [session, roomScoreDetails, state.roomScoreDetails, surveyType, scoredRoomIds, state.school?.schoolClass],
-  )
+  const details = useMemo(() => {
+    if (roomScoreDetails) return roomScoreDetails
+    return ensureWalkthroughScoreDetails(
+      session,
+      state.roomScoreDetails,
+      surveyType,
+      scoredRoomIds,
+      state.school?.schoolClass,
+    )
+  }, [session, roomScoreDetails, state.roomScoreDetails, surveyType, scoredRoomIds, state.school?.schoolClass])
 
   const toggleCategory = (category: string) => {
     setOpenCategories((prev) => {
