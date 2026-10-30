@@ -1,5 +1,7 @@
 import type { EsaQuestion, RoomQuestionResponse } from "@aisd/shared"
-import { isNotAbleToAssessText } from "@/lib/qa-revised/non-scoring"
+import { isNotAbleToAssessText, isShelterInPlaceSafetyLabel } from "@/lib/qa-revised/non-scoring"
+
+export { isShelterInPlaceSafetyLabel }
 
 /** When answered "No", all following questions in the rubric are skipped. */
 export const SPACE_TYPE_PRESENT_QUESTION = "Is this space type present at the school?"
@@ -265,20 +267,26 @@ export function collapseSelectAllQuestionScores<
 >(units: T[]): T[] {
   return collapseDiningCommonsRestroomProximity(
     collapseSafetyExteriorCoveringFromWindowCoverings(
-      collapsePlayFieldFeaturesSelectAll(
-        collapseAdjacentVisibilitySelectAll(
-          collapseInteriorVisibilitySelectAll(collapseExteriorWindowsSelectAll(units)),
+      omitSafetyExteriorCoveringWhenNoWindows(
+        omitSafetyShelterInPlace(
+          collapsePlayFieldFeaturesSelectAll(
+            collapseAdjacentVisibilitySelectAll(
+              collapseInteriorVisibilitySelectAll(collapseExteriorWindowsSelectAll(units)),
+            ),
+          ),
         ),
       ),
     ),
   )
 }
 
-/** Dining Commons restroom proximity: family or learner restroom also credits generic restroom. */
+const RESTROOM_PROXIMITY_CREDIT_IDS = new Set(["DC-027", "EM-035"])
+
+/** Dining Commons / Empower Center restroom proximity: family or learner also credits generic restroom. */
 export function isDiningCommonsRestroomProximityQuestion(
   question: Pick<EsaQuestion, "question"> & { questionId?: string },
 ): boolean {
-  return String(question.questionId ?? "").trim().toUpperCase() === "DC-027"
+  return RESTROOM_PROXIMITY_CREDIT_IDS.has(String(question.questionId ?? "").trim().toUpperCase())
 }
 
 function isFamilyOrLearnerRestroomLabel(label: string): boolean {
@@ -384,6 +392,47 @@ export function collapseSafetyExteriorCoveringFromWindowCoverings<
   })
 }
 
+/** True when the room already answered No to having exterior windows. */
+export function roomAnsweredNoExteriorWindows(
+  units: ReadonlyArray<{ question: string; answer?: string | null }>,
+): boolean {
+  return units.some((unit) => {
+    if (!isExteriorWindowsParentQuestion({ question: unit.question })) return false
+    return isNoAnswer((unit.answer ?? "").trim() || undefined)
+  })
+}
+
+/**
+ * If the space has no exterior windows, drop the safety option about covering
+ * exterior glass so it is neither credited nor penalized.
+ */
+export function omitSafetyExteriorCoveringWhenNoWindows<
+  T extends {
+    question: string
+    itemLabel?: string | null
+    answer?: string | null
+  },
+>(units: T[]): T[] {
+  if (!roomAnsweredNoExteriorWindows(units)) return units
+  return units.filter((unit) => {
+    if (!isSafetySelectAllQuestion({ question: unit.question })) return true
+    return !isExteriorGlassCoveringLabel(unit.itemLabel)
+  })
+}
+
+/** Shelter-in-place is recorded only; do not include it in the safety average. */
+export function omitSafetyShelterInPlace<
+  T extends {
+    question: string
+    itemLabel?: string | null
+  },
+>(units: T[]): T[] {
+  return units.filter((unit) => {
+    if (!isSafetySelectAllQuestion({ question: unit.question })) return true
+    return !isShelterInPlaceSafetyLabel(unit.itemLabel)
+  })
+}
+
 /** Borrowed-daylight follow-up: only scores when the space does not have exterior windows. */
 export function isBorrowedDaylightQuestion(
   question: Pick<EsaQuestion, "question">,
@@ -427,6 +476,11 @@ function responseValue(response: RoomQuestionResponse | undefined): string | und
 function isYesAnswer(value: string | undefined): boolean {
   const text = String(value ?? "").trim().toLowerCase()
   return text === "yes" || text.startsWith("yes ") || text.startsWith("yes,")
+}
+
+function isNoAnswer(value: string | undefined): boolean {
+  const text = String(value ?? "").trim().toLowerCase()
+  return text === "no" || text.startsWith("no ") || text.startsWith("no,") || text.startsWith("no.")
 }
 
 function isParentAnsweredNo(parentId: string, responses: RoomQuestionResponse[]): boolean {

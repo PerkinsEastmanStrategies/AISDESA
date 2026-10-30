@@ -34,6 +34,13 @@ export function isDiningCommonsTackboardQuestion(questionId: string | null | und
   return String(questionId ?? "").trim().toUpperCase() === "DC-015"
 }
 
+/** Safety select-all option that Version C (3) marks inventory (ScoreID `i`). */
+export function isShelterInPlaceSafetyLabel(label: string | null | undefined): boolean {
+  return /area large enough for a full class to easily get out of sight to shelter-in-place/i.test(
+    String(label ?? ""),
+  )
+}
+
 /**
  * Version C survey questions whose every option ScoreID ends in `i` (inventory /
  * recorded only) but walk snapshots still store scored unit IDs. Keep this list
@@ -195,6 +202,7 @@ export function isNonScoringQuestion(input: {
   weight?: number | null
 }): boolean {
   if (isDiningCommonsTackboardQuestion(input.questionId)) return true
+  if (isShelterInPlaceSafetyLabel(input.itemLabel)) return true
   if (isSurveyInventoryQuestion(input.questionId)) return true
   if (isSpecialEducationAcousticQuestion(input)) return true
   if (isArtVariedSeatingQuestion(input)) return true

@@ -13145,7 +13145,7 @@
       "subcategory": "Utilities & Technology",
       "questionId": "PL-027",
       "question": "Select all that apply (general inventory)",
-      "weight": 6
+      "weight": 0
     },
     {
       "schoolLevel": "ES",
@@ -16935,7 +16935,7 @@
       "subcategory": "Display & Presentation",
       "questionId": "DC-015",
       "question": "How much tackboard/tackwall/tackstrip is provided? Include both fixed and mobile surfaces in your count.",
-      "weight": 0
+      "weight": 6
     },
     {
       "schoolLevel": "ES",
@@ -16955,7 +16955,7 @@
       "subcategory": "Furniture & Equipment",
       "questionId": "DC-029",
       "question": "Select all that apply (general inventory)",
-      "weight": 6
+      "weight": 0
     },
     {
       "schoolLevel": "ES",
@@ -19355,7 +19355,7 @@
       "subcategory": "Utilities & Technology",
       "questionId": "PL-027",
       "question": "Select all that apply (general inventory)",
-      "weight": 6
+      "weight": 0
     },
     {
       "schoolLevel": "MS",
@@ -24952,6 +24952,16 @@
       "focusArea": "Athletics and Wellness",
       "spaceType": "Athletics Wing",
       "category": "Function",
+      "subcategory": "Availability",
+      "questionId": "LR-002",
+      "question": "Select all that are present:",
+      "weight": 6
+    },
+    {
+      "schoolLevel": "MS",
+      "focusArea": "Athletics and Wellness",
+      "spaceType": "Athletics Wing",
+      "category": "Function",
       "subcategory": "Layout & Flexibility",
       "questionId": "AT-001",
       "question": "Select all that apply (after-hours access)",
@@ -24976,16 +24986,6 @@
       "questionId": "LR-001",
       "question": "Is this space type present at the school?",
       "weight": 0
-    },
-    {
-      "schoolLevel": "MS",
-      "focusArea": "Athletics and Wellness",
-      "spaceType": "Locker Room",
-      "category": "Function",
-      "subcategory": "Availability",
-      "questionId": "LR-002",
-      "question": "Select all that are present:",
-      "weight": 6
     },
     {
       "schoolLevel": "MS",
@@ -25635,7 +25635,7 @@
       "subcategory": "Display & Presentation",
       "questionId": "DC-015",
       "question": "How much tackboard/tackwall/tackstrip is provided? Include both fixed and mobile surfaces in your count.",
-      "weight": 0
+      "weight": 6
     },
     {
       "schoolLevel": "MS",
@@ -25655,7 +25655,7 @@
       "subcategory": "Furniture & Equipment",
       "questionId": "DC-029",
       "question": "Select all that apply (general inventory)",
-      "weight": 6
+      "weight": 0
     },
     {
       "schoolLevel": "MS",
@@ -26014,7 +26014,7 @@
       "category": "Function",
       "subcategory": "Adjacency & Access",
       "questionId": "EM-008",
-      "question": "Select all that apply (staging area connections)",
+      "question": "Select what best describes the space (staging area connections)",
       "weight": 6
     },
     {
@@ -26175,7 +26175,7 @@
       "subcategory": "Utilities & Technology",
       "questionId": "EM-037",
       "question": "Select all that apply (general inventory)",
-      "weight": 6
+      "weight": 0
     },
     {
       "schoolLevel": "MS",
@@ -28135,7 +28135,7 @@
       "subcategory": "Utilities & Technology",
       "questionId": "PL-027",
       "question": "Select all that apply (general inventory)",
-      "weight": 6
+      "weight": 0
     },
     {
       "schoolLevel": "HS",
@@ -34482,6 +34482,16 @@
       "focusArea": "Athletics and Wellness",
       "spaceType": "Athletics Wing",
       "category": "Function",
+      "subcategory": "Availability",
+      "questionId": "LR-002",
+      "question": "Select all that are present:",
+      "weight": 6
+    },
+    {
+      "schoolLevel": "HS",
+      "focusArea": "Athletics and Wellness",
+      "spaceType": "Athletics Wing",
+      "category": "Function",
       "subcategory": "Layout & Flexibility",
       "questionId": "AT-001",
       "question": "Select all that apply (after-hours access)",
@@ -34726,16 +34736,6 @@
       "questionId": "LR-001",
       "question": "Is this space type present at the school?",
       "weight": 0
-    },
-    {
-      "schoolLevel": "HS",
-      "focusArea": "Athletics and Wellness",
-      "spaceType": "Locker Room",
-      "category": "Function",
-      "subcategory": "Availability",
-      "questionId": "LR-002",
-      "question": "Select all that are present:",
-      "weight": 6
     },
     {
       "schoolLevel": "HS",
@@ -35595,7 +35595,7 @@
       "subcategory": "Display & Presentation",
       "questionId": "DC-015",
       "question": "How much tackboard/tackwall/tackstrip is provided? Include both fixed and mobile surfaces in your count.",
-      "weight": 0
+      "weight": 6
     },
     {
       "schoolLevel": "HS",
@@ -35615,7 +35615,7 @@
       "subcategory": "Furniture & Equipment",
       "questionId": "DC-029",
       "question": "Select all that apply (general inventory)",
-      "weight": 6
+      "weight": 0
     },
     {
       "schoolLevel": "HS",
@@ -35944,7 +35944,7 @@
       "category": "Function",
       "subcategory": "Adjacency & Access",
       "questionId": "EM-008",
-      "question": "Select all that apply (staging area connections)",
+      "question": "Select what best describes the space (staging area connections)",
       "weight": 6
     },
     {
@@ -36105,7 +36105,7 @@
       "subcategory": "Utilities & Technology",
       "questionId": "EM-037",
       "question": "Select all that apply (general inventory)",
-      "weight": 6
+      "weight": 0
     },
     {
       "schoolLevel": "HS",
