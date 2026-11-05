@@ -39,6 +39,10 @@ export interface FloorPlanLevelEntry {
   filename: string
 }
 
+export function isFloorPlanSvgFilename(filename: string): boolean {
+  return /^[A-Za-z0-9][A-Za-z0-9 .()_+#-]*\.svg$/i.test(filename.trim())
+}
+
 export interface FloorPlanManifestRow {
   schoolName: string
   schoolLevel: string
@@ -152,7 +156,7 @@ function parseManifestCsv(csvText: string): FloorPlanManifestRow[] {
     for (const { id, index } of floorColumnIndexes) {
       if (index === -1) continue
       const filename = cells[index]?.trim()
-      if (filename) floors[id] = filename
+      if (filename && isFloorPlanSvgFilename(filename)) floors[id] = filename
     }
 
     const updatedName =
@@ -207,7 +211,7 @@ function supabaseRowsToManifest(rows: FloorPlanManifestDbRow[]): FloorPlanManife
 
     const levelId = normalizeFloorLevelId(row.floor_level_id ?? "")
     const filename = desktopFilenameFromDbRow(row)
-    if (!levelId || !filename) continue
+    if (!levelId || !filename || !isFloorPlanSvgFilename(filename)) continue
 
     const key = campusId || schoolName.toUpperCase().replace(/\s+/g, " ")
     let existing = byKey.get(key)
@@ -261,20 +265,49 @@ function mergeSheetWithSupabase(
   return merged
 }
 
+function overlayLocalSvgFloors(
+  sheetRows: FloorPlanManifestRow[],
+  localRows: FloorPlanManifestRow[],
+): FloorPlanManifestRow[] {
+  if (!localRows.length) return sheetRows
+  if (!sheetRows.length) return localRows
+
+  const merged = sheetRows.map((row) => ({
+    ...row,
+    floors: { ...row.floors },
+  }))
+
+  for (const localRow of localRows) {
+    const match = matchManifestRow(
+      merged,
+      localRow.schoolName,
+      localRow.updatedName || localRow.schoolName,
+      localRow.campusId,
+    )
+    if (!match) {
+      if (FLOOR_LEVELS.some((level) => isFloorPlanSvgFilename(localRow.floors[level.id] ?? ""))) {
+        merged.push({ ...localRow, floors: { ...localRow.floors } })
+      }
+      continue
+    }
+    for (const level of FLOOR_LEVELS) {
+      const filename = localRow.floors[level.id]?.trim() ?? ""
+      if (!isFloorPlanSvgFilename(filename)) continue
+      const current = match.floors[level.id]?.trim() ?? ""
+      if (!isFloorPlanSvgFilename(current)) match.floors[level.id] = filename
+    }
+  }
+
+  return merged
+}
+
 async function loadSheetManifest(): Promise<FloorPlanManifestRow[]> {
   const liveCsv = await fetchManifestCsv(getManifestUrl())
-  if (liveCsv) {
-    const liveRows = parseManifestCsv(liveCsv)
-    if (liveRows.length > 0) return liveRows
-  }
-
+  const liveRows = liveCsv ? parseManifestCsv(liveCsv) : []
   const localCsv = await fetchManifestCsv(FLOOR_PLAN_MANIFEST_PATH)
-  if (localCsv) {
-    const localRows = parseManifestCsv(localCsv)
-    if (localRows.length > 0) return localRows
-  }
-
-  return []
+  const localRows = localCsv ? parseManifestCsv(localCsv) : []
+  if (liveRows.length > 0) return overlayLocalSvgFloors(liveRows, localRows)
+  return localRows
 }
 
 async function loadSupabaseManifest(): Promise<FloorPlanManifestRow[]> {
@@ -381,7 +414,7 @@ export function schoolsWithManifestDisplayNames(
 }
 
 export function rowHasFloorPlans(row: FloorPlanManifestRow): boolean {
-  return FLOOR_LEVELS.some((level) => Boolean(row.floors[level.id]?.trim()))
+  return FLOOR_LEVELS.some((level) => isFloorPlanSvgFilename(row.floors[level.id] ?? ""))
 }
 
 export function schoolHasFloorPlan(
@@ -409,7 +442,7 @@ export function getAvailableFloorsForSchool(
   const floors: FloorPlanLevelEntry[] = []
   for (const level of FLOOR_LEVELS) {
     const filename = row.floors[level.id]?.trim()
-    if (filename) {
+    if (filename && isFloorPlanSvgFilename(filename)) {
       floors.push({
         id: level.id,
         shortLabel: level.shortLabel,
