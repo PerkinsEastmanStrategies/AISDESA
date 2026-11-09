@@ -2,9 +2,7 @@ import {
   EMPTY_WEIGHT_OVERRIDES,
   getRoomSurveyRubric,
   isInventoryOption,
-  isMultiSelectQuestionType,
   isNotAbleToAssessOption,
-  responseRequiresUnableToAssessNote,
   schoolLevelFromSchoolClass,
   scoringFocusAreaForRoom,
   scoringFocusAreaLabel,
@@ -52,14 +50,20 @@ function answerLabel(value: string | string[] | null | undefined): string | null
   return String(value)
 }
 
+function hasResponseValue(value: unknown): boolean {
+  if (value == null || value === "") return false
+  if (Array.isArray(value)) return value.some((item) => String(item ?? "").trim())
+  return String(value).trim().length > 0
+}
+
 function viableOptionGroups(questionId: string, options: EsaQuestionOption[]) {
   const groups = new Map<string, EsaQuestionOption[]>()
   for (const opt of options) {
     if (opt.questionId !== questionId) continue
     if (!opt.option?.trim()) continue
-    if (isInventoryOption(opt)) continue
     if (isNonViableSelectAllOption(opt.option) || isNotAbleToAssessOption(opt.option)) continue
-    const unitId = opt.scoreGroupId || opt.scoreId
+    const inventory = isInventoryOption(opt)
+    const unitId = inventory ? opt.scoreId || opt.scoreGroupId : opt.scoreGroupId || opt.scoreId
     if (!unitId) continue
     const list = groups.get(unitId) ?? []
     list.push(opt)
@@ -94,10 +98,8 @@ function unitsFromRoomSession(
     result.questionScores.map((unit) => parentByUnit.get(unit.questionId) ?? unit.questionId),
   )
   for (const question of rubric.questions) {
-    if (!isMultiSelectQuestionType(question.questionType)) continue
     const response = roomSession.responses.find((row: RoomQuestionResponse) => row.questionId === question.questionId)
-    if (!response) continue
-    if (responseRequiresUnableToAssessNote(response.value)) continue
+    if (!response || !hasResponseValue(response.value)) continue
     parentIds.add(question.questionId)
   }
 
@@ -105,16 +107,28 @@ function unitsFromRoomSession(
   for (const parentId of parentIds) {
     const question = questionById.get(parentId)
     const groups = viableOptionGroups(parentId, rubric.options)
-    if (!groups.size) continue
     const response = roomSession.responses.find((row) => row.questionId === parentId)
     const answer = answerLabel(response?.value)
-    const isMulti = question ? isMultiSelectQuestionType(question.questionType) : false
+    if (!groups.size) {
+      if (!answer) continue
+      units.push({
+        questionId: parentId,
+        unitId: parentId,
+        question: question?.question ?? parentId,
+        category: question?.category ?? "",
+        subcategory: question?.subcategory ?? "",
+        score: Number.NaN,
+        itemLabel: null,
+        answer,
+      })
+      continue
+    }
 
     for (const [unitId, unitOptions] of groups) {
       const scored = scoredByUnitId.get(unitId)
       let score = scored?.score
       if (score == null) {
-        if (!isMulti) continue
+        if (!answer) continue
         score = 0
       }
       const texts = [...new Set(unitOptions.map((opt) => opt.option.trim()).filter(Boolean))]
