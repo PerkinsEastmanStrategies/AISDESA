@@ -698,8 +698,8 @@ export default function SurveyFloorPlan({
     () =>
       resultsScoreMode
         ? [
-            { label: "Good (70%+)", color: scoreFillRgba(70, 1) },
-            { label: "Fair (45–69%)", color: scoreFillRgba(45, 1) },
+            { label: "Good (80%+)", color: scoreFillRgba(80, 1) },
+            { label: "Fair (55–80%)", color: scoreFillRgba(55, 1) },
             { label: "Needs attention", color: scoreFillRgba(30, 1) },
             { label: "Not scored", color: scoreFillRgba(null, 1) },
           ]

@@ -7,11 +7,11 @@ export function cn(...inputs: ClassValue[]) {
 
 export type ScoreBand = "good" | "fair" | "poor" | "none"
 
-/** Same thresholds as shared conditionFromScore (70 / 45). */
+/** Same thresholds as the QA portal (80 / 55). */
 export function scoreBand(score: number | null): ScoreBand {
   if (score === null) return "none"
-  if (score >= 70) return "good"
-  if (score >= 45) return "fair"
+  if (score >= 80) return "good"
+  if (score >= 55) return "fair"
   return "poor"
 }
 

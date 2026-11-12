@@ -25,6 +25,7 @@ import {
   arrivalSurveyRoomDisplayName,
   spaceTypeFromArrivalSurveyRoomId,
   scoringFocusAreaForRoom,
+  isSpaceTypeForSurveyModule,
   SCORING_FOCUS_AREAS,
   spaceTypesForScoringFocusArea,
   surveyTypeForScoringFocusArea,
@@ -437,6 +438,7 @@ function buildAssessedRoom(
   }
 
   const spaceType = resolveSpaceType(roomSession, surveyType, schoolClass)
+  if (!isSpaceTypeForSurveyModule(surveyType, spaceType, schoolClass)) return null
   if (!spaceTypeCountsTowardCampusScore(surveyType, spaceType, schoolClass)) return null
   const focusAreaId = scoringFocusAreaForRoom(surveyType, roomSession.roomType, schoolClass)
   if (!focusAreaId) return null

@@ -4,7 +4,7 @@ import { useMemo } from "react"
 import { TrendingUp } from "lucide-react"
 import FocusAreaRadarChart from "@/components/focus-area-radar-chart"
 import { CategoryScoreList, ScoreBadge, ScoreBar } from "@/components/score-display"
-import { cn } from "@/lib/utils"
+import { cn, scoreBarFillClass } from "@/lib/utils"
 import { sumPositiveWeights } from "@/lib/weight-display"
 import type { CampusScoringSnapshot } from "@/lib/campus-scoring-tree"
 import { campusCategoryScoresFromSnapshot } from "@/lib/qa-peer-comparison"
@@ -153,11 +153,7 @@ export default function CampusResultsInsights({
                     <div
                       className={cn(
                         "h-full rounded-full transition-all",
-                        entry.overallScore >= 70
-                          ? "bg-emerald-500"
-                          : entry.overallScore >= 45
-                            ? "bg-amber-500"
-                            : "bg-red-500",
+                        scoreBarFillClass(entry.overallScore),
                       )}
                       style={{ width: `${Math.min(100, entry.overallScore)}%` }}
                     />

@@ -1,6 +1,6 @@
 "use client"
 
-import { cn, scoreTextColor } from "@/lib/utils"
+import { cn, scoreBarFillClass, scoreBadgeClass, scoreTextColor } from "@/lib/utils"
 import { formatWeightShare, sumPositiveWeights } from "@/lib/weight-display"
 import { isObservationalCategory, type CategoryScore } from "@aisd/shared"
 
@@ -17,11 +17,7 @@ export function ScoreBadge({ score, size = "sm" }: { score: number | null; size?
       className={cn(
         "inline-flex items-center rounded-full font-bold tabular-nums",
         size === "lg" ? "px-3 py-1 text-base" : "px-2.5 py-0.5 text-xs",
-        score >= 70
-          ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80"
-          : score >= 45
-            ? "bg-amber-50 text-amber-800 ring-1 ring-amber-200/80"
-            : "bg-red-50 text-red-700 ring-1 ring-red-200/80",
+        scoreBadgeClass(score),
       )}
     >
       {Math.round(score)}%
@@ -74,7 +70,7 @@ export function ScoreBar({
           <div
             className={cn(
               "h-full rounded-full transition-all",
-              score >= 70 ? "bg-emerald-500" : score >= 45 ? "bg-amber-500" : "bg-red-500",
+              scoreBarFillClass(score),
             )}
             style={{ width: `${Math.min(100, score)}%` }}
           />

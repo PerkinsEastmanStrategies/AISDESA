@@ -34,8 +34,8 @@ export interface FloorPlanRoom {
 }
 
 export function conditionFromScore(score: number): RoomCondition {
-  if (score >= 70) return "good"
-  if (score >= 45) return "fair"
+  if (score >= 80) return "good"
+  if (score >= 55) return "fair"
   return "poor"
 }
 
