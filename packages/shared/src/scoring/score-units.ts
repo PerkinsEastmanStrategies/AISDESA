@@ -71,6 +71,15 @@ export function optionsForQuestion(
  * - Inventory options never score.
  * - Prefer scoreGroupId grouping when present (v3); else scoreId (legacy).
  */
+function isDummySelectAllOption(optionLabel: string): boolean {
+  const text = optionLabel.trim().toLowerCase()
+  return (
+    text === "none of the above" ||
+    text.startsWith("none of the above ") ||
+    isNotAbleToAssessOption(optionLabel)
+  )
+}
+
 export function scorableScoreIdsForQuestion(
   questionId: string,
   options: EsaQuestionOption[],
@@ -79,6 +88,7 @@ export function scorableScoreIdsForQuestion(
   for (const opt of optionsForQuestion(questionId, options)) {
     if (!opt.option?.trim()) continue
     if (isInventoryOption(opt)) continue
+    if (isDummySelectAllOption(opt.option)) continue
     if (opt.isExclusionOption && (opt.normalizedScore === null || opt.normalizedScore === undefined)) {
       // Exclusion options participate in the group but don't create a unit by themselves
       // — units come from scorable siblings sharing the group/scoreId.
