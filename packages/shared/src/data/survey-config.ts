@@ -17,6 +17,7 @@ import {
   surveyTypesForSchool,
   surveyTypesInSameNavGroup,
   type ScoringFocusAreaId,
+  type SchoolTableRef,
   type TableOfSurveyEntry,
 } from "../data/table-of-surveys"
 import {
@@ -1118,7 +1119,9 @@ export function getRoomSurveyRubric(
     } else if (studioType === "Sensory Motor Lab") {
       rubric = filterRubricBySchoolLevel(SENSORY_LAB_RUBRIC, schoolClass)
     } else if (studioType === "Vocational Lab") {
-      rubric = filterRubricBySchoolLevel(VOCATIONAL_LAB_RUBRIC, schoolClass)
+      // Authored as MS+HS. Rosedale is the only ES campus that offers this space type,
+      // so keep the secondary instrument intact instead of stripping every question.
+      rubric = VOCATIONAL_LAB_RUBRIC
     } else if (studioType === "Life Skills Studio") {
       rubric = filterRubricBySchoolLevel(LIFE_SKILLS_RUBRIC, schoolClass)
     } else if (studioType === "SPED Flex Studio") {
@@ -1153,7 +1156,8 @@ export function getRoomSurveyRubric(
   if (!rubric) return null
   // Every module can ship ES / MS / HS copies of the same prompt. Always
   // drop the ones that do not apply to this campus (e.g. Casis ELEM).
-  const level = schoolClassForQuestionFilter(schoolClass, gradeType)
+  const skipLevelFilter = canonicalStudioType(roomType) === "Vocational Lab"
+  const level = skipLevelFilter ? null : schoolClassForQuestionFilter(schoolClass, gradeType)
   const filtered = level ? filterRubricBySchoolLevel(rubric, level) : rubric
   return ensureNotAbleToAssessOptions(filtered)
 }
@@ -1230,11 +1234,12 @@ export function surveyTypeAvailableForSchool(
 export function spaceTypeOptionsForSurvey(
   surveyType: SurveyType,
   schoolClass?: string | null,
+  school?: SchoolTableRef | null,
 ): readonly string[] {
   const seen = new Set<string>()
   const types: string[] = []
   for (const moduleType of surveyTypesInSameNavGroup(surveyType, schoolClass)) {
-    for (const entry of spaceTypesForSurveyModule(moduleType, schoolClass)) {
+    for (const entry of spaceTypesForSurveyModule(moduleType, schoolClass, school)) {
       if (seen.has(entry.spaceType)) continue
       seen.add(entry.spaceType)
       types.push(entry.spaceType)
@@ -1247,10 +1252,11 @@ export function tableEntryForSpaceType(
   surveyType: SurveyType,
   spaceType: string,
   schoolClass?: string | null,
+  school?: SchoolTableRef | null,
 ): TableOfSurveyEntry | null {
   return (
-    lookupTableEntry(surveyType, spaceType, schoolClass) ??
-    lookupTableEntryBySpaceType(spaceType, schoolClass)
+    lookupTableEntry(surveyType, spaceType, schoolClass, school) ??
+    lookupTableEntryBySpaceType(spaceType, schoolClass, school)
   )
 }
 
@@ -1258,8 +1264,9 @@ export function tableEntryForSpaceType(
 export function surveyTypeForSpaceType(
   spaceType: string,
   schoolClass?: string | null,
+  school?: SchoolTableRef | null,
 ): SurveyType | null {
-  return lookupTableEntryBySpaceType(spaceType, schoolClass)?.surveyType ?? null
+  return lookupTableEntryBySpaceType(spaceType, schoolClass, school)?.surveyType ?? null
 }
 
 /** Sidebar label from CSV survey focus area. */
@@ -1274,9 +1281,10 @@ export function surveyNavLabel(
 export function surveyModuleUsesSpaceTypePicker(
   surveyType: SurveyType,
   schoolClass?: string | null,
+  school?: SchoolTableRef | null,
 ): boolean {
   if (surveyType === "closeout") return false
-  return spaceTypeOptionsForSurvey(surveyType, schoolClass).length > 0
+  return spaceTypeOptionsForSurvey(surveyType, schoolClass, school).length > 0
 }
 
 /** Whether a value is a configured space type for this survey at this school. */
@@ -1284,9 +1292,10 @@ export function isSpaceTypeForSurveyModule(
   surveyType: SurveyType,
   value: string,
   schoolClass?: string | null,
+  school?: SchoolTableRef | null,
 ): boolean {
   for (const moduleType of surveyTypesInSameNavGroup(surveyType, schoolClass)) {
-    if ((spaceTypeOptionsForSurvey(moduleType, schoolClass) as readonly string[]).includes(value)) {
+    if ((spaceTypeOptionsForSurvey(moduleType, schoolClass, school) as readonly string[]).includes(value)) {
       return true
     }
   }
@@ -1987,11 +1996,12 @@ export { scoringFocusAreaLabel }
 export function spaceTypesForScoringFocusArea(
   id: ScoringFocusAreaId,
   schoolClass?: string | null,
+  school?: SchoolTableRef | null,
 ): readonly string[] {
   const seen = new Set<string>()
   const types: string[] = []
   for (const surveyType of surveyTypesForSchool(schoolClass)) {
-    for (const entry of spaceTypesForSurveyModule(surveyType, schoolClass)) {
+    for (const entry of spaceTypesForSurveyModule(surveyType, schoolClass, school)) {
       if (entry.scoringFocusAreaId !== id || seen.has(entry.spaceType) || !entry.required) continue
       seen.add(entry.spaceType)
       types.push(entry.spaceType)
@@ -2005,8 +2015,9 @@ export function scoringFocusAreaForRoom(
   surveyType: SurveyType,
   roomType: string | null | undefined,
   schoolClass?: string | null,
+  school?: SchoolTableRef | null,
 ): ScoringFocusAreaId | null {
-  return scoringFocusAreaForRoomFromTable(surveyType, roomType, schoolClass)
+  return scoringFocusAreaForRoomFromTable(surveyType, roomType, schoolClass, school)
 }
 
 export function surveyTypeForScoringFocusArea(id: ScoringFocusAreaId): SurveyType {

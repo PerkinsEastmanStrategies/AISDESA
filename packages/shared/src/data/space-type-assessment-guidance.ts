@@ -1,4 +1,4 @@
-import type { TableSchoolLevel } from "./table-of-surveys"
+import type { SchoolTableRef, TableSchoolLevel } from "./table-of-surveys"
 import {
   lookupTableEntryBySpaceType,
   schoolLevelFromSchoolClass,
@@ -278,13 +278,14 @@ function guidanceEntryForSpaceType(
 export function spaceTypeCompletionRule(
   spaceType: string,
   schoolClass: string | null | undefined,
+  school?: SchoolTableRef | null,
 ): SpaceTypeCompletionRule {
   // Traditional studios are 2 per identified neighborhood, not the Ed Spec 8/12/16.
   if (isTraditionalStudioSpaceType(spaceType)) {
     return { kind: "perNeighborhood", minPerNeighborhood: 2 }
   }
 
-  const table = lookupTableEntryBySpaceType(spaceType, schoolClass)
+  const table = lookupTableEntryBySpaceType(spaceType, schoolClass, school)
   if (table?.required && table.minimumSurveyCount > 0) {
     return { kind: "minRooms", count: table.minimumSurveyCount }
   }
@@ -309,8 +310,9 @@ export function spaceTypeCompletionRule(
 export function requiredCompletedRoomsForSpaceType(
   spaceType: string,
   schoolClass: string | null | undefined,
+  school?: SchoolTableRef | null,
 ): number {
-  const rule = spaceTypeCompletionRule(spaceType, schoolClass)
+  const rule = spaceTypeCompletionRule(spaceType, schoolClass, school)
   return rule.kind === "minRooms" ? rule.count : rule.minPerNeighborhood
 }
 
@@ -385,9 +387,10 @@ export function isSpaceTypeRoomsComplete<T extends SpaceTypeRoomSession>(
   schoolClass: string | null | undefined,
   isFilledOut: (room: T) => boolean,
   identifiedNeighborhoods?: readonly string[] | null,
+  school?: SchoolTableRef | null,
 ): boolean {
   if (roomsMarkSpaceTypeAbsent(rooms)) return true
-  const rule = spaceTypeCompletionRule(spaceType, schoolClass)
+  const rule = spaceTypeCompletionRule(spaceType, schoolClass, school)
   const filled = rooms.filter((room) => isFilledOut(room))
 
   if (rule.kind === "minRooms") {
@@ -412,13 +415,14 @@ export function spaceTypeCompletionProgress<T extends SpaceTypeRoomSession>(
   schoolClass: string | null | undefined,
   isFilledOut: (room: T) => boolean,
   identifiedNeighborhoods?: readonly string[] | null,
+  school?: SchoolTableRef | null,
 ): { complete: number; required: number } {
   const filled = rooms.filter((room) => isFilledOut(room))
   if (roomsMarkSpaceTypeAbsent(rooms)) {
     const count = Math.max(1, filled.length)
     return { complete: count, required: count }
   }
-  const rule = spaceTypeCompletionRule(spaceType, schoolClass)
+  const rule = spaceTypeCompletionRule(spaceType, schoolClass, school)
 
   if (rule.kind === "minRooms") {
     return { complete: filled.length, required: rule.count }

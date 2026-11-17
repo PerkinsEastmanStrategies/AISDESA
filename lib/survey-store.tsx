@@ -470,6 +470,7 @@ function resolveRoomType(
     roomId,
     state.surveyType,
     state.school?.schoolClass,
+    state.school,
   )
   if (preWalkType && isPendingSpaceType(preWalkType)) return preWalkType
 
@@ -873,6 +874,7 @@ function ensureRoomSession(
     state.surveyType,
     roomId,
     state.school?.schoolClass,
+    state.school,
   )
   const roomType = resolveRoomType(state, roomId, existing)
 
@@ -1042,7 +1044,7 @@ function stateFromDraft(
     existingRooms.find((r) => r.id === selectedRoomId)?.levelId ??
     existingRooms[0]?.levelId ??
     null
-  const preWalk = migratePreWalkState(draft.preWalk, school.schoolClass)
+  const preWalk = migratePreWalkState(draft.preWalk, school.schoolClass, school)
   const base: SurveyState = {
     surveyType: draft.surveyType,
     school,
@@ -1219,6 +1221,7 @@ function buildSubmission(state: SurveyState): SurveySubmission | null {
       state.session,
       state.school.schoolClass,
       state.allRooms,
+      state.school,
     )
       ? submittedAt
       : undefined)
@@ -2401,7 +2404,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
       }
     }
     case "MERGE_PREWALK": {
-      const incoming = migratePreWalkState(action.preWalk, state.school?.schoolClass)
+      const incoming = migratePreWalkState(action.preWalk, state.school?.schoolClass, state.school)
       const preWalk = action.fromCloud
         ? reconcileLocalPreWalkWithCloud(
             state.preWalk,
@@ -4643,7 +4646,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         for (const room of Object.values(draft.session.rooms)) {
           const spaceType =
             parseAbsentSpaceTypeRoomId(room.roomId)?.spaceType?.trim() || room.roomType?.trim()
-          if (!spaceTypeBelongsToSurvey(surveyType, spaceType, school.schoolClass)) {
+          if (!spaceTypeBelongsToSurvey(surveyType, spaceType, school.schoolClass, school)) {
             removeIds.add(room.roomId)
           }
         }
@@ -4904,6 +4907,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
           planRooms: state.allRooms,
           liveSession: t === state.surveyType ? state.session : undefined,
           schoolClass: state.school?.schoolClass,
+          school: state.school,
         }),
       ]),
     ) as Record<SurveyType, SurveyTypeInfo>

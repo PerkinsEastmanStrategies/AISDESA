@@ -118,6 +118,7 @@ export default function RoomSelector({
   const showSpaceType = surveyModuleUsesSpaceTypePicker(
     state.surveyType,
     state.school?.schoolClass,
+    state.school,
   )
   const showNeighborhoodForRoom =
     state.surveyType === "studios" && !!selectedId
@@ -126,6 +127,7 @@ export default function RoomSelector({
     selectedId,
     state.surveyType,
     state.school?.schoolClass,
+    state.school,
   )
   const selectedSpaceType =
     effectiveSpaceTypeForSelection({
@@ -135,6 +137,7 @@ export default function RoomSelector({
       sessionRooms: state.session?.rooms,
       preWalkMappings: state.preWalk.mappings,
       schoolClass: state.school?.schoolClass,
+      school: state.school,
     }) ?? ""
   const neighborhoodOnlyMode = isNeighborhoodOnlySpaceType(
     state.surveyType,
@@ -155,6 +158,7 @@ export default function RoomSelector({
     state.preWalk.mappings,
     state.surveyType,
     state.school?.schoolClass,
+    state.school,
   )
   const preferWalkedRooms = campusUsesSeededWalkedRooms(state.school)
   const spaceTypeReady = !showSpaceType || !!selectedSpaceType || preWalkMapped
@@ -294,7 +298,7 @@ export default function RoomSelector({
     const schoolClass = state.school?.schoolClass
     const preferWalkedRooms = campusUsesSeededWalkedRooms(state.school)
     const mappedTypeForRoom = (roomId: string) =>
-      preWalkSpaceTypeForRoom(state.preWalk.mappings, roomId, state.surveyType, schoolClass)
+      preWalkSpaceTypeForRoom(state.preWalk.mappings, roomId, state.surveyType, schoolClass, state.school)
     const startedAsOtherType = (roomId: string) => {
       if (!selectedSpaceType) return false
       const session = state.session?.rooms[roomId]
@@ -396,7 +400,7 @@ export default function RoomSelector({
       const walked = Object.values(state.session.rooms).filter((room) => {
         if (!room.roomType?.trim()) return false
         if (roomLooksMarkedAbsent(room.roomId, room)) return false
-        if (!spaceTypeBelongsToSurvey(state.surveyType, room.roomType, schoolClass)) return false
+        if (!spaceTypeBelongsToSurvey(state.surveyType, room.roomType, schoolClass, state.school)) return false
         if (!roomHasAssessmentProgress(room)) return false
         return true
       })
@@ -531,8 +535,8 @@ export default function RoomSelector({
   )
 
   const spaceTypeOptions = useMemo(
-    () => spaceTypeOptionsForSurvey(state.surveyType, state.school?.schoolClass),
-    [state.surveyType, state.school?.schoolClass],
+    () => spaceTypeOptionsForSurvey(state.surveyType, state.school?.schoolClass, state.school),
+    [state.surveyType, state.school],
   )
 
   const spaceTypeProgress = useMemo(() => {
@@ -617,6 +621,7 @@ export default function RoomSelector({
         sessionRooms: state.session?.rooms,
         roomId,
         schoolClass: state.school?.schoolClass,
+        school: state.school,
         preferSurveyedRooms: campusUsesSeededWalkedRooms(state.school),
       })
     ) {
@@ -650,7 +655,7 @@ export default function RoomSelector({
 
   const handleSelectStudioType = (roomType: string) => {
     const targetSurveyType =
-      surveyTypeForSpaceType(roomType, state.school?.schoolClass) ?? state.surveyType
+      surveyTypeForSpaceType(roomType, state.school?.schoolClass, state.school) ?? state.surveyType
     const enteringNeighborhoodOnly =
       isNeighborhoodOnlySpaceType(targetSurveyType, roomType)
     const enteringCampusScoped = isCampusScopedArrivalSpaceType(roomType)
@@ -1134,11 +1139,13 @@ export default function RoomSelector({
                   state.surveyType,
                   type,
                   state.school?.schoolClass,
+                  state.school,
                 )
                 const isRequired = tableEntry?.required ?? isSpaceTypeRequiredForSchool(
                   state.surveyType,
                   type,
                   state.school?.schoolClass,
+                  state.school,
                 )
                 const roomsOfType = roomsWithPlanNeighborhood(
                   state.session
@@ -1165,6 +1172,7 @@ export default function RoomSelector({
                   state.school?.schoolClass,
                   (room) => roomSurveyComplete(room),
                   identifiedNeighborhoods,
+                  state.school,
                 )
                 const typeComplete =
                   absent ||
@@ -1174,6 +1182,7 @@ export default function RoomSelector({
                     state.school?.schoolClass,
                     (room) => roomSurveyComplete(room),
                     identifiedNeighborhoods,
+                    state.school,
                   )
                 const inProgress = hasSaved && !typeComplete
                 const showQuota = isRequired && !absent && completionProgress.required > 1
@@ -1461,6 +1470,7 @@ export default function RoomSelector({
                           r.id,
                           state.surveyType,
                           state.school?.schoolClass,
+                          state.school,
                         )
                         const levelLabel = state.floorPlan?.levels.find(
                           (level) => level.id === r.levelId,

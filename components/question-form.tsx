@@ -238,8 +238,8 @@ export default function QuestionForm() {
   const showSpaceTypePhoto =
     state.surveyType !== "closeout" &&
     !!spaceType &&
-    surveyModuleUsesSpaceTypePicker(state.surveyType, state.school?.schoolClass) &&
-    isSpaceTypeForSurveyModule(state.surveyType, spaceType, state.school?.schoolClass)
+    surveyModuleUsesSpaceTypePicker(state.surveyType, state.school?.schoolClass, state.school) &&
+    isSpaceTypeForSurveyModule(state.surveyType, spaceType, state.school?.schoolClass, state.school)
   // Photos taken before the general photo moved onto the room survey still live in pre-walk
   // state; the room's own copy takes over as soon as this room records one.
   const legacyPreWalkPhoto = showSpaceTypePhoto

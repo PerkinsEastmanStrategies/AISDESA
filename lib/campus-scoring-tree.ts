@@ -33,6 +33,7 @@ import {
   labelLooksLikeAbsentSpace,
   roomLooksMarkedAbsent,
   spaceTypeExistsAtSchoolFromRooms,
+  type SchoolTableRef,
   type ScoringFocusAreaId,
 } from "@aisd/shared"
 import {
@@ -144,14 +145,30 @@ function roomDisplayName(roomId: string, roomSession: RoomSurveySession): string
   return roomSession.roomNumber?.trim() || roomId
 }
 
+function schoolTableRef(input?: {
+  schoolId?: string | null
+  schoolName?: string | null
+  campusId?: string | null
+  id?: string | null
+  name?: string | null
+} | null): SchoolTableRef | null {
+  if (!input) return null
+  return {
+    id: input.id ?? input.schoolId ?? null,
+    name: input.name ?? input.schoolName ?? null,
+    campusId: input.campusId ?? null,
+  }
+}
+
 function resolveSpaceType(
   roomSession: RoomSurveySession,
   surveyType: SurveyType,
   schoolClass?: string | null,
+  school?: SchoolTableRef | null,
 ): string {
   const type = roomSession.roomType?.trim()
   if (!type || type === "Studios") return type || "Unassigned space type"
-  const entry = lookupTableEntry(surveyType, type, schoolClass)
+  const entry = lookupTableEntry(surveyType, type, schoolClass, school)
   return entry?.spaceType ?? type
 }
 
@@ -368,6 +385,7 @@ function weightedAverage(items: { score: number; weight: number }[]): number | n
 function computeWeightedCampusScore(
   rooms: AssessedRoomRecord[],
   schoolClass?: string | null,
+  school?: SchoolTableRef | null,
 ): number | null {
   const scored = rooms.filter((room) => room.overallScore !== null)
   if (!scored.length) return null
@@ -390,12 +408,12 @@ function computeWeightedCampusScore(
 
     const spaceTypeScores: { score: number; weight: number }[] = []
     for (const [spaceType, typeRooms] of bySpaceType) {
-      if (!spaceTypeCountsTowardCampusScore(typeRooms[0].surveyType, spaceType, schoolClass)) {
+      if (!spaceTypeCountsTowardCampusScore(typeRooms[0].surveyType, spaceType, schoolClass, school)) {
         continue
       }
       const avg = average(typeRooms.map((room) => room.overallScore!))
       if (avg == null) continue
-      const entry = lookupTableEntry(typeRooms[0].surveyType, spaceType, schoolClass)
+      const entry = lookupTableEntry(typeRooms[0].surveyType, spaceType, schoolClass, school)
       spaceTypeScores.push({ score: avg, weight: entry?.spaceTypeWeight ?? 1 })
     }
 
@@ -421,6 +439,7 @@ function buildAssessedRoom(
   schoolClass?: string | null,
   neighborhood?: string,
   assessmentOptions?: { allowScoreWithoutAnswers?: boolean },
+  school?: SchoolTableRef | null,
 ): AssessedRoomRecord | null {
   const absent =
     roomLooksMarkedAbsent(roomId, roomSession) ||
@@ -437,10 +456,10 @@ function buildAssessedRoom(
     return null
   }
 
-  const spaceType = resolveSpaceType(roomSession, surveyType, schoolClass)
-  if (!isSpaceTypeForSurveyModule(surveyType, spaceType, schoolClass)) return null
-  if (!spaceTypeCountsTowardCampusScore(surveyType, spaceType, schoolClass)) return null
-  const focusAreaId = scoringFocusAreaForRoom(surveyType, roomSession.roomType, schoolClass)
+  const spaceType = resolveSpaceType(roomSession, surveyType, schoolClass, school)
+  if (!isSpaceTypeForSurveyModule(surveyType, spaceType, schoolClass, school)) return null
+  if (!spaceTypeCountsTowardCampusScore(surveyType, spaceType, schoolClass, school)) return null
+  const focusAreaId = scoringFocusAreaForRoom(surveyType, roomSession.roomType, schoolClass, school)
   if (!focusAreaId) return null
 
   const resolvedNeighborhood = isOutdoorSurveyRoomId(roomId)
@@ -498,8 +517,9 @@ function groupSpaceTypes(
   rooms: AssessedRoomRecord[],
   focusAreaId: ScoringFocusAreaId,
   schoolClass?: string | null,
+  school?: SchoolTableRef | null,
 ): SpaceTypeGroup[] {
-  const configured = spaceTypesForScoringFocusArea(focusAreaId, schoolClass)
+  const configured = spaceTypesForScoringFocusArea(focusAreaId, schoolClass, school)
   const byType = new Map<string, AssessedRoomRecord[]>()
 
   for (const room of rooms) {
@@ -530,6 +550,7 @@ function groupSpaceTypes(
           typeRooms[0]?.surveyType ?? surveyTypeForScoringFocusArea(focusAreaId),
           spaceType,
           schoolClass,
+          school,
         )?.spaceTypeWeight ?? 1,
       roomCount: typeRooms.length,
       scoredRoomCount: scored.length,
@@ -553,6 +574,7 @@ export function buildCampusScoringSnapshot(input: {
   liveRoomScoreDetails?: Record<string, RoomScoreResult>
   liveNeighborhoodResolver?: (roomId: string, roomSession: RoomSurveySession) => string | undefined
 }): CampusScoringSnapshot {
+  const school = schoolTableRef(input)
   const sessionsBySurveyType: Partial<Record<SurveyType, SurveySession>> = {}
   const roomScoreDetailsBySurveyType: Partial<Record<SurveyType, Record<string, RoomScoreResult>>> = {}
 
@@ -680,7 +702,7 @@ export function buildCampusScoringSnapshot(input: {
       const roomSession = session.rooms[entry.roomId] ?? sub.session.rooms[entry.roomId]
       if (!roomSession) continue
 
-      const spaceType = resolveSpaceType(roomSession, surveyType, input.schoolClass)
+      const spaceType = resolveSpaceType(roomSession, surveyType, input.schoolClass, school)
       const looksAbsent =
         roomLooksMarkedAbsent(entry.roomId, roomSession) ||
         labelLooksLikeAbsentSpace(roomSession.roomNumber) ||
@@ -715,6 +737,7 @@ export function buildCampusScoringSnapshot(input: {
         input.schoolClass,
         entry.neighborhood,
         { allowScoreWithoutAnswers: true },
+        school,
       )
       if (record) allRooms.push(record)
     }
@@ -759,6 +782,7 @@ export function buildCampusScoringSnapshot(input: {
           ? (input.liveNeighborhoodResolver?.(roomId, roomSession) ?? roomSession.neighborhood)
           : roomSession.neighborhood,
         { allowScoreWithoutAnswers: true },
+        school,
       )
       if (record) {
         allRooms.push(record)
@@ -796,7 +820,7 @@ export function buildCampusScoringSnapshot(input: {
       scoredRoomCount: scored.length,
       overallScore: average(scored.map((r) => r.overallScore!)),
       categoryScores: averageCategoryScores(scored),
-      spaceTypes: groupSpaceTypes(areaRooms, def.id, input.schoolClass),
+      spaceTypes: groupSpaceTypes(areaRooms, def.id, input.schoolClass, school),
     }
   })
 
@@ -807,10 +831,11 @@ export function buildCampusScoringSnapshot(input: {
     focusAreas,
     allRooms: scoredRooms,
     neighborhoods: campusAgg.neighborhoods,
-    campusOverallScore: computeWeightedCampusScore(scoredRooms, input.schoolClass),
+    campusOverallScore: computeWeightedCampusScore(scoredRooms, input.schoolClass, school),
     campusOverallScoreExistingOnly: computeWeightedCampusScore(
       scoredRooms.filter((room) => !room.spaceTypeDoesNotExist),
       input.schoolClass,
+      school,
     ),
     absentSpaceCount: scoredRooms.filter((room) => room.spaceTypeDoesNotExist).length,
     sessionsBySurveyType,

@@ -463,7 +463,7 @@ export function mergeLinkedPhotosIntoDestDraft(input: {
     if (
       !sourceRoom.spaceTypeMarkedAbsent &&
       !isAbsentSpaceTypeRoomId(sourceRoom.roomId) &&
-      !spaceTypeBelongsToSurvey(input.dest.surveyType, sourceRoom.roomType, input.destSchool.schoolClass)
+      !spaceTypeBelongsToSurvey(input.dest.surveyType, sourceRoom.roomType, input.destSchool.schoolClass, input.destSchool)
     ) {
       continue
     }
@@ -582,7 +582,7 @@ export function cloneDraftWithCompatibleAnswers(input: {
     if (
       !room.spaceTypeMarkedAbsent &&
       !isAbsentSpaceTypeRoomId(room.roomId) &&
-      !spaceTypeBelongsToSurvey(draft.surveyType, room.roomType, destSchool.schoolClass)
+      !spaceTypeBelongsToSurvey(draft.surveyType, room.roomType, destSchool.schoolClass, destSchool)
     ) {
       dropped += room.responses.length
       continue

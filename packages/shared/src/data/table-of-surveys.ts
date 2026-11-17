@@ -1,5 +1,11 @@
 /** Generated from AISD_ESA_Categories.csv — do not edit by hand. */
 import type { SurveyType } from "../types/survey"
+import {
+  extraTableEntriesForSchool,
+  type SchoolTableRef,
+} from "./campus-survey-overrides"
+
+export type { SchoolTableRef }
 
 export type TableSchoolLevel = "ES" | "MS" | "HS"
 
@@ -202,10 +208,12 @@ export function schoolLevelFromSchoolClass(
 
 export function tableEntriesForSchool(
   schoolClass: string | null | undefined,
+  school?: SchoolTableRef | null,
 ): TableOfSurveyEntry[] {
+  const extras = extraTableEntriesForSchool(school)
   const level = schoolLevelFromSchoolClass(schoolClass)
-  if (!level) return TABLE_OF_SURVEY_ENTRIES
-  return TABLE_OF_SURVEY_ENTRIES.filter((entry) => entry.schoolLevel === level)
+  if (!level) return extras.length ? [...TABLE_OF_SURVEY_ENTRIES, ...extras] : TABLE_OF_SURVEY_ENTRIES
+  return [...TABLE_OF_SURVEY_ENTRIES, ...extras].filter((entry) => entry.schoolLevel === level)
 }
 
 export function surveyTypesForSchool(
@@ -236,9 +244,10 @@ export function surveyTypeAvailableForSchoolFromTable(
 export function spaceTypesForSurveyModule(
   surveyType: SurveyType,
   schoolClass: string | null | undefined,
+  school?: SchoolTableRef | null,
 ): TableOfSurveyEntry[] {
   const level = schoolLevelFromSchoolClass(schoolClass)
-  const rows = TABLE_OF_SURVEY_ENTRIES.filter((entry) => {
+  const rows = [...TABLE_OF_SURVEY_ENTRIES, ...extraTableEntriesForSchool(school)].filter((entry) => {
     if (entry.surveyType !== surveyType) return false
     if (level && entry.schoolLevel !== level) return false
     return true
@@ -299,15 +308,17 @@ export function lookupTableEntry(
   surveyType: SurveyType,
   spaceType: string | null | undefined,
   schoolClass: string | null | undefined,
+  school?: SchoolTableRef | null,
 ): TableOfSurveyEntry | null {
   const level = schoolLevelFromSchoolClass(schoolClass)
   const normalized = spaceType?.trim()
   if (!normalized) return null
 
   const candidates = spaceTypeLookupCandidates(normalized)
+  const rows = [...TABLE_OF_SURVEY_ENTRIES, ...extraTableEntriesForSchool(school)]
 
   for (const candidate of candidates) {
-    const match = TABLE_OF_SURVEY_ENTRIES.find(
+    const match = rows.find(
       (entry) =>
         entry.surveyType === surveyType &&
         entry.spaceType === candidate &&
@@ -323,8 +334,9 @@ export function scoringFocusAreaForRoomFromTable(
   surveyType: SurveyType,
   spaceType: string | null | undefined,
   schoolClass: string | null | undefined,
+  school?: SchoolTableRef | null,
 ): ScoringFocusAreaId | null {
-  return lookupTableEntry(surveyType, spaceType, schoolClass)?.scoringFocusAreaId ?? null
+  return lookupTableEntry(surveyType, spaceType, schoolClass, school)?.scoringFocusAreaId ?? null
 }
 
 export function scoringFocusAreaLabel(id: ScoringFocusAreaId): string {
@@ -361,8 +373,9 @@ export function isSpaceTypeRequiredForSchool(
   surveyType: SurveyType,
   spaceType: string,
   schoolClass: string | null | undefined,
+  school?: SchoolTableRef | null,
 ): boolean {
-  return lookupTableEntry(surveyType, spaceType, schoolClass)?.required ?? false
+  return lookupTableEntry(surveyType, spaceType, schoolClass, school)?.required ?? false
 }
 
 /** Required completed room surveys for this space type at the school level. 0 = optional / not scored. */
@@ -370,8 +383,9 @@ export function minimumSurveyCountForSpaceType(
   surveyType: SurveyType,
   spaceType: string,
   schoolClass: string | null | undefined,
+  school?: SchoolTableRef | null,
 ): number {
-  const entry = lookupTableEntry(surveyType, spaceType, schoolClass)
+  const entry = lookupTableEntry(surveyType, spaceType, schoolClass, school)
   if (!entry) return 1
   if (!entry.required) return 0
   return Math.max(1, entry.minimumSurveyCount)
@@ -382,8 +396,9 @@ export function spaceTypeCountsTowardCampusScore(
   surveyType: SurveyType,
   spaceType: string,
   schoolClass: string | null | undefined,
+  school?: SchoolTableRef | null,
 ): boolean {
-  const entry = lookupTableEntry(surveyType, spaceType, schoolClass)
+  const entry = lookupTableEntry(surveyType, spaceType, schoolClass, school)
   if (!entry) return true
   return entry.required
 }
@@ -392,8 +407,9 @@ export function scoreCodeForSpaceType(
   surveyType: SurveyType,
   spaceType: string,
   schoolClass: string | null | undefined,
+  school?: SchoolTableRef | null,
 ): string | null {
-  return lookupTableEntry(surveyType, spaceType, schoolClass)?.scoreCode ?? null
+  return lookupTableEntry(surveyType, spaceType, schoolClass, school)?.scoreCode ?? null
 }
 
 export function surveyFocusForSurveyType(
@@ -469,15 +485,17 @@ export function surveyNavTypesForSchool(
 export function lookupTableEntryBySpaceType(
   spaceType: string | null | undefined,
   schoolClass: string | null | undefined,
+  school?: SchoolTableRef | null,
 ): TableOfSurveyEntry | null {
   const level = schoolLevelFromSchoolClass(schoolClass)
   const normalized = spaceType?.trim()
   if (!normalized) return null
 
   const candidates = spaceTypeLookupCandidates(normalized)
+  const rows = [...TABLE_OF_SURVEY_ENTRIES, ...extraTableEntriesForSchool(school)]
 
   for (const candidate of candidates) {
-    const match = TABLE_OF_SURVEY_ENTRIES.find(
+    const match = rows.find(
       (entry) =>
         entry.spaceType === candidate && (!level || entry.schoolLevel === level),
     )

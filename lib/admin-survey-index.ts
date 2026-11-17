@@ -97,6 +97,7 @@ export function buildAdminSurveyRecords(
     const info = getSurveyTypeInfo(draft.surveyType, draft.schoolId, {}, {
       liveSession: draft.session,
       schoolClass: schoolClassById?.get(draft.schoolId),
+      school: { id: draft.schoolId },
     })
     const assessor = resolveAssessor(draft)
 

@@ -1,4 +1,10 @@
-import type { AssessorInfo, ParsedPlanRoom, SurveySession, SurveyType } from "@aisd/shared"
+import type {
+  AssessorInfo,
+  ParsedPlanRoom,
+  SchoolTableRef,
+  SurveySession,
+  SurveyType,
+} from "@aisd/shared"
 import {
   getRoomSurveyRubric,
   getSurveyRubric,
@@ -64,12 +70,13 @@ function roomsMatchingSpaceType(
   spaceType: string,
   schoolClass?: string | null,
   planRooms?: ParsedPlanRoom[],
+  school?: SchoolTableRef | null,
 ): RoomSurveySession[] {
   return Object.values(session.rooms)
     .filter(
       (room) =>
         room.roomType === spaceType &&
-        isSpaceTypeForSurveyModule(surveyType, room.roomType, schoolClass),
+        isSpaceTypeForSurveyModule(surveyType, room.roomType, schoolClass, school),
     )
     .map((room) => attachPlanNeighborhood(room, planRooms))
 }
@@ -80,9 +87,17 @@ function isRequiredSpaceTypeSatisfied(
   spaceType: string,
   schoolClass?: string | null,
   planRooms?: ParsedPlanRoom[],
+  school?: SchoolTableRef | null,
 ): boolean {
   if (isSpaceTypeMarkedAbsentAtSchool(session, spaceType)) return true
-  const ofType = roomsMatchingSpaceType(session, surveyType, spaceType, schoolClass, planRooms)
+  const ofType = roomsMatchingSpaceType(
+    session,
+    surveyType,
+    spaceType,
+    schoolClass,
+    planRooms,
+    school,
+  )
   if (ofType.some((room) => room.spaceTypeMarkedAbsent || isAbsentSpaceTypeRoomId(room.roomId))) {
     return true
   }
@@ -96,6 +111,7 @@ function isRequiredSpaceTypeSatisfied(
     schoolClass,
     (room) => isRoomSurveyFilledOut(room, surveyType, schoolClass),
     identifiedNeighborhoods,
+    school,
   )
 }
 
@@ -108,15 +124,25 @@ export function isStudiosSurveyComplete(
   session: SurveySession | null | undefined,
   schoolClass?: string | null,
   planRooms?: ParsedPlanRoom[],
+  school?: SchoolTableRef | null,
 ): boolean {
   if (!session) return false
 
-  const requiredTypes = spaceTypesForSurveyModule("studios", schoolClass)
+  const requiredTypes = spaceTypesForSurveyModule("studios", schoolClass, school)
     .filter((entry) => entry.required)
     .map((entry) => entry.spaceType)
 
   for (const studioType of requiredTypes) {
-    if (!isRequiredSpaceTypeSatisfied(session, "studios", studioType, schoolClass, planRooms)) {
+    if (
+      !isRequiredSpaceTypeSatisfied(
+        session,
+        "studios",
+        studioType,
+        schoolClass,
+        planRooms,
+        school,
+      )
+    ) {
       return false
     }
   }
@@ -130,15 +156,25 @@ export function isSpaceTypeSurveyComplete(
   session: SurveySession | null | undefined,
   schoolClass?: string | null,
   planRooms?: ParsedPlanRoom[],
+  school?: SchoolTableRef | null,
 ): boolean {
   if (!session) return false
 
-  const requiredTypes = spaceTypesForSurveyModule(surveyType, schoolClass)
+  const requiredTypes = spaceTypesForSurveyModule(surveyType, schoolClass, school)
     .filter((entry) => entry.required)
     .map((entry) => entry.spaceType)
 
   for (const spaceType of requiredTypes) {
-    if (!isRequiredSpaceTypeSatisfied(session, surveyType, spaceType, schoolClass, planRooms)) {
+    if (
+      !isRequiredSpaceTypeSatisfied(
+        session,
+        surveyType,
+        spaceType,
+        schoolClass,
+        planRooms,
+        school,
+      )
+    ) {
       return false
     }
   }
@@ -149,24 +185,27 @@ export function isSpaceTypeSurveyComplete(
 export function isAdministrationSurveyComplete(
   session: SurveySession | null | undefined,
   schoolClass?: string | null,
+  school?: SchoolTableRef | null,
 ): boolean {
-  return isSpaceTypeSurveyComplete("administration", session, schoolClass)
+  return isSpaceTypeSurveyComplete("administration", session, schoolClass, undefined, school)
 }
 
 /** Arrival is complete when each required space type has at least one filled-out room survey. */
 export function isArrivalSurveyComplete(
   session: SurveySession | null | undefined,
   schoolClass?: string | null,
+  school?: SchoolTableRef | null,
 ): boolean {
-  return isSpaceTypeSurveyComplete("arrival", session, schoolClass)
+  return isSpaceTypeSurveyComplete("arrival", session, schoolClass, undefined, school)
 }
 
 /** Neighborhoods is complete when each required space type has at least one filled-out room survey. */
 export function isNeighborhoodsSurveyComplete(
   session: SurveySession | null | undefined,
   schoolClass?: string | null,
+  school?: SchoolTableRef | null,
 ): boolean {
-  return isSpaceTypeSurveyComplete("neighborhoods", session, schoolClass)
+  return isSpaceTypeSurveyComplete("neighborhoods", session, schoolClass, undefined, school)
 }
 
 /** Outdoor is complete when every required outdoor space type is filled out. */
@@ -174,9 +213,10 @@ export function isOutdoorSurveyComplete(
   session: SurveySession | null | undefined,
   schoolClass?: string | null,
   planRooms?: ParsedPlanRoom[],
+  school?: SchoolTableRef | null,
 ): boolean {
   if (!session) return false
-  return isSpaceTypeSurveyComplete("outdoor", session, schoolClass, planRooms)
+  return isSpaceTypeSurveyComplete("outdoor", session, schoolClass, planRooms, school)
 }
 
 export function isSurveyModuleComplete(
@@ -184,11 +224,16 @@ export function isSurveyModuleComplete(
   session: SurveySession,
   schoolClass?: string | null,
   planRooms?: ParsedPlanRoom[],
+  school?: SchoolTableRef | null,
 ): boolean {
-  if (surveyType === "studios") return isStudiosSurveyComplete(session, schoolClass, planRooms)
-  if (surveyType === "outdoor") return isOutdoorSurveyComplete(session, schoolClass, planRooms)
+  if (surveyType === "studios") {
+    return isStudiosSurveyComplete(session, schoolClass, planRooms, school)
+  }
+  if (surveyType === "outdoor") {
+    return isOutdoorSurveyComplete(session, schoolClass, planRooms, school)
+  }
   if (surveyType === "closeout") return isCloseOutSurveyComplete(session)
-  return isSpaceTypeSurveyComplete(surveyType, session, schoolClass, planRooms)
+  return isSpaceTypeSurveyComplete(surveyType, session, schoolClass, planRooms, school)
 }
 
 /**
@@ -226,6 +271,7 @@ export function areAllRoomsSurveyed(
   classroomRooms: ParsedPlanRoom[],
   surveyType: SurveyType,
   schoolClass?: string | null,
+  school?: SchoolTableRef | null,
 ): boolean {
   if (!session) return false
 
@@ -240,7 +286,7 @@ export function areAllRoomsSurveyed(
     surveyType === "cte" ||
     surveyType === "performing_arts"
   ) {
-    return isSurveyModuleComplete(surveyType, session, schoolClass, classroomRooms)
+    return isSurveyModuleComplete(surveyType, session, schoolClass, classroomRooms, school)
   }
 
   if (classroomRooms.length === 0) return false
@@ -295,6 +341,7 @@ export function getSurveyTypeInfo(
     /** Live in-memory session when this survey type is currently active */
     liveSession?: SurveySession | null
     schoolClass?: string | null
+    school?: SchoolTableRef | null
   },
 ): SurveyTypeInfo {
   const registeredAssessor = isAssessorRegistered(assessors[surveyType])
@@ -305,6 +352,7 @@ export function getSurveyTypeInfo(
   const classroomRooms = options?.classroomRooms ?? []
   const planRooms = options?.planRooms ?? classroomRooms
   const schoolClass = options?.schoolClass
+  const school = options?.school ?? (schoolId ? { id: schoolId } : null)
 
   if (!schoolId) {
     return { status: "not_started", assessor: registeredAssessor }
@@ -342,7 +390,7 @@ export function getSurveyTypeInfo(
   }
 
   if (surveyTypeHasDedicatedCompletion(surveyType)) {
-    if (isSurveyModuleComplete(surveyType, session, schoolClass, planRooms)) {
+    if (isSurveyModuleComplete(surveyType, session, schoolClass, planRooms, school)) {
       return { status: "complete", assessor }
     }
     const hasProgress = sessionHasProgress(session) || !!draft?.lastSubmission
@@ -352,7 +400,7 @@ export function getSurveyTypeInfo(
     return { status: "not_started", assessor }
   }
 
-  if (areAllRoomsSurveyed(session, classroomRooms, surveyType, schoolClass)) {
+  if (areAllRoomsSurveyed(session, classroomRooms, surveyType, schoolClass, school)) {
     return { status: "complete", assessor }
   }
 

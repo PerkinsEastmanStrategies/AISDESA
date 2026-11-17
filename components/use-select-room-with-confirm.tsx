@@ -89,6 +89,7 @@ export function useSelectRoomWithConfirm() {
           sessionRooms: state.session?.rooms,
           roomId,
           schoolClass: state.school?.schoolClass,
+          school: state.school,
           preferSurveyedRooms: campusUsesSeededWalkedRooms(state.school),
         })
       ) {

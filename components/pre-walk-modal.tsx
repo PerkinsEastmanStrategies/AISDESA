@@ -118,8 +118,8 @@ export default function PreWalkModal({
   }, [activeSpaceType])
 
   const spaceTypeOptions = useMemo(
-    () => spaceTypeOptionsForPreWalk(selectedSurveyType, state.school?.schoolClass),
-    [selectedSurveyType, state.school?.schoolClass],
+    () => spaceTypeOptionsForPreWalk(selectedSurveyType, state.school?.schoolClass, state.school),
+    [selectedSurveyType, state.school?.schoolClass, state.school],
   )
 
   const surveyMappings = useMemo(

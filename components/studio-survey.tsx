@@ -74,9 +74,9 @@ export default function StudioSurvey() {
   const outdoorSpaceTypeOptions = useMemo(
     () =>
       state.surveyType === "outdoor"
-        ? spaceTypeOptionsForSurvey("outdoor", state.school?.schoolClass)
+        ? spaceTypeOptionsForSurvey("outdoor", state.school?.schoolClass, state.school)
         : [],
-    [state.surveyType, state.school?.schoolClass],
+    [state.surveyType, state.school],
   )
 
   if (!state.school) {
@@ -107,6 +107,7 @@ export default function StudioSurvey() {
     sessionRooms: state.session?.rooms,
     preWalkMappings: state.preWalk.mappings,
     schoolClass: state.school?.schoolClass,
+    school: state.school,
   })
   const neighborhoodOnlyMode = isNeighborhoodOnlySpaceType(
     state.surveyType,

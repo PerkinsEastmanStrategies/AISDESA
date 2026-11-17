@@ -187,7 +187,7 @@ function PilotCarryOverHost() {
       return
     }
     if (remoteSchoolDraftsLoading) return
-    const listed = listPilotCarryOverRooms(school.id, school.schoolClass)
+    const listed = listPilotCarryOverRooms(school.id, school.schoolClass, school)
     const keys = listed.map((room) => room.key)
     if (!shouldPromptPilotCarryOver(school.id, keys)) {
       setOpen(false)

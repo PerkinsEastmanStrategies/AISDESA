@@ -10,7 +10,7 @@ import {
   schoolsWithManifestDisplayNames,
 } from "@/lib/floor-plan-manifest"
 
-const CACHE_KEY = "aisd-school-options-cache"
+const CACHE_KEY = "aisd-school-options-cache-v2"
 
 function readCachedSchoolOptions(): AisdSchoolOption[] | null {
   if (typeof window === "undefined") return null

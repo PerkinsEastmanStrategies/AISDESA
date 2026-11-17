@@ -25,6 +25,7 @@ import {
   usesPackageStudioRubric,
   type AisdSchoolOption,
   type RoomSurveySession,
+  type SchoolTableRef,
   type ScoredRoomEntry,
   type SurveySession,
   type SurveySubmission,
@@ -109,12 +110,13 @@ export function spaceTypeBelongsToSurvey(
   surveyType: SurveyType,
   spaceType: string | null | undefined,
   schoolClass?: string | null,
+  school?: SchoolTableRef | null,
 ): boolean {
   const type = spaceType?.trim()
   if (!type) return false
-  const ownedBy = surveyTypeForSpaceType(type, schoolClass)
+  const ownedBy = surveyTypeForSpaceType(type, schoolClass, school)
   if (ownedBy) return ownedBy === surveyType
-  if (lookupTableEntry(surveyType, type, schoolClass)) return true
+  if (lookupTableEntry(surveyType, type, schoolClass, school)) return true
   const rubric = getRoomSurveyRubric(surveyType, type, null, schoolClass)
   if (!rubric?.questions.length) return false
   if (surveyType === "studios") {
@@ -259,7 +261,9 @@ function pushAbsentCarryOverRoom(
 export function listPilotCarryOverRooms(
   schoolId: string,
   schoolClass?: string | null,
+  school?: SchoolTableRef | null,
 ): PilotCarryOverRoom[] {
+  const schoolRef = school ?? { id: schoolId }
   const rooms: PilotCarryOverRoom[] = []
   for (const draft of loadDraftsForSchool(schoolId)) {
     if (draft.surveyType === "closeout") continue
@@ -282,7 +286,7 @@ export function listPilotCarryOverRooms(
       const spaceType =
         parseAbsentSpaceTypeRoomId(room.roomId)?.spaceType?.trim() || room.roomType?.trim()
       if (!spaceType) continue
-      if (!spaceTypeBelongsToSurvey(draft.surveyType, spaceType, schoolClass)) continue
+      if (!spaceTypeBelongsToSurvey(draft.surveyType, spaceType, schoolClass, schoolRef)) continue
       const progress = roomCarryOverProgress(room, draft.surveyType, schoolClass)
       seen.add(room.roomId)
       rooms.push({
@@ -303,7 +307,7 @@ export function listPilotCarryOverRooms(
     for (const [key, exists] of Object.entries(existence)) {
       if (exists !== false) continue
       const { spaceType, neighborhood } = parseExistenceKey(key)
-      if (!spaceType || !spaceTypeBelongsToSurvey(draft.surveyType, spaceType, schoolClass)) continue
+      if (!spaceType || !spaceTypeBelongsToSurvey(draft.surveyType, spaceType, schoolClass, schoolRef)) continue
       pushAbsentCarryOverRoom(rooms, seen, draft.surveyType, spaceType, neighborhood)
     }
     for (const [key, exists] of Object.entries(draft.preWalk?.spaceTypeExists ?? {})) {
@@ -312,7 +316,7 @@ export function listPilotCarryOverRooms(
       if (!key.startsWith(prefix)) continue
       const spaceType = key.slice(prefix.length).trim()
       if (!spaceType || spaceType.includes("::")) continue
-      if (!spaceTypeBelongsToSurvey(draft.surveyType, spaceType, schoolClass)) continue
+      if (!spaceTypeBelongsToSurvey(draft.surveyType, spaceType, schoolClass, schoolRef)) continue
       pushAbsentCarryOverRoom(rooms, seen, draft.surveyType, spaceType)
     }
   }
@@ -421,7 +425,7 @@ export function prepareAutoCarryOverDraft(
   for (const [key, exists] of Object.entries(existence)) {
     if (exists !== false) continue
     const { spaceType, neighborhood } = parseExistenceKey(key)
-    if (!spaceType || !spaceTypeBelongsToSurvey(draft.surveyType, spaceType, schoolClass)) continue
+    if (!spaceType || !spaceTypeBelongsToSurvey(draft.surveyType, spaceType, schoolClass, school)) continue
     session = applySpaceTypeExistsToSession(session, spaceType, false, neighborhood)
   }
   session = applyPreWalkSpaceTypeExistsToSession(
@@ -434,7 +438,7 @@ export function prepareAutoCarryOverDraft(
     if (!absent) continue
     const spaceType =
       parseAbsentSpaceTypeRoomId(roomId)?.spaceType?.trim() || room.roomType?.trim()
-    if (!spaceType || !spaceTypeBelongsToSurvey(draft.surveyType, spaceType, schoolClass)) continue
+    if (!spaceType || !spaceTypeBelongsToSurvey(draft.surveyType, spaceType, schoolClass, school)) continue
     const neighborhood =
       parseAbsentSpaceTypeRoomId(roomId)?.neighborhood || room.neighborhood || null
     session = applySpaceTypeExistsToSession(session, spaceType, false, neighborhood)
@@ -446,7 +450,7 @@ export function prepareAutoCarryOverDraft(
     const spaceType =
       parseAbsentSpaceTypeRoomId(roomId)?.spaceType?.trim() || room.roomType?.trim()
     const absent = isAbsentSpaceTypeRoomId(roomId) || !!room.spaceTypeMarkedAbsent
-    if (!absent && !spaceTypeBelongsToSurvey(draft.surveyType, spaceType, schoolClass)) {
+    if (!absent && !spaceTypeBelongsToSurvey(draft.surveyType, spaceType, schoolClass, school)) {
       discarded.add(roomId)
       continue
     }
