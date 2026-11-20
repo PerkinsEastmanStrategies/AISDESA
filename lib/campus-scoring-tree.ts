@@ -195,7 +195,7 @@ function scoreSessionRooms(
     if (!rubric) continue
 
     next[roomId] = {
-      ...scoreRoomSessionWithMetadata(roomSession, rubric, EMPTY_WEIGHT_OVERRIDES, undefined),
+      ...scoreRoomSessionWithMetadata(roomSession, rubric, EMPTY_WEIGHT_OVERRIDES, undefined, schoolClass),
       roomId,
     }
   }

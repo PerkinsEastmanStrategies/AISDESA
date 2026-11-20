@@ -32,6 +32,24 @@ export function isNonScoringQuestion(
   return isObservationalCategory(question.category)
 }
 
+const ELEMENTARY_UNSCORED_QUESTION_IDS = new Set(["DC-008"])
+
+export function isElementarySchoolClass(schoolClass?: string | null): boolean {
+  const value = String(schoolClass ?? "").trim().toUpperCase()
+  return value === "ELEM" || value === "ES" || value === "ELEMENTARY"
+}
+
+/** Dining Commons collaboration furniture (DC-008) is recorded at ES but not scored. */
+export function isUnscoredAtSchoolClass(
+  questionId: string | null | undefined,
+  schoolClass?: string | null,
+): boolean {
+  if (!ELEMENTARY_UNSCORED_QUESTION_IDS.has(String(questionId ?? "").trim().toUpperCase())) {
+    return false
+  }
+  return isElementarySchoolClass(schoolClass)
+}
+
 /** v3 ItemScoringMode Inventory (or legacy scoreId suffix) — excluded from scoring. */
 export function isInventoryOption(opt: EsaQuestionOption): boolean {
   if (isNonScoringMode(opt.itemScoringMode)) return true

@@ -1,6 +1,8 @@
 /** Shared with AISD dashboard — lib/dashboard-data.ts FloorPlanRoom */
 
-export type RoomCondition = "good" | "fair" | "poor"
+import { SCORE_BANDS, scoreBandId, type ScoreBandId } from "../scoring/score-bands"
+
+export type RoomCondition = ScoreBandId
 
 export interface RoomEAMetric {
   name: string
@@ -34,13 +36,9 @@ export interface FloorPlanRoom {
 }
 
 export function conditionFromScore(score: number): RoomCondition {
-  if (score >= 80) return "good"
-  if (score >= 55) return "fair"
-  return "poor"
+  return scoreBandId(score) ?? "fair"
 }
 
-export const ROOM_CONDITION_FILL: Record<RoomCondition, string> = {
-  good: "#22c55e",
-  fair: "#f59e0b",
-  poor: "#ef4444",
-}
+export const ROOM_CONDITION_FILL: Record<RoomCondition, string> = Object.fromEntries(
+  SCORE_BANDS.map((band) => [band.id, band.hex]),
+) as Record<RoomCondition, string>

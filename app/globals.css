@@ -10,9 +10,11 @@
   --color-muted: #f1f5f9;
   --color-muted-foreground: #64748b;
   --color-border: #e2e8f0;
-  --color-good: #22c55e;
-  --color-fair: #f59e0b;
-  --color-poor: #ef4444;
+  --color-excellent: #0d9488;
+  --color-good: #059669;
+  --color-fair: #d97706;
+  --color-poor: #ea580c;
+  --color-critical: #e11d48;
 }
 
 * {

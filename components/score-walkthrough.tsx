@@ -176,9 +176,11 @@ export default function ScoreWalkthrough({
                   4
                 </span>
                 <span>
-                  Color bands: <span className="font-semibold text-emerald-800">70%+ good</span>,{" "}
-                  <span className="font-semibold text-amber-900">45–69% fair</span>,{" "}
-                  <span className="font-semibold text-rose-800">below 45% poor</span>.
+                  Color bands: <span className="font-semibold text-teal-800">Excellent &gt;90%</span>,{" "}
+                  <span className="font-semibold text-emerald-800">Good 80–90%</span>,{" "}
+                  <span className="font-semibold text-amber-900">Fair 70–80%</span>,{" "}
+                  <span className="font-semibold text-orange-800">Poor 60–70%</span>,{" "}
+                  <span className="font-semibold text-rose-800">Critical &lt;60%</span>.
                 </span>
               </li>
             </ol>

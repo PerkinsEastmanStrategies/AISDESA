@@ -31,7 +31,7 @@ import {
 } from "@/lib/room-plan-labels"
 import { programTypeFillColor, programTypeLegendColors } from "@/lib/program-type-colors"
 import NeighborhoodLegend from "@/components/neighborhood-legend"
-import { cn, scoreFillRgba, scoreStrokeRgba } from "@/lib/utils"
+import { cn, SCORE_BANDS, scoreFillRgba, scoreStrokeRgba } from "@/lib/utils"
 import {
   closeOutEntryForPlanRoom,
   type CloseOutRoomFloorPlanEntry,
@@ -698,9 +698,7 @@ export default function SurveyFloorPlan({
     () =>
       resultsScoreMode
         ? [
-            { label: "Good (80%+)", color: scoreFillRgba(80, 1) },
-            { label: "Fair (55–80%)", color: scoreFillRgba(55, 1) },
-            { label: "Needs attention", color: scoreFillRgba(30, 1) },
+            ...SCORE_BANDS.map((band) => ({ label: band.legend, color: band.hex })),
             { label: "Not scored", color: scoreFillRgba(null, 1) },
           ]
         : [],

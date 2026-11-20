@@ -184,11 +184,15 @@ export default function ScoringMethodologyModal({
           <div className="mt-4 rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs leading-relaxed text-slate-600">
             <p className="font-semibold text-slate-800">Score color bands</p>
             <p className="mt-1">
-              <span className="font-medium text-emerald-800">70%+ Good</span>
+              <span className="font-medium text-teal-800">Excellent &gt;90%</span>
               {" · "}
-              <span className="font-medium text-amber-900">45–69% Fair</span>
+              <span className="font-medium text-emerald-800">Good 80–90%</span>
               {" · "}
-              <span className="font-medium text-rose-800">Below 45% Needs attention</span>
+              <span className="font-medium text-amber-900">Fair 70–80%</span>
+              {" · "}
+              <span className="font-medium text-orange-800">Poor 60–70%</span>
+              {" · "}
+              <span className="font-medium text-rose-800">Critical &lt;60%</span>
             </p>
           </div>
         </div>

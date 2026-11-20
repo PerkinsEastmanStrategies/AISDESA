@@ -2613,6 +2613,7 @@ function reducer(state: SurveyState, action: Action): SurveyState {
           rubric,
           state.weightOverrides,
           parsed,
+          state.school?.schoolClass,
         )
         roomScoreDetails[roomId] = { ...result, roomId }
         roomScores[roomId] = result.overallScore
@@ -3021,6 +3022,7 @@ function buildScoredRoomEntries(state: SurveyState): ScoredRoomEntry[] {
           rubric,
           state.weightOverrides,
           parsed,
+          state.school?.schoolClass,
         )
         answeredCount = progress.answeredCount
         totalCount = progress.totalCount

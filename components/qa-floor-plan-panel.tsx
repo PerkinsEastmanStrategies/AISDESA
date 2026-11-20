@@ -12,7 +12,7 @@ import {
   neighborhoodLegendColors,
 } from "@/lib/room-neighborhood-lookup"
 import { ScoreBadge } from "@/components/score-display"
-import { cn, scoreBandLabel, scoreFillRgba, scoreStrokeRgba } from "@/lib/utils"
+import { cn, SCORE_BANDS, scoreBandLabel, scoreFillRgba, scoreStrokeRgba } from "@/lib/utils"
 
 const PAN_THRESHOLD_PX = 6
 const MIN_ZOOM = 0.75
@@ -501,18 +501,16 @@ export default function QaFloorPlanPanel({
 
       {view === "scores" ? (
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-slate-200 bg-white px-3 py-2 text-[10px] text-slate-600">
-          <span className="inline-flex items-center gap-1">
-            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-600/70" aria-hidden />
-            Good (70%+)
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500/70" aria-hidden />
-            Fair (45–69%)
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-rose-600/70" aria-hidden />
-            Needs attention (&lt;45%)
-          </span>
+          {SCORE_BANDS.map((band) => (
+            <span key={band.id} className="inline-flex items-center gap-1">
+              <span
+                className="inline-block h-2.5 w-2.5 rounded-sm"
+                style={{ backgroundColor: band.hex, opacity: 0.8 }}
+                aria-hidden
+              />
+              {band.legend}
+            </span>
+          ))}
           <span className="inline-flex items-center gap-1">
             <span className="inline-block h-2.5 w-2.5 rounded-sm bg-slate-300/50" aria-hidden />
             No score

@@ -387,6 +387,7 @@ export function ensureWalkthroughScoreDetails(
       rubric,
       EMPTY_WEIGHT_OVERRIDES,
       undefined,
+      schoolClass,
     )
     next[roomId] = { ...result, roomId }
     changed = true

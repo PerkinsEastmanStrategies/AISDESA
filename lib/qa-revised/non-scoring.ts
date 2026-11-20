@@ -1,3 +1,4 @@
+import { isUnscoredAtSchoolClass } from "@aisd/shared"
 import { isObservational } from "@/lib/qa-revised/normalize"
 
 export function isInventoryText(value: string | null | undefined): boolean {
@@ -55,7 +56,6 @@ const SURVEY_INVENTORY_QUESTION_IDS = new Set([
   "DN-002",
   "DN-003",
   "DN-004",
-  "EG-008",
   "EM-004",
   "LI-002",
   "LI-020",
@@ -202,6 +202,7 @@ export function isNonScoringQuestion(input: {
   weight?: number | null
 }): boolean {
   if (isDiningCommonsTackboardQuestion(input.questionId)) return true
+  if (isUnscoredAtSchoolClass(input.questionId, input.schoolLevel)) return true
   if (isShelterInPlaceSafetyLabel(input.itemLabel)) return true
   if (isSurveyInventoryQuestion(input.questionId)) return true
   if (isSpecialEducationAcousticQuestion(input)) return true

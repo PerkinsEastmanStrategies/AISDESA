@@ -256,6 +256,32 @@ export function collapseAdjacentVisibilitySelectAll<
   })
 }
 
+export function isBalletBarresQuestion(
+  question: Pick<EsaQuestion, "question"> & { questionId?: string },
+): boolean {
+  if (String(question.questionId ?? "").trim().toUpperCase() === "DN-020") return true
+  return /what type of ballet barres are provided/i.test(String(question.question ?? "").trim())
+}
+
+/** Ballet barres (DN-020): max of selected types, 1 point = 100%. */
+export function collapseBalletBarresSelectAll<
+  T extends { questionId: string; question: string; score: number },
+>(units: T[]): T[] {
+  const maxByQuestion = new Map<string, number>()
+  for (const unit of units) {
+    if (!isBalletBarresQuestion(unit)) continue
+    if (!Number.isFinite(unit.score)) continue
+    const current = maxByQuestion.get(unit.questionId)
+    if (current == null || unit.score > current) maxByQuestion.set(unit.questionId, unit.score)
+  }
+  if (!maxByQuestion.size) return units
+  return units.map((unit) => {
+    const max = maxByQuestion.get(unit.questionId)
+    if (max == null || !Number.isFinite(unit.score) || unit.score === max) return unit
+    return { ...unit, score: max }
+  })
+}
+
 export function collapseSelectAllQuestionScores<
   T extends {
     questionId: string
@@ -271,7 +297,9 @@ export function collapseSelectAllQuestionScores<
         omitSafetyShelterInPlace(
           collapsePlayFieldFeaturesSelectAll(
             collapseAdjacentVisibilitySelectAll(
-              collapseInteriorVisibilitySelectAll(collapseExteriorWindowsSelectAll(units)),
+              collapseInteriorVisibilitySelectAll(
+                collapseBalletBarresSelectAll(collapseExteriorWindowsSelectAll(units)),
+              ),
             ),
           ),
         ),

@@ -85,7 +85,7 @@ function unitsFromRoomSession(
   )
   if (!rubric) return []
 
-  const result = scoreRoomSessionWithMetadata(roomSession, rubric, EMPTY_WEIGHT_OVERRIDES)
+  const result = scoreRoomSessionWithMetadata(roomSession, rubric, EMPTY_WEIGHT_OVERRIDES, undefined, schoolClass)
   const questionById = new Map(rubric.questions.map((question) => [question.questionId, question]))
   const parentByUnit = new Map<string, string>()
   for (const opt of rubric.options) {

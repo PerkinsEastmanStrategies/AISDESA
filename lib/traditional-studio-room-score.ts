@@ -7,6 +7,7 @@ import type {
 } from "@aisd/shared"
 import {
   isTraditionalStudioRoomType,
+  isUnscoredAtSchoolClass,
   mergeTraditionalStudioSizeScore,
   mergeRubricWeights,
   scoreRoom,
@@ -48,10 +49,15 @@ export function scoreRoomSessionWithMetadata(
   },
   weightOverrides: WeightOverrides,
   planRoom?: { areaSqft?: number | null },
+  schoolClass?: string | null,
 ): RoomScoreResult {
   const weights = mergeRubricWeights(rubric, weightOverrides)
   const skippedQuestionIds = rubric.questions
-    .filter((q) => isSkippedDependentQuestion(q.questionId, roomSession.responses, rubric.questions))
+    .filter(
+      (q) =>
+        isSkippedDependentQuestion(q.questionId, roomSession.responses, rubric.questions) ||
+        isUnscoredAtSchoolClass(q.questionId, schoolClass),
+    )
     .map((q) => q.questionId)
 
   let result = scoreRoom(
